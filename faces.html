@@ -1,0 +1,337 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<script>
+window.onload = main;
+
+Face = (function(undefined, window){
+
+  var lineWidth_ = 10;
+  var lineStyle_ = "black";
+  var backStyle_ = "orange";
+  var openEyeSize_ = 15;
+  var closedEyeSize_ = 30;
+  var eyeSeparation_ = 40;
+  var eyeBrowMadSeparation_ = 30;
+  var eyeBrowSadSeparation_ = 50;
+  var eyeBrowYOffset_ = -60;
+  var mouthSize_ = 50;
+  var mouthYOffset_ = 20;
+
+  var none = function() {
+  };
+
+  var drawClosedEyeUp = function(ctx) {
+    ctx.beginPath();
+    ctx.arc(0, 0, closedEyeSize_, 0, Math.PI, true);
+    ctx.stroke();
+  };
+
+  var drawClosedEyeDown = function(ctx) {
+    ctx.beginPath();
+    ctx.arc(0, -closedEyeSize_, closedEyeSize_, Math.PI, 0, true);
+    ctx.stroke();
+  };
+
+  var drawOpenEye = function(ctx) {
+    ctx.beginPath();
+    ctx.arc(0, 0, openEyeSize_, 0, Math.PI * 2, true);
+    ctx.fill();
+  };
+
+  var drawEyes = function(ctx, eyeFunc) {
+    for (var ii = 0; ii < 2; ++ii) {
+      ctx.save();
+      ctx.translate(-eyeSeparation_ + eyeSeparation_ * 2 * ii, 0);
+      eyeFunc(ctx);
+      ctx.restore();
+    }
+  };
+
+  var drawOpenEyes = function(ctx) {
+    ctx.save();
+    ctx.translate(0, -closedEyeSize_ * 0.5);
+    drawEyes(ctx, drawOpenEye);
+    ctx.restore();
+  };
+
+  var drawWink = function(ctx) {
+    ctx.save();
+    ctx.translate(0, -closedEyeSize_ * 0.5);
+    ctx.save();
+    ctx.translate(-eyeSeparation_, 0);
+    drawOpenEye(ctx);
+    ctx.restore();
+    ctx.save();
+    ctx.translate(eyeSeparation_, 0);
+    ctx.beginPath();
+    ctx.moveTo(-20, 0);
+    ctx.lineTo(20, 0);
+    ctx.stroke();
+    ctx.restore();
+    ctx.restore();
+  };
+
+  var drawClosedEyesDown = function(ctx) {
+    drawEyes(ctx, drawClosedEyeDown);
+  };
+
+  var drawClosedEyesUp = function(ctx) {
+    ctx.save();
+    drawEyes(ctx, drawClosedEyeUp);
+    ctx.restore();
+  };
+
+  var drawSmile = function(ctx) {
+    ctx.save();
+    ctx.translate(0, mouthYOffset_);
+    ctx.beginPath();
+    ctx.arc(0, 0, mouthSize_, Math.PI, 0, true);
+    ctx.stroke();
+    ctx.restore();
+  };
+
+  var drawLaugh = function(ctx) {
+    ctx.save();
+    ctx.translate(0, mouthYOffset_);
+    ctx.fillStyle = lineStyle_;
+    ctx.beginPath();
+    ctx.arc(0, 0, mouthSize_, Math.PI, 0, true);
+    ctx.fill();
+    ctx.fillStyle = backStyle_;
+    ctx.beginPath();
+    var s = lineWidth_ / mouthSize_;
+    ctx.translate(0, lineWidth_);
+    ctx.scale(1 - s * 1.3, 1 - s * 2);
+    ctx.arc(0, 0, mouthSize_, Math.PI, 0, true);
+    ctx.fill();
+    ctx.restore();
+  };
+
+  var drawFrown = function(ctx) {
+    ctx.save();
+    ctx.translate(0, mouthYOffset_);
+    ctx.beginPath();
+    ctx.arc(0, mouthSize_, mouthSize_, 0, Math.PI, true);
+    ctx.stroke();
+    ctx.restore();
+  };
+
+  var drawAntiLaugh = function(ctx) {
+    ctx.save();
+    ctx.translate(0, mouthSize_ + mouthYOffset_);
+    ctx.fillStyle = lineStyle_;
+    ctx.beginPath();
+    ctx.arc(0, 0, mouthSize_, 0, Math.PI, true);
+    ctx.fill();
+    ctx.fillStyle = backStyle_;
+    ctx.beginPath();
+    var s = lineWidth_ / mouthSize_;
+    ctx.translate(0, -lineWidth_);
+    ctx.scale(1 - s * 1.3, 1 - s * 2);
+    ctx.arc(0, 0, mouthSize_, 0, Math.PI, true);
+    ctx.fill();
+    ctx.restore();
+  };
+
+  var drawSurprize = function(ctx) {
+    ctx.save();
+    ctx.translate(0, mouthYOffset_ + mouthSize_ / 2);
+    ctx.beginPath();
+    ctx.arc(0, 0, mouthSize_ / 2, 0, Math.PI * 2, true);
+    ctx.stroke();
+    ctx.restore();
+  };
+
+  var drawHrm = function(ctx) {
+    ctx.save();
+    ctx.translate(0, mouthYOffset_ + mouthSize_ / 2)
+    for (var ii = -2; ii <= 2; ++ii) {
+      ctx.beginPath();
+      ctx.arc(
+        mouthSize_ / 2.5 * ii,
+        0,
+        mouthSize_ / 5,
+        ii % 2 ? Math.PI : 0,
+        ii % 2 ? 0 : Math.PI,
+        true);
+      ctx.stroke();
+    }
+    ctx.restore();
+  };
+
+  var drawPucker = function(ctx) {
+    ctx.save();
+    ctx.translate(0, mouthYOffset_ + mouthSize_ / 2);
+    ctx.beginPath();
+    ctx.arc(0, 0, mouthSize_ / 4, 0, Math.PI * 2, true);
+    ctx.fill();
+    ctx.restore();
+  };
+
+  var drawBrows = function(ctx, browFunc, separation) {
+    for (var ii = 0; ii < 2; ++ii) {
+      ctx.save();
+      ctx.translate(-separation + separation * 2 * ii, eyeBrowYOffset_);
+      ctx.scale(ii ? -1 : 1, 1);
+      browFunc(ctx);
+      ctx.restore();
+    }
+  };
+
+  var drawMadBrow = function(ctx) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(-20, -20);
+    ctx.lineTo(20, 20);
+    ctx.stroke();
+    ctx.restore();
+  };
+
+  var drawMadBrows = function(ctx) {
+    drawBrows(ctx, drawMadBrow, eyeBrowMadSeparation_);
+  };
+
+  var drawSadBrow = function(ctx) {
+    ctx.save();
+    ctx.beginPath();
+    ctx.moveTo(20, -20);
+    ctx.lineTo(-20, 20);
+    ctx.stroke();
+    ctx.restore();
+  };
+
+  var drawSadBrows = function(ctx) {
+    drawBrows(ctx, drawSadBrow, eyeBrowSadSeparation_);
+  };
+
+  var parts_ = [
+    [
+      none,
+      drawMadBrows,
+      drawSadBrows,
+    ],
+    [
+      drawOpenEyes,
+      drawClosedEyesUp,
+      drawClosedEyesDown,
+      drawWink,
+    ],
+    [
+      drawSmile,
+      drawLaugh,
+      drawFrown,
+      drawAntiLaugh,
+      drawSurprize,
+      drawHrm,
+      drawPucker,
+    ],
+  ];
+
+  var randInt = function(range) {
+    return Math.floor(Math.random() * range);
+  };
+
+  var draw = function(ctx, partIndices) {
+    ctx.lineWidth = lineWidth_;
+    ctx.strokeStyle = lineStyle_;
+    ctx.fillStyle = backStyle_;
+
+    ctx.beginPath();
+    ctx.arc(0, 0, 120, 0, Math.PI * 2, true);
+    ctx.fill();
+    ctx.stroke();
+
+    ctx.save();
+    ctx.translate(0, 20);
+    ctx.fillStyle = lineStyle_;
+
+    //drawOpenEyes(ctx);
+    //drawClosedEyesDown(ctx);
+    //drawClosedEyesUp(ctx);
+    //drawWink(ctx);
+
+    //drawSmile(ctx);
+    //drawLaugh(ctx);
+    //drawFrown(ctx);
+    //drawAntiLaugh(ctx);
+    //drawSurprize(ctx);
+    //drawHrm(ctx);
+    //drawPucker(ctx);
+
+    //drawMadBrows(ctx);
+    //drawSadBrows(ctx);
+
+    for (var ii = 0; ii < parts_.length; ++ii) {
+      var funcs = parts_[ii];
+      var index = partIndices[ii];
+      funcs[index](ctx);
+    }
+
+    ctx.restore();
+  };
+
+  var partIndices_;
+  var partKeys_;
+
+  var drawNextRandomFace = function(ctx) {
+    if (!partIndices_) {
+      partIndices_ = [];
+      for (var ii = 0; ii < parts_.length; ++ii) {
+        var funcs = parts_[ii];
+        partIndices_.push(randInt(funcs.length));
+      }
+    }
+
+    // pick a random part to change
+    var partIndex = randInt(parts_.length);
+    // change that part
+    var funcs = parts_[partIndex];
+    // Don't pick the same part.
+    var newPart = randInt(funcs.length - 1);
+    if (newPart >= partIndices_[partIndex]) {
+      ++newPart;
+    }
+    partIndices_[partIndex] = newPart;
+
+    draw(ctx, partIndices_);
+  };
+
+
+  return {
+    draw: draw,
+    drawNextRandomFace: drawNextRandomFace,
+
+    dummy: undefined,
+  };
+}());
+
+
+function main() {
+  var canvas = document.getElementById("c");
+  var ctx = canvas.getContext("2d");
+  var triggerDraw;
+
+  var drawFace = function() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.save();
+    ctx.translate(128, 128);
+    Face.drawNextRandomFace(ctx);
+    ctx.restore();
+    window.setTimeout(triggerDraw, 1000);
+  };
+
+  triggerDraw = function() {
+    window.webkitRequestAnimationFrame(drawFace);
+  }
+  triggerDraw();
+}
+
+</script>
+</head>
+<body>
+<canvas id="c" width="256" height="256"></canvas>
+</body>
+</html>
+
