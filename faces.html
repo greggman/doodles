@@ -309,16 +309,33 @@ Face = (function(undefined, window){
 
 
 function main() {
-  var canvas = document.getElementById("c");
+  var canvas = document.createElement("canvas");
+  canvas.width = 128;
+  canvas.height = 128;
   var ctx = canvas.getContext("2d");
   var triggerDraw;
+  var maxImages = 20;
+  var images = [];
+  var imageNdx = 0;
 
   var drawFace = function() {
     ctx.clearRect(0, 0, canvas.width, canvas.height);
     ctx.save();
+    ctx.scale(canvas.width / 256, canvas.height / 256);
     ctx.translate(128, 128);
     Face.drawNextRandomFace(ctx);
     ctx.restore();
+
+    var img = images[imageNdx];
+    if (!img) {
+      img = new Image();
+      images[imageNdx] = img;
+      document.body.appendChild(img);
+    }
+    imageNdx = (imageNdx + 1) % maxImages;
+
+    img.src = canvas.toDataURL();
+
     window.setTimeout(triggerDraw, 1000);
   };
 
@@ -329,9 +346,17 @@ function main() {
 }
 
 </script>
+<style>
+body {
+    display: flex;
+    flex-flow: row wrap;
+    text-align: center;
+  -webkit-box-pack: center;
+  -webkit-box-align: center;
+ }
+</style>
 </head>
 <body>
-<canvas id="c" width="256" height="256"></canvas>
 </body>
 </html>
 
