@@ -2,9 +2,8 @@
 <html>
 <head>
 <meta charset="utf-8">
+<script src="js/jquery-1.7.1.min.js"></script>
 <script>
-window.onload = main;
-
 Face = (function(undefined, window){
 
   var lineWidth_ = 10;
@@ -314,7 +313,7 @@ function main() {
   canvas.height = 128;
   var ctx = canvas.getContext("2d");
   var triggerDraw;
-  var maxImages = 20;
+  var numImages = 20;
   var images = [];
   var imageNdx = 0;
 
@@ -332,18 +331,49 @@ function main() {
       images[imageNdx] = img;
       document.body.appendChild(img);
     }
-    imageNdx = (imageNdx + 1) % maxImages;
+    imageNdx = (imageNdx + 1) % numImages;
 
     img.src = canvas.toDataURL();
+  };
 
+  var setNumFaces = function() {
+    var across = Math.floor($(window).width() / canvas.width);
+    var down   = Math.floor($(window).height() / canvas.height);
+    numImages = Math.max(1, across * down);
+
+    // remove un-needed images
+    while (images.length > numImages) {
+      document.body.removeChild(images[images.length - 1]);
+      images.splice(images.length - 1, 1);
+    }
+
+    if (images.length) {
+      imageNdx = imageNdx % images.length;
+    }
+
+    // add needed images
+    while (images.length < numImages) {
+      drawFace();
+    }
+  };
+
+  $(window).resize(setNumFaces);
+  setNumFaces();
+
+  var drawFaceAndContinue = function() {
+    drawFace();
     window.setTimeout(triggerDraw, 1000);
   };
 
   triggerDraw = function() {
-    window.webkitRequestAnimationFrame(drawFace);
+    window.webkitRequestAnimationFrame(drawFaceAndContinue);
   }
   triggerDraw();
 }
+
+$(function(){
+  main();
+});
 
 </script>
 <style>
