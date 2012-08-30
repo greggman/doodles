@@ -1,7 +1,7 @@
 Various Random Doodles
 ======================
 
-http://greggman.github.com/faces/faces.html
+http://greggman.github.com/doodles/faces.html
 
-http://greggman.github.com/faces/fork.html
+http://greggman.github.com/doodles/fork.html
 
