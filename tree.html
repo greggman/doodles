@@ -33,7 +33,7 @@ body, html {
 </style>
 <script src="js/jquery-1.7.1.min.js"></script>
 <script src="js/webgl-utils.js"></script>
-<script id="code">
+<script id="code" type="something-not-javascript">
 Tree = (function(undefined, window){
   var randInt = function(range) {
     return Math.floor(Math.random() * range);
@@ -89,6 +89,7 @@ var draw = function(ctx) {
   ctx.restore();
 };
 
+draw(ctx);
 </script>
 <script>
 function main() {
@@ -97,6 +98,7 @@ function main() {
 
   var source = document.getElementById("code").text;
   var editor = document.getElementById("editor");
+  var func = function() {};
   editor.value = source;
 
   var resizeCanvas = function() {
@@ -105,12 +107,34 @@ function main() {
       canvas.width = canvas.clientWidth;
       canvas.height = canvas.clientHeight;
     }
-    draw(ctx);
+    func(ctx);
+  };
+
+  var temp;
+  var onSourceChange = function() {
+    source = editor.value;
+    var success = true;
+    var e;
+    var temp;
+    try {
+      var t = "temp = {fn: function() { return function(ctx) {" + source + "}; }()}";
+      var f = eval(t).fn;
+      f(ctx);
+    } catch (e) {
+      console.log(e);
+      success = false
+    }
+
+    if (success) {
+      func = f;
+    }
   };
 
   $(window).resize(resizeCanvas);
+  editor.addEventListener('keyup', onSourceChange);
 
   resizeCanvas();
+  onSourceChange();
 }
 
 $(function(){
