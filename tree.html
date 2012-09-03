@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="js/jquery-1.7.1.min.js"></script>
+<script src="js/webgl-utils.js"></script>
+<script>
+Tree = (function(undefined, window){
+  var randInt = function(range) {
+    return Math.floor(Math.random() * range);
+  };
+
+  var drawBranch = function(ctx, options, depth) {
+    ++depth;
+    for (var ii = 0; ii < options.numBranches; ++ii) {
+      var lerp = ii / (options.numBranches - 1);
+      var branchLerp = lerp * 2 - 1;
+      ctx.save();
+      var r = options.branchRotate * branchLerp;
+      ctx.rotate(r);
+      ctx.beginPath()
+      ctx.moveTo(0, 0);
+      var len = options.branchLength / Math.pow(options.lengthFudge, depth);
+      ctx.lineTo(0, len);
+      ctx.stroke();
+      if (depth < options.maxDepth) {
+        ctx.translate(0, len);
+        drawBranch(ctx, options, depth)
+      }
+      ctx.restore();
+    }
+  };
+
+  var drawTree = function(ctx, options) {
+    drawBranch(ctx, options, 0);
+  };
+
+  return {
+    draw: drawTree,
+
+    dummy: undefined,
+  };
+}());
+
+
+function main() {
+  var canvas = document.getElementById("canvas");
+  var ctx = canvas.getContext("2d");
+  var triggerDraw;
+
+  var draw = function() {
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    ctx.strokeStyle = "black";
+    ctx.save();
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+//    ctx.translate(canvas.width / 2, 0);
+
+    Tree.draw(ctx, {
+      maxDepth: 6,
+      numBranches: 2,
+      branchLength: 128,
+      lengthFudge: 1.3,
+      branchRotate: (Math.PI * 0.3),
+    });
+
+    ctx.restore();
+  };
+
+  var drawAndContinue = function() {
+    draw();
+//    window.setTimeout(triggerDraw, 1000);
+  };
+
+  triggerDraw = function() {
+    requestAnimFrame(drawAndContinue);
+  }
+  triggerDraw();
+}
+
+$(function(){
+  main();
+});
+
+</script>
+<style>
+body {
+    display: flex;
+    flex-flow: row wrap;
+    text-align: center;
+  -webkit-box-pack: center;
+  -webkit-box-align: center;
+ }
+</style>
+</head>
+<body>
+<canvas id="canvas" width="1024" height="1024"></canvas>
+</body>
+</html>
+
