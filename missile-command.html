@@ -83,7 +83,13 @@ var randInt = function(range) {
 };
 
 var drawPixel = function(x, y, color) {
-  ctx.fillStyle = color;
+  if (!color) {
+    ctx.fillStyle = "rgba(0,0,0,1)";
+    ctx.globalCompositeOperation = "destination-out";
+  } else {
+    ctx.fillStyle = color;
+    ctx.globalCompositeOperation = "source-over";
+  }
   ctx.fillRect(x, y, 1, 1);
 };
 
@@ -134,7 +140,7 @@ var killMissile = function(missile) {
 };
 
 var processMissiles = function() {
-  var color = getFlashingColor();
+  var color = "black";
   for (var ii = 0; ii < missiles.length; ++ii) {
     var missile = missiles[ii];
     var line = missile.line;
@@ -147,14 +153,13 @@ var processMissiles = function() {
       var x = line.position[0];
       var y = line.position[1];
       var pixel = ctx.getImageData(x, y, 1, 1);
-      // Since we are only using white/red and black then
-      // checking for green is enough.
-      if (pixel.data[1] > 0) {
+      // Check for the flashing color (this means 2 missiles
+      // can hit each other which is not the real missile command.
+      if (pixel.data[3] == 0) {
         killMissile(missile);
         break;
       } else {
-        // WTF! No easy way to draw in rgba(0,0,0,0) :-( ?
-        drawPixel(x, y, color);
+        drawPixel(x, y);
       }
     }
   }
@@ -170,14 +175,18 @@ var processMissiles = function() {
 };
 
 var processExplosions = function() {
-  var flashColor = "white"; // getFlashingColor();
   ctx.lineWidth = 2;
   for (var ii = 0; ii < explosions.length; ++ii) {
     var explosion = explosions[ii];
     --explosion.counter;
     var radius = explosion.halfLife - (explosion.counter % explosion.halfLife);
-    var color = explosion.counter <= explosion.halfLife ? "black" : flashColor;
-    ctx.strokeStyle = color;
+    if (explosion.counter <= explosion.halfLife) {
+      ctx.globalCompositeOperation = "source-over";
+      ctx.strokeColor = "black";
+    } else {
+      ctx.globalCompositeOperation = "destination-out";
+      ctx.strokeColor = "rgba(0,0,0,1)";
+    }
     ctx.beginPath();
     ctx.arc(explosion.x, explosion.y, Math.max(0, radius), 0, 360, false);
     ctx.stroke();
@@ -194,7 +203,6 @@ var processExplosions = function() {
 };
 
 var cycleBackgroundColor = function() {
-  return;
   canvas.style.backgroundColor = getFlashingColor();
 };
 
