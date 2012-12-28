@@ -18,6 +18,7 @@ var ctx;
 var frameCount = 0;
 var missiles = [];
 var explosions = [];
+var missileId = 0;
 
 var clearToBlack = function () {
   ctx.fillStyle = "black";
@@ -35,50 +36,43 @@ var getFlashingColor = function() {
   return cycleColors[frameCount % cycleColors.length];
 };
 
-/*
-    void drawLine(int x1, int y1, int x2, int y2) {
-        int deltaX = x2 - x1;
-        int deltaRow = abs(deltaX);
-        int rowInc = sign(deltaX);
+var setupLine = function(x, y, targetX, targetY) {
+  var deltaX = targetX - x;
+  var deltaY = targetY - y;
+  var deltaRow = Math.abs(deltaX);
+  var deltaCol = Math.abs(deltaY);
+  var counter = Math.max(deltaCol, deltaRow);
+  var axis = counter == deltaCol ? 1 : 0;
 
-        int deltaY = y2 - y1;
-        int deltaCol = abs(deltaY);
-        int colInc = sign(deltaY);
+  // setup a line draw.
+  var line = {
+    position: [x, y],
+    delta: [deltaX, deltaY],
+    deltaPerp: [deltaRow, deltaCol],
+    inc: [sign(deltaX), sign(deltaY)],
+    accum: Math.floor(counter / 2),
+    counter: counter,
+    endPnt: counter,
+    axis: axis,
+  };
+  return line;
+};
 
-        int rowAccum = 0;
-        int colAccum = 0;
-        int rowCursor = x1;
-        int colCursor = y1;
-
-        int counter = max(deltaCol, deltaRow);
-        int endPnt = counter;
-        if (counter == deltaCol) {
-            rowAccum = endPnt / 2;
-            for (; counter > 0; --counter) {
-                rowAccum += deltaRow;
-                if (rowAccum >= endPnt) {
-                    rowAccum -= endPnt;
-                    rowCursor += rowInc;
-                }
-
-                colCursor += colInc;
-                setPixel(rowCursor, colCursor);
-            }
-
-        } else {
-            colAccum = endPnt / 2;
-            for (; counter > 0; --counter) {
-                colAccum += deltaCol;
-                if (colAccum > endPnt) {
-                    colAccum -= endPnt;
-                    colCursor += colInc;
-                }
-                rowCursor += rowInc;
-                setPixel(rowCursor, colCursor);
-            }
-        }
-    };
-*/
+var advanceLine = function(line) {
+  --line.counter;
+  if (line.counter <= 0) {
+    return false;
+  }
+  var axis = line.axis;
+  var perp = 1 - axis;
+  line.accum += line.deltaPerp[perp];
+  if (line.accum >= line.endPnt) {
+    line.accum -= line.endPnt;
+    line.position[perp] += line.inc[perp];
+  }
+  line.position[axis] += line.inc[axis];
+  return true;
+};
 
 var sign = function(v) {
   return (v > 0) ? 1 : ((v < 0) ? -1 : 0);
@@ -100,23 +94,14 @@ var addMissile = function() {
   var y = top ? 0 : canvas.height - 1;
   var targetX = Math.floor((Math.random() * 0.6 + 0.2) * canvas.width);
   var targetY = Math.floor((Math.random() * 0.3 + top ? 0.5 : 0.2) * canvas.height);
-  var deltaX = targetX - x;
-  var deltaY = targetY - y;
-  var deltaRow = Math.abs(deltaX);
-  var deltaCol = Math.abs(deltaY);
-  var counter = Math.max(deltaCol, deltaRow);
-  var axis = counter == deltaCol ? 1 : 0;
 
   // setup a line draw.
+  var line = setupLine (x, y, targetX, targetY);
   var missile = {
-    position: [x, y],
-    delta: [deltaX, deltaY],
-    deltaPerp: [deltaRow, deltaCol],
-    inc: [sign(deltaX), sign(deltaY)],
-    accum: Math.floor(counter / 2),
-    counter: counter,
-    endPnt: counter,
-    axis: axis,
+    id: ++missileId,
+    start: [x, y],
+    target: [targetX, targetY],
+    line: line,
     speed: 1 + randInt(3),
   };
 
@@ -134,34 +119,50 @@ var addExplosion = function(x, y) {
   explosions.push(explosion);
 };
 
+var killMissile = function(missile) {
+  // erase missile.
+  var line = missile.line;
+  var eraseLine = setupLine(
+      missile.start[0], missile.start[1],
+      missile.target[0], missile.target[1]);
+  eraseLine.counter -= missile.line.counter;
+  missile.line.counter = 0;
+  while (advanceLine(eraseLine)) {
+    drawPixel(eraseLine.position[0], eraseLine.position[1], "black");
+  }
+  addExplosion(line.position[0], line.position[1]);
+};
+
 var processMissiles = function() {
   var color = getFlashingColor();
   for (var ii = 0; ii < missiles.length; ++ii) {
     var missile = missiles[ii];
+    var line = missile.line;
     for (var step = 0; step < missile.speed; ++step) {
-      drawPixel(missile.position[0], missile.position[1], "red");
-      --missile.counter;
-      if (missile.counter <= 0) {
-        addExplosion(missile.position[0], missile.position[1]);
+      drawPixel(line.position[0], line.position[1], "red");
+      if (!advanceLine(line)) {
+        killMissile(missile);
         break;
       }
-      var axis = missile.axis;
-      var perp = 1 - axis;
-      missile.accum += missile.deltaPerp[perp];
-      if (missile.accum >= missile.endPnt) {
-        missile.accum -= missile.endPnt;
-        missile.position[perp] += missile.inc[perp];
+      var x = line.position[0];
+      var y = line.position[1];
+      var pixel = ctx.getImageData(x, y, 1, 1);
+      // Since we are only using white/red and black then
+      // checking for green is enough.
+      if (pixel.data[1] > 0) {
+        killMissile(missile);
+        break;
+      } else {
+        // WTF! No easy way to draw in rgba(0,0,0,0) :-( ?
+        drawPixel(x, y, color);
       }
-      missile.position[axis] += missile.inc[axis];
-      // WTF! No easy way to draw in rgba(0,0,0,0) :-( ?
-      drawPixel(missile.position[0], missile.position[1], color);
     }
   }
   // remove dead missiles.
   var m = [];
   for (var ii = 0; ii < missiles.length; ++ii) {
     var missile = missiles[ii];
-    if (missile.counter > 0) {
+    if (missile.line.counter > 0) {
       m.push(missile);
     }
   }
@@ -175,7 +176,7 @@ var processExplosions = function() {
     var explosion = explosions[ii];
     --explosion.counter;
     var radius = explosion.halfLife - (explosion.counter % explosion.halfLife);
-    var color = explosion.counter > explosion.halfLife ? flashColor : "black";
+    var color = explosion.counter <= explosion.halfLife ? "black" : flashColor;
     ctx.strokeStyle = color;
     ctx.beginPath();
     ctx.arc(explosion.x, explosion.y, Math.max(0, radius), 0, 360, false);
