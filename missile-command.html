@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html>
+<title>Missile Command</title>
+<style>
+body, html {
+    background: purple;
+    margin: 20px;
+}
+canvas {
+    border: 1px solid red;
+    width: 640px;
+    height: 480px;
+}
+</style>
+<script>
+var canvas;
+var ctx;
+var frameCount = 0;
+var missiles = [];
+var explosions = [];
+
+var clearToBlack = function () {
+  ctx.fillStyle = "black";
+  ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+};
+
+var cycleColors = [
+  "red",
+  "green",
+  "blue",
+  "white",
+];
+
+var getFlashingColor = function() {
+  return cycleColors[frameCount % cycleColors.length];
+};
+
+/*
+    void drawLine(int x1, int y1, int x2, int y2) {
+        int deltaX = x2 - x1;
+        int deltaRow = abs(deltaX);
+        int rowInc = sign(deltaX);
+
+        int deltaY = y2 - y1;
+        int deltaCol = abs(deltaY);
+        int colInc = sign(deltaY);
+
+        int rowAccum = 0;
+        int colAccum = 0;
+        int rowCursor = x1;
+        int colCursor = y1;
+
+        int counter = max(deltaCol, deltaRow);
+        int endPnt = counter;
+        if (counter == deltaCol) {
+            rowAccum = endPnt / 2;
+            for (; counter > 0; --counter) {
+                rowAccum += deltaRow;
+                if (rowAccum >= endPnt) {
+                    rowAccum -= endPnt;
+                    rowCursor += rowInc;
+                }
+
+                colCursor += colInc;
+                setPixel(rowCursor, colCursor);
+            }
+
+        } else {
+            colAccum = endPnt / 2;
+            for (; counter > 0; --counter) {
+                colAccum += deltaCol;
+                if (colAccum > endPnt) {
+                    colAccum -= endPnt;
+                    colCursor += colInc;
+                }
+                rowCursor += rowInc;
+                setPixel(rowCursor, colCursor);
+            }
+        }
+    };
+*/
+
+var sign = function(v) {
+  return (v > 0) ? 1 : ((v < 0) ? -1 : 0);
+};
+
+var randInt = function(range) {
+  return Math.floor(Math.random() * range);
+};
+
+var drawPixel = function(x, y, color) {
+  ctx.fillStyle = color;
+  ctx.fillRect(x, y, 1, 1);
+};
+
+var addMissile = function() {
+  // top or bottom?
+  var top = Math.random() > 0.5;
+  var x = Math.floor(Math.random() * canvas.width);
+  var y = top ? 0 : canvas.height - 1;
+  var targetX = Math.floor((Math.random() * 0.6 + 0.2) * canvas.width);
+  var targetY = Math.floor((Math.random() * 0.3 + top ? 0.5 : 0.2) * canvas.height);
+  var deltaX = targetX - x;
+  var deltaY = targetY - y;
+  var deltaRow = Math.abs(deltaX);
+  var deltaCol = Math.abs(deltaY);
+  var counter = Math.max(deltaCol, deltaRow);
+  var axis = counter == deltaCol ? 1 : 0;
+
+  // setup a line draw.
+  var missile = {
+    position: [x, y],
+    delta: [deltaX, deltaY],
+    deltaPerp: [deltaRow, deltaCol],
+    inc: [sign(deltaX), sign(deltaY)],
+    accum: Math.floor(counter / 2),
+    counter: counter,
+    endPnt: counter,
+    axis: axis,
+    speed: 1 + randInt(3),
+  };
+
+  missiles.push(missile);
+};
+
+var addExplosion = function(x, y) {
+  var duration = 90;
+  var explosion = {
+    x: x,
+    y: y,
+    counter: duration,
+    halfLife: Math.floor(duration / 2),
+  };
+  explosions.push(explosion);
+};
+
+var processMissiles = function() {
+  var color = getFlashingColor();
+  for (var ii = 0; ii < missiles.length; ++ii) {
+    var missile = missiles[ii];
+    for (var step = 0; step < missile.speed; ++step) {
+      drawPixel(missile.position[0], missile.position[1], "red");
+      --missile.counter;
+      if (missile.counter <= 0) {
+        addExplosion(missile.position[0], missile.position[1]);
+        break;
+      }
+      var axis = missile.axis;
+      var perp = 1 - axis;
+      missile.accum += missile.deltaPerp[perp];
+      if (missile.accum >= missile.endPnt) {
+        missile.accum -= missile.endPnt;
+        missile.position[perp] += missile.inc[perp];
+      }
+      missile.position[axis] += missile.inc[axis];
+      // WTF! No easy way to draw in rgba(0,0,0,0) :-( ?
+      drawPixel(missile.position[0], missile.position[1], color);
+    }
+  }
+  // remove dead missiles.
+  var m = [];
+  for (var ii = 0; ii < missiles.length; ++ii) {
+    var missile = missiles[ii];
+    if (missile.counter > 0) {
+      m.push(missile);
+    }
+  }
+  missiles = m;
+};
+
+var processExplosions = function() {
+  var flashColor = "white"; // getFlashingColor();
+  ctx.lineWidth = 2;
+  for (var ii = 0; ii < explosions.length; ++ii) {
+    var explosion = explosions[ii];
+    --explosion.counter;
+    var radius = explosion.halfLife - (explosion.counter % explosion.halfLife);
+    var color = explosion.counter > explosion.halfLife ? flashColor : "black";
+    ctx.strokeStyle = color;
+    ctx.beginPath();
+    ctx.arc(explosion.x, explosion.y, Math.max(0, radius), 0, 360, false);
+    ctx.stroke();
+  }
+  // remove dead explosions.
+  var e = [];
+  for (var ii = 0; ii < explosions.length; ++ii) {
+    var explosion = explosions[ii];
+    if (explosion.counter > 0) {
+      e.push(explosion);
+    }
+  }
+  explosions = e;
+};
+
+var cycleBackgroundColor = function() {
+  return;
+  canvas.style.backgroundColor = getFlashingColor();
+};
+
+var process = function() {
+  cycleBackgroundColor();
+
+  if (frameCount % 60 == 0) {
+      addMissile();
+  }
+  processMissiles();
+  processExplosions();
+
+  ++frameCount;
+  requestAnimationFrame(process);
+}
+
+var startLevel = function() {
+  clearToBlack();
+}
+
+
+var init = function() {
+    canvas = document.getElementById("c");
+    ctx = canvas.getContext("2d");
+    startLevel();
+//    addMissile();
+//    addExplosion(100, 100);
+    process();
+}
+
+window.addEventListener('load', init);
+</script>
+<body>
+<canvas id="c" width="320" height="240"></canvas>
+</body>
+</html>
