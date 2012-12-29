@@ -17,6 +17,7 @@ canvas {
     image-rendering:optimize-contrast;         /* CSS3 Proposed                  */
 }
 </style>
+<script src="js/webgl-utils.js"></script>
 <script>
 var canvas;
 var ctx;
@@ -221,7 +222,7 @@ var process = function() {
   processExplosions();
 
   ++frameCount;
-  requestAnimationFrame(process);
+  requestAnimFrame(process);
 }
 
 var startLevel = function() {
