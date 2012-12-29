@@ -185,7 +185,9 @@ var processExplosions = function() {
   for (var ii = 0; ii < explosions.length; ++ii) {
     var explosion = explosions[ii];
     --explosion.counter;
-    var radius = explosion.halfLife - (explosion.counter % explosion.halfLife);
+    var radius = explosion.counter > explosion.halfLife ?
+        (explosion.halfLife - (explosion.counter % explosion.halfLife)) :
+        explosion.counter;
     if (explosion.counter <= explosion.halfLife) {
       ctx.globalCompositeOperation = "source-over";
       ctx.strokeColor = "black";
