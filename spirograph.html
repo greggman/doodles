@@ -9,7 +9,7 @@ body, html {
     padding: 0px;
     margin: 0px;
 }
-#canvas {
+canvas {
     width: 100%;
     height: 100%;
 }
@@ -29,6 +29,17 @@ body, html {
 #editor {
     width: 100%;
     height: 100%;
+}
+#canvasContainer {
+    width: 100%;
+    height: 100%;
+    position: relative;
+}
+#animCanvas {
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    z-index: 10;
 }
 </style>
 <script src="js/jquery-1.7.1.min.js"></script>
@@ -62,46 +73,102 @@ var makeColor = function(color) {
   return "rgb(" + Math.floor(color[0]) + "," + Math.floor(color[1]) + "," + Math.floor(color[2]) + ")";
 };
 
-var drawInnerCircle = function(ctx, time, outerRadius, innerRadius, mark) {
+var drawInnerCircle = function(ctx, time, outerRadius, innerRadius, anim) {
   ctx.rotate(time);
   ctx.translate(outerRadius - innerRadius, 0);
-  ctx.beginPath();
-  ctx.arc(0, 0, innerRadius, 0, Math.PI * 2, 0);
-  ctx.stroke();
+  if (anim) {
+    ctx.beginPath();
+    ctx.arc(0, 0, innerRadius, 0, Math.PI * 2, 0);
+    ctx.stroke();
+  } else {
+    ctx.rotate(time * 30);
+    ctx.translate(innerRadius, 0);
+    ctx.beginPath();
+    ctx.arc(0, 0, 0.5, 0, Math.PI * 2, 0);
+    ctx.stroke();
+  }
   ctx.restore();
 };
 
-var draw = function(ctx, time, elapsedTime) {
+var drawOuterCircle = function(ctx, time, elapsedTime, anim) {
   ctx.save();
-  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  if (anim) {
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  }
   ctx.translate(ctx.canvas.width / 2, ctx.canvas.height / 2);
-  ctx.strokeStyle = "red";
-  ctx.beginPath();
   var outerRadius = Math.min(ctx.canvas.width / 2, ctx.canvas.height / 2);
-  ctx.arc(0, 0, outerRadius, 0, Math.PI * 2, 1);
-  ctx.stroke();
-  drawInnerCircle(ctx, time, outerRadius, 100);
+  if (anim) {
+    ctx.strokeStyle = "red";
+    ctx.beginPath();
+    ctx.arc(0, 0, outerRadius, 0, Math.PI * 2, 1);
+    ctx.stroke();
+  } else {
+    ctx.strokeStyle = "black";
+  }
+  drawInnerCircle(ctx, time, outerRadius, 200, anim);
   ctx.restore();
 };
 
-draw(ctx, time, elapsedTime);
+var draw = function(drawCtx, animCtx, time, elapsedTime) {
+  drawOuterCircle(animCtx, time, elapsedTime, true);
+  drawOuterCircle(drawCtx, time, elapsedTime, false);
+};
+
+draw(drawCtx, animCtx, time, elapsedTime);
 </script>
 <script>
 function main() {
-  var canvas = document.getElementById("canvas");
-  var ctx = canvas.getContext("2d");
+  var animCanvas = document.getElementById("animCanvas");
+  var animCtx = animCanvas.getContext("2d");
+  var drawCanvas = document.getElementById("drawCanvas");
+  var drawCtx = drawCanvas.getContext("2d");
 
   var source = document.getElementById("code").text;
   var editor = document.getElementById("editor");
   var func = function() {};
+  var time = 0;
+
   editor.value = source;
 
+  var clearCanvas = function(ctx) {
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  };
+
   var resizeCanvas = function() {
-    if (canvas.width != canvas.clientWidth ||
-        canvas.heigt != canvas.clientHeight) {
-      canvas.width = canvas.clientWidth;
-      canvas.height = canvas.clientHeight;
+    var resizeFn = function(canvas) {
+      if (canvas.width != canvas.clientWidth ||
+          canvas.heigt != canvas.clientHeight) {
+        canvas.width = canvas.clientWidth;
+        canvas.height = canvas.clientHeight;
+      }
+    };
+    resizeFn(animCanvas);
+    resizeFn(drawCanvas);
+  };
+
+  var applyToCanvases = function(f, time, elapsedTime) {
+    var success = true;
+    drawCtx.save();
+    animCtx.save();
+    try {
+      f(drawCtx, animCtx, time, elapsedTime);
+    } catch (e) {
+      success = false;
+      console.log(e);
+      func = function() {};
     }
+    for (var ii = 0; ii < 100; ++ii) {
+      animCtx.restore();
+      drawCtx.restore();
+    }
+    return success;
+  };
+
+  var resetCanvases = function() {
+    console.log("success");
+    clearCanvas(drawCtx);
+    clearCanvas(animCtx);
+    time = 0;
   };
 
   var temp;
@@ -111,38 +178,27 @@ function main() {
     var e;
     var temp;
     try {
-      var t = "temp = {fn: function() { return function(ctx, time, elapsedTime) {" + source + "}; }()}";
+      var t = "temp = {fn: function() { return function(drawCtx, animCtx, time, elapsedTime) {" + source + "}; }()}";
       var f = eval(t).fn;
-      f(ctx);
+      success = applyToCanvases(f, 0, 0);
     } catch (e) {
       console.log(e);
       success = false
     }
 
     if (success) {
-      console.log("success");
+      resetCanvases();
       func = f;
     }
   };
 
   var then = Date.now() * 0.001;
-  var time = 0;
   var render = function() {
     var now = Date.now() * 0.001;
     var elapsedTime = now - then;
     then = now;
     time += elapsedTime;
-
-    ctx.save();
-    try {
-      func(ctx, time, elapsedTime);
-    } catch (e) {
-      console.log(e);
-      func = function() {};
-    }
-    for (var ii = 0; ii < 100; ++ii) {
-      ctx.restore();
-    }
+    applyToCanvases(func, time, elapsedTime);
     requestAnimFrame(render);
   };
   render();
@@ -185,7 +241,10 @@ body {
         <textarea id="editor"></textarea>
       </td>
       <td>
-        <canvas id="canvas"></canvas>
+        <div id="canvasContainer">
+          <canvas id="drawCanvas"></canvas>
+          <canvas id="animCanvas"></canvas>
+        </div>
       </td>
   </table>
 </div>
