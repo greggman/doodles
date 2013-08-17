@@ -83,7 +83,7 @@ var drawOuterCircle = function(ctx, time, elapsedTime, anim) {
     ctx.arc(0, 0, outerRadius, 0, Math.PI * 2, 1);
     ctx.stroke();
   }
-  drawInnerCircle(ctx, time, outerRadius, 200, anim);
+  drawInnerCircle(ctx, time, outerRadius, outerRadius * 2 / 3, anim);
   ctx.restore();
 };
 
@@ -130,6 +130,13 @@ function main() {
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   };
 
+  var resetCanvases = function() {
+    console.log("success");
+    clearCanvas(drawCtx);
+    clearCanvas(animCtx);
+    ctx.time = 0;
+  };
+
   var resizeCanvas = function() {
     var resizeFn = function(canvas) {
       if (canvas.width != canvas.clientWidth ||
@@ -140,6 +147,7 @@ function main() {
     };
     resizeFn(animCanvas);
     resizeFn(drawCanvas);
+    resetCanvaes();
   };
 
   var applyToCanvases = function(f, ctx) {
@@ -158,13 +166,6 @@ function main() {
       drawCtx.restore();
     }
     return success;
-  };
-
-  var resetCanvases = function() {
-    console.log("success");
-    clearCanvas(drawCtx);
-    clearCanvas(animCtx);
-    ctx.time = 0;
   };
 
   var temp;
