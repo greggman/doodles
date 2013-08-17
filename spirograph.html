@@ -78,6 +78,7 @@ var drawOuterCircle = function(ctx, time, elapsedTime, anim) {
   var outerRadius = Math.min(ctx.canvas.width / 2, ctx.canvas.height / 2);
   if (anim) {
     ctx.strokeStyle = "red";
+    ctx.fillStyle = "blue";
     ctx.beginPath();
     ctx.arc(0, 0, outerRadius, 0, Math.PI * 2, 1);
     ctx.stroke();
@@ -90,7 +91,7 @@ var draw = function(ctx) {
   drawOuterCircle(ctx.animCtx, ctx.time, ctx.elapsedTime, true);
   drawOuterCircle(ctx.drawCtx, ctx.time, ctx.elapsedTime, false);
 
-  if (!ctx._.oldTime || ctx.time >= ctx._.oldTime) {
+  if (ctx._.oldTime === undefined || ctx.time > ctx._.oldTime) {
     ctx.drawCtx.beginPath();
     ctx.drawCtx.moveTo(ctx._.lastX, ctx._.lastY);
     ctx.drawCtx.lineTo(ctx._.newX,  ctx._.newY);
