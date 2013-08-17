@@ -91,7 +91,7 @@ var draw = function(ctx) {
   drawOuterCircle(ctx.animCtx, ctx.time, ctx.elapsedTime, true);
   drawOuterCircle(ctx.drawCtx, ctx.time, ctx.elapsedTime, false);
 
-  if (ctx._.oldTime === undefined || ctx.time > ctx._.oldTime) {
+  if (ctx.time > ctx._.oldTime) {
     ctx.drawCtx.beginPath();
     ctx.drawCtx.moveTo(ctx._.lastX, ctx._.lastY);
     ctx.drawCtx.lineTo(ctx._.newX,  ctx._.newY);
