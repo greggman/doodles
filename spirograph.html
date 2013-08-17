@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+body, html {
+    width: 100%;
+    height: 100%;
+    padding: 0px;
+    margin: 0px;
+}
+#canvas {
+    width: 100%;
+    height: 100%;
+}
+#content {
+    width: 100%;
+    height: 100%;
+}
+
+#content>table {
+    width: 100%;
+    height: 100%;
+}
+#content>table>tbody>tr>td {
+    border: 1px solid black;
+    width: 50%;
+}
+#editor {
+    width: 100%;
+    height: 100%;
+}
+</style>
+<script src="js/jquery-1.7.1.min.js"></script>
+<script src="js/webgl-utils.js"></script>
+<script id="code" type="something-not-javascript">
+var lerp = function(a, b, l) {
+  return a + (b - a) * l;
+};
+
+var lerpVector = function(a, b, l) {
+  var dest = [];
+  for (var ii = 0; ii < a.length; ++ii) {
+    dest.push(lerp(a[ii], b[ii], l));
+  }
+  return dest;
+};
+
+var colorRamp = function(ramp, l) {
+  // compute place in ramp;
+  l = Math.min(0.999999, l);
+  var pos = (ramp.length - 1) * l;
+  var start = Math.min(Math.floor(pos), ramp.length - 1);
+  var lerp = pos % 1;
+  //console.log("l: " + l + ", start: " + start + ", lerp: " + lerp);
+  var result = lerpVector(ramp[start], ramp[start + 1], lerp);
+  //console.log(result);
+  return result;
+};
+
+var makeColor = function(color) {
+  return "rgb(" + Math.floor(color[0]) + "," + Math.floor(color[1]) + "," + Math.floor(color[2]) + ")";
+};
+
+var drawInnerCircle = function(ctx, time, outerRadius, innerRadius, mark) {
+  ctx.rotate(time);
+  ctx.translate(outerRadius - innerRadius, 0);
+  ctx.beginPath();
+  ctx.arc(0, 0, innerRadius, 0, Math.PI * 2, 0);
+  ctx.stroke();
+  ctx.restore();
+};
+
+var draw = function(ctx, time, elapsedTime) {
+  ctx.save();
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  ctx.translate(ctx.canvas.width / 2, ctx.canvas.height / 2);
+  ctx.strokeStyle = "red";
+  ctx.beginPath();
+  var outerRadius = Math.min(ctx.canvas.width / 2, ctx.canvas.height / 2);
+  ctx.arc(0, 0, outerRadius, 0, Math.PI * 2, 1);
+  ctx.stroke();
+  drawInnerCircle(ctx, time, outerRadius, 100);
+  ctx.restore();
+};
+
+draw(ctx, time, elapsedTime);
+</script>
+<script>
+function main() {
+  var canvas = document.getElementById("canvas");
+  var ctx = canvas.getContext("2d");
+
+  var source = document.getElementById("code").text;
+  var editor = document.getElementById("editor");
+  var func = function() {};
+  editor.value = source;
+
+  var resizeCanvas = function() {
+    if (canvas.width != canvas.clientWidth ||
+        canvas.heigt != canvas.clientHeight) {
+      canvas.width = canvas.clientWidth;
+      canvas.height = canvas.clientHeight;
+    }
+  };
+
+  var temp;
+  var onSourceChange = function() {
+    source = editor.value;
+    var success = true;
+    var e;
+    var temp;
+    try {
+      var t = "temp = {fn: function() { return function(ctx, time, elapsedTime) {" + source + "}; }()}";
+      var f = eval(t).fn;
+      f(ctx);
+    } catch (e) {
+      console.log(e);
+      success = false
+    }
+
+    if (success) {
+      console.log("success");
+      func = f;
+    }
+  };
+
+  var then = Date.now() * 0.001;
+  var time = 0;
+  var render = function() {
+    var now = Date.now() * 0.001;
+    var elapsedTime = now - then;
+    then = now;
+    time += elapsedTime;
+
+    ctx.save();
+    try {
+      func(ctx, time, elapsedTime);
+    } catch (e) {
+      console.log(e);
+      func = function() {};
+    }
+    for (var ii = 0; ii < 100; ++ii) {
+      ctx.restore();
+    }
+    requestAnimFrame(render);
+  };
+  render();
+
+  $(window).resize(resizeCanvas);
+  editor.addEventListener('keyup', function(event) {
+    if (event.keyCode == 37 ||
+        event.keyCode == 38 ||
+        event.keyCode == 39 ||
+        event.keyCode == 40) {
+      return;
+    }
+    onSourceChange();
+  });
+
+  resizeCanvas();
+  onSourceChange();
+}
+
+$(function(){
+  main();
+});
+
+</script>
+<style>
+body {
+    display: flex;
+    flex-flow: row wrap;
+    text-align: center;
+  -webkit-box-pack: center;
+  -webkit-box-align: center;
+ }
+</style>
+</head>
+<body>
+<div id="content">
+  <table>
+    <tr>
+      <td>
+        <textarea id="editor"></textarea>
+      </td>
+      <td>
+        <canvas id="canvas"></canvas>
+      </td>
+  </table>
+</div>
+</body>
+</html>
+
