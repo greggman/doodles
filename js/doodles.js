@@ -5,6 +5,13 @@ Doodles = (function() {
 
   var setUIValue = function(gadget, newValue, params) {
     gadget.value = newValue / 1000;
+    if (gadget.type) {
+      switch (gadget.type) {
+      case 'int':
+        gadget.value = Math.floor(gadget.value);
+        break;
+      }
+    }
     if (gadget.valueElem) {
       gadget.valueElem.innerHTML = gadget.value;
     }
@@ -15,7 +22,7 @@ Doodles = (function() {
     setUIValue(gadget, qui.value, params);
   };
 
-  var setupUI = function(container, gadgets, params) {
+  var setupUI = function(container, gadgets, params, fn) {
     gadgets.forEach(function(gadget) {
       var textDiv = document.createElement('div');
       var labelDiv = document.createElement('span');
@@ -40,6 +47,9 @@ Doodles = (function() {
         slide: function(gadget, params) {
           return function(event, qui) {
             setUIParam(event, qui, gadget, params);
+            if (fn) {
+              fn(gadget, params);
+            }
           };
         }(gadget, params),
       });
@@ -74,6 +84,18 @@ Doodles = (function() {
     return "rgb(" + Math.floor(color[0]) + "," + Math.floor(color[1]) + "," + Math.floor(color[2]) + ")";
   };
 
+  var clearCanvas = function(ctx) {
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  };
+
+  var resetCanvases = function(ctx) {
+    console.log("success");
+    ctx.contexts.forEach(function(ctx) {
+      clearCanvas(ctx);
+    });
+    ctx.time = 0;
+  };
+
   var init = function(ui, fn) {
     var contexts = [];
     var animCanvas = document.getElementById("animCanvas");
@@ -102,19 +124,7 @@ Doodles = (function() {
       },
     };
 
-    setupUI(document.getElementById("ui"), ctx._.ui, ctx._.params);
-
-    var clearCanvas = function(ctx) {
-      ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-    };
-
-    var resetCanvases = function(contexts) {
-      console.log("success");
-      contexts.forEach(function(ctx) {
-        clearCanvas(ctx);
-      });
-      ctx.time = 0;
-    };
+    setupUI(document.getElementById("ui"), ctx._.ui, ctx._.params, fn);
 
     var resizeCanvas = function() {
       var resizeFn = function(canvas) {
@@ -127,7 +137,7 @@ Doodles = (function() {
       contexts.forEach(function(ctx) {
         resizeFn(ctx.canvas);
       });
-      resetCanvases(ctx.contexts);
+      resetCanvases(ctx);
     };
 
     $(window).resize(resizeCanvas);
@@ -151,7 +161,6 @@ Doodles = (function() {
       return success;
     };
 
-
     var func = function() {};
 
     editor.value = source;
@@ -172,7 +181,7 @@ Doodles = (function() {
       }
 
       if (success) {
-        resetCanvases(ctx.contexts);
+        resetCanvases(ctx);
         func = f;
       }
     };
@@ -201,6 +210,8 @@ Doodles = (function() {
 
     resizeCanvas();
     onSourceChange();
+
+    return ctx;
   };
 
   return {
@@ -210,6 +221,7 @@ Doodles = (function() {
     lerpVector: lerpVector,
     colorRamp: colorRamp,
     makeColor: makeColor,
+    resetCanvases: resetCanvases,
   }
 }());
 

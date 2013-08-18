@@ -2,50 +2,16 @@
 <html>
 <head>
 <meta charset="utf-8">
-<style>
-body, html {
-    width: 100%;
-    height: 100%;
-    padding: 0px;
-    margin: 0px;
-}
-canvas {
-    width: 100%;
-    height: 100%;
-}
-#content {
-    width: 100%;
-    height: 100%;
-}
-
-#content>table {
-    width: 100%;
-    height: 100%;
-}
-#content>table>tbody>tr>td {
-    border: 1px solid black;
-    width: 50%;
-}
-#editor {
-    width: 100%;
-    height: 100%;
-}
-#canvasContainer {
-    width: 100%;
-    height: 100%;
-    position: relative;
-}
-#animCanvas {
-    position: absolute;
-    left: 0px;
-    top: 0px;
-    z-index: 10;
-}
-</style>
+<link type="text/css" href="js/css/doodle.css" rel="stylesheet" />
+<link type="text/css" href="js/css/ui-lightness/jquery-ui-1.8.2.custom.css" rel="stylesheet" />
 <script src="js/jquery-1.7.1.min.js"></script>
+<script src="js/jquery-ui-1.8.2.custom.min.js"></script>
 <script src="js/canvas-wrapper.js"></script>
 <script src="js/webgl-utils.js"></script>
+<script src="js/doodles.js"></script>
 <script id="code" type="something-not-javascript">
+var params = runCtx._.params;
+
 var drawInnerCircle = function(ctx, time, outerRadius, innerRadius, anim) {
   ctx.rotate(time);
   ctx.translate(outerRadius - innerRadius, 0);
@@ -55,9 +21,15 @@ var drawInnerCircle = function(ctx, time, outerRadius, innerRadius, anim) {
     ctx.stroke();
   }
 
-  ctx.rotate(-time * 3.05);
-  ctx.translate(innerRadius, 0);
+  ctx.rotate(-time * (params.numLoops + 1 / params.numSubLoops));
   if (anim) {
+    ctx.beginPath();
+    ctx.moveTo(innerRadius, 0);
+  }
+  ctx.translate(innerRadius * params.innerRadius, 0);
+  if (anim) {
+    ctx.lineTo(0, 0);
+    ctx.stroke();
     ctx.beginPath();
     ctx.arc(0, 0, 5, 0, Math.PI * 2, 0);
     ctx.fill();
@@ -83,7 +55,7 @@ var drawOuterCircle = function(ctx, time, elapsedTime, anim) {
     ctx.arc(0, 0, outerRadius, 0, Math.PI * 2, 1);
     ctx.stroke();
   }
-  drawInnerCircle(ctx, time, outerRadius, outerRadius * 2 / 3, anim);
+  drawInnerCircle(ctx, time, outerRadius, outerRadius * params.radius, anim);
   ctx.restore();
 };
 
@@ -107,129 +79,23 @@ var draw = function(ctx) {
 draw(runCtx);
 </script>
 <script>
-function main() {
-  var animCanvas = document.getElementById("animCanvas");
-  var animCtx = animCanvas.getContext("2d");
-  var drawCanvas = document.getElementById("drawCanvas");
-  var drawCtx = drawCanvas.getContext("2d");
-
-  var source = document.getElementById("code").text;
-  var editor = document.getElementById("editor");
-  var func = function() {};
-  var ctx = {
-    animCtx: animCtx,
-    drawCtx: drawCtx,
-    time: 0,
-    elapsedTime: 0,
-    _: {},
-  };
-
-  editor.value = source;
-
-  var clearCanvas = function(ctx) {
-    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-  };
-
-  var resetCanvases = function() {
-    console.log("success");
-    clearCanvas(drawCtx);
-    clearCanvas(animCtx);
-    ctx.time = 0;
-  };
-
-  var resizeCanvas = function() {
-    var resizeFn = function(canvas) {
-      if (canvas.width != canvas.clientWidth ||
-          canvas.heigt != canvas.clientHeight) {
-        canvas.width = canvas.clientWidth;
-        canvas.height = canvas.clientHeight;
-      }
-    };
-    resizeFn(animCanvas);
-    resizeFn(drawCanvas);
-    resetCanvases();
-  };
-
-  var applyToCanvases = function(f, ctx) {
-    var success = true;
-    drawCtx.save();
-    animCtx.save();
-    try {
-      f(ctx);
-    } catch (e) {
-      success = false;
-      console.log(e);
-      func = function() {};
-    }
-    for (var ii = 0; ii < 100; ++ii) {
-      animCtx.restore();
-      drawCtx.restore();
-    }
-    return success;
-  };
-
-  var temp;
-  var onSourceChange = function() {
-    source = editor.value;
-    var success = true;
-    var e;
-    var temp;
-    try {
-      var t = "temp = {fn: function() { return function(runCtx) {" + source + "}; }()}";
-      var f = eval(t).fn;
-      success = applyToCanvases(f, ctx);
-    } catch (e) {
-      console.log(e);
-      success = false
-    }
-
-    if (success) {
-      resetCanvases();
-      func = f;
-    }
-  };
-
-  var then = Date.now() * 0.001;
-  var render = function() {
-    var now = Date.now() * 0.001;
-    ctx.elapsedTime = now - then;
-    then = now;
-    ctx.elapsedTime += 1/60; // We need to time to be consistent.
-    ctx.time += ctx.elapsedTime;
-    applyToCanvases(func, ctx);
-    requestAnimFrame(render);
-  };
-  render();
-
-  $(window).resize(resizeCanvas);
-  editor.addEventListener('keyup', function(event) {
-    if (event.keyCode == 37 ||
-        event.keyCode == 38 ||
-        event.keyCode == 39 ||
-        event.keyCode == 40) {
-      return;
-    }
-    onSourceChange();
-  });
-
-  resizeCanvas();
-  onSourceChange();
-}
-
 $(function(){
-  main();
+  var ctx;
+  var fn = function() {
+    if (ctx) {
+      Doodles.resetCanvases(ctx);
+    }
+  };
+  var ui = [
+    {name: 'radius',       value:  0.66, min: 0, max: 1, },
+    {name: 'innerRadius',  value:  0.33, min: 0, max: 1, },
+    {name: 'numLoops',     value:  3, min: 0, max: 100, type: 'int'},
+    {name: 'numSubLoops',  value:  20, min: 0, max: 100, type: 'int'},
+  ];
+  ctx = Doodles.init(ui, fn);
 });
 
 </script>
-<style>
-body {
-    display: flex;
-    flex-flow: row wrap;
-    text-align: center;
-  -webkit-box-pack: center;
-  -webkit-box-align: center;
- }
-</style>
 </head>
 <body>
 <div id="content">
@@ -245,6 +111,9 @@ body {
         </div>
       </td>
   </table>
+</div>
+<div id="uiContainer">
+  <div id="ui"></div>
 </div>
 </body>
 </html>
