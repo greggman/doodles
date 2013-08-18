@@ -65,9 +65,8 @@ canvas {
 <script id="code" type="something-not-javascript">
 var params = runCtx._.params;
 
-var drawCircle = function(ctx, time, elapsedTime, anim, radius, maxDepth, depth) {
+var drawCircle = function(ctx, time, elapsedTime, anim, maxRadius, radius, maxDepth, depth) {
   ctx.save();
-  var outerRadius = Math.min(ctx.canvas.width / 2, ctx.canvas.height / 2);
   if (anim) {
     var color = Doodles.makeColor(Doodles.colorRamp([
        [255, 0, 255],
@@ -87,10 +86,12 @@ var drawCircle = function(ctx, time, elapsedTime, anim, radius, maxDepth, depth)
     }
   }
   if (depth < maxDepth) {
-     var newRadius = radius * params.radiusMult;
-     ctx.rotate(time * 1);
+     var range = maxRadius * (1 - params.innerRadius)
+     var lerp = 1 - Math.pow(1 - depth / maxDepth, params.power);
+     var newRadius = maxRadius - range * lerp;
+     ctx.rotate(time);
      ctx.translate(radius - newRadius, 0);
-     drawCircle(ctx, time * params.timeMult + params.timeOffset, elapsedTime, anim, newRadius, maxDepth, depth + 1);
+     drawCircle(ctx, time * params.timeMult + params.timeOffset, elapsedTime, anim, maxRadius, newRadius, maxDepth, depth + 1);
   }
   ctx.restore();
 };
@@ -103,7 +104,7 @@ var draw = function(runCtx) {
   ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   ctx.save();
   ctx.translate(ctx.canvas.width / 2, ctx.canvas.height / 2);
-  drawCircle(ctx, runCtx.time * params.speed, runCtx.elapsedTime, true, outerRadius, maxDepth, 0);
+  drawCircle(ctx, runCtx.time * params.speed, runCtx.elapsedTime, true, outerRadius, outerRadius, maxDepth, 0);
   ctx.restore();
 };
 draw(runCtx);
@@ -112,12 +113,13 @@ draw(runCtx);
 function main() {
   var ui = [
     {name: 'subDivisions', value: 60,    min: 1, max: 200, },
+    {name: 'innerRadius',  value:  0.04, min: 0, max: 1, },
+    {name: 'power',        value:  2,    min: 0.1, max: 5, },
     {name: 'speed',        value:  0.1,  min: 0, max:   4, },
     {name: 'timeMult',     value:  1,    min: 0, max:   4, },
     {name: 'timeOffset',   value:  0,    min: 0, max:   Math.PI * 2, },
-    {name: 'radiusMult',   value:  0.95, min: 0, max: 2, },
-    {name: 'solid',        value:  0,    min: 0, max: 1, },
     {name: 'thickness',    value:  1,    min: 0.2, max: 40, },
+    {name: 'solid',        value:  0,    min: 0, max: 1, },
   ];
   Doodles.init(ui);
 }
