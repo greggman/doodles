@@ -21,7 +21,7 @@ var drawInnerCircle = function(ctx, time, outerRadius, innerRadius, anim) {
     ctx.stroke();
   }
 
-  ctx.rotate(-time * (params.numLoops + 1 / params.numSubLoops));
+  ctx.rotate(-time * (params.numLoops + (params.numSubLoops ? 1 / params.numSubLoops : 0)));
   if (anim) {
     ctx.beginPath();
     ctx.moveTo(innerRadius, 0);
