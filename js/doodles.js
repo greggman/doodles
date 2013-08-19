@@ -84,6 +84,10 @@ Doodles = (function() {
     return "rgb(" + Math.floor(color[0]) + "," + Math.floor(color[1]) + "," + Math.floor(color[2]) + ")";
   };
 
+  var addAlphaToRGB = function(color, alpha) {
+    return "rgba" + color.substring(3, color.length - 1) + "," + alpha + ")";
+  };
+
   var clearCanvas = function(ctx) {
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   };
@@ -97,6 +101,27 @@ Doodles = (function() {
   };
 
   var init = function(ui, fn) {
+
+    $("body").html([
+      '<div id="content">                           ',
+      '  <table>                                    ',
+      '    <tr id="frame">                          ',
+      '      <td id="editorPane">                   ',
+      '        <textarea id="editor"></textarea>    ',
+      '      </td>                                  ',
+      '      <td id="canvasPane">                   ',
+      '        <div id="canvasContainer">           ',
+      '          <canvas id="drawCanvas"></canvas>  ',
+      '          <canvas id="animCanvas"></canvas>  ',
+      '        </div>                               ',
+      '      </td>                                  ',
+      '  </table>                                   ',
+      '</div>                                       ',
+      '<div id="uiContainer">                       ',
+      '  <div id="ui"></div>                        ',
+      '</div>                                       ',
+      ].join(""));
+
     var contexts = [];
     var animCanvas = document.getElementById("animCanvas");
     var animCtx = animCanvas.getContext("2d");
@@ -107,6 +132,10 @@ Doodles = (function() {
       contexts.push(drawCtx);
     }
 
+
+    var frame = document.getElementById("frame");
+    var editorPane = document.getElementById("editorPane");
+    var canvasPane = document.getElementById("canvasPane");
     var source = document.getElementById("code").text;
     var editor = document.getElementById("editor");
     var func = function() {};
@@ -141,6 +170,16 @@ Doodles = (function() {
     };
 
     $(window).resize(resizeCanvas);
+
+    var toggleEditor = function() {
+      if (editorPane.parentElement) {
+        frame.removeChild(editorPane);
+      } else {
+        frame.insertBefore(editorPane, canvasPane);
+      }
+      resizeCanvas();
+    };
+    toggleEditor();
 
     var applyToCanvases = function(f, ctx) {
       var success = true;
@@ -198,11 +237,22 @@ Doodles = (function() {
     };
     render();
 
+    window.addEventListener('keyup', function(event) {
+      switch (event.keyCode) {
+      case 27: // esc
+        toggleEditor();
+        break;
+      }
+    });
     editor.addEventListener('keyup', function(event) {
-      if (event.keyCode == 37 ||
-          event.keyCode == 38 ||
-          event.keyCode == 39 ||
-          event.keyCode == 40) {
+      switch (event.keyCode) {
+      case 27: // esc
+        toggleEditor();
+        break;
+      case 37:
+      case 38:
+      case 39:
+      case 40:
         return;
       }
       onSourceChange();
@@ -222,6 +272,7 @@ Doodles = (function() {
     colorRamp: colorRamp,
     makeColor: makeColor,
     resetCanvases: resetCanvases,
+    addAlphaToRGB: addAlphaToRGB,
   }
 }());
 
