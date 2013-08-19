@@ -68,7 +68,19 @@ I get "free" glowing, similar to the color cycling technique from the 80s.
 
 http://greggman.github.com/doodles/missile-command.html
 
+Spirograph
+----------
+
+Inspired by Spirograph toys.
+
 http://greggman.github.com/doodles/spirograph.html
+
+Circles
+-------
+
+Inspired by an exhibit I saw about
+<a href="http://en.wikipedia.org/wiki/Marcel_Duchamp">Marcel Duchamp</a>
+at the Moderna Museet in Stockholm.
 
 http://greggman.github.com/doodles/circles.html
 
