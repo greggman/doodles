@@ -11,32 +11,39 @@
 <script src="js/doodles.js"></script>
 <script id="code" type="something-not-javascript">
 var params = runCtx._.params;
-
-var drawInnerCircle = function(ctx, time, outerRadius, innerRadius, anim) {
+var place;
+var drawInnerCircle = function(ctx, time, outerRadius, innerRadius, anim, depth) {
+  var radius = outerRadius - innerRadius;
   ctx.rotate(time);
-  ctx.translate(outerRadius - innerRadius, 0);
+  ctx.translate(radius, 0);
   if (anim) {
     ctx.beginPath();
-    ctx.arc(0, 0, innerRadius, 0, Math.PI * 2, 0);
+    ctx.arc(0, 0, Math.abs(innerRadius), 0, Math.PI * 2, 0);
     ctx.stroke();
   }
 
-  ctx.rotate(-time * (params.numLoops + (params.numSubLoops ? 1 / params.numSubLoops : 0)));
+  var innerTime = -time * (params.numLoops + (params.numSubLoops ? 1 / params.numSubLoops : 0));
+  ctx.rotate(innerTime);
   if (anim) {
     ctx.beginPath();
     ctx.moveTo(innerRadius, 0);
   }
-  ctx.translate(innerRadius * params.innerRadius, 0);
-  if (anim) {
-    ctx.lineTo(0, 0);
-    ctx.stroke();
-    ctx.beginPath();
-    ctx.arc(0, 0, 5, 0, Math.PI * 2, 0);
-    ctx.fill();
+
+  if (depth <= 1) {
+    ctx.translate(innerRadius * params.innerRadius, 0);
+    if (anim) {
+      ctx.lineTo(0, 0);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(0, 0, 5, 0, Math.PI * 2, 0);
+      ctx.fill();
+    } else {
+      var t = ctx.getTransform();
+      runCtx._.newX = t[4];
+      runCtx._.newY = t[5];
+    }
   } else {
-    var t = ctx.getTransform();
-    runCtx._.newX = t[4];
-    runCtx._.newY = t[5];
+    drawInnerCircle(ctx, innerTime, radius, radius * params.radius, anim, depth - 1);
   }
   ctx.restore();
 };
@@ -48,6 +55,8 @@ var drawOuterCircle = function(ctx, time, elapsedTime, anim) {
   }
   ctx.translate(ctx.canvas.width / 2, ctx.canvas.height / 2);
   var outerRadius = Math.min(ctx.canvas.width / 2, ctx.canvas.height / 2);
+  var scale = params.radius >= 0 ? 1 : (1 + params.radius);
+  outerRadius *= scale;
   if (anim) {
     ctx.strokeStyle = "red";
     ctx.fillStyle = "blue";
@@ -55,7 +64,7 @@ var drawOuterCircle = function(ctx, time, elapsedTime, anim) {
     ctx.arc(0, 0, outerRadius, 0, Math.PI * 2, 1);
     ctx.stroke();
   }
-  drawInnerCircle(ctx, time, outerRadius, outerRadius * params.radius, anim);
+  drawInnerCircle(ctx, time, outerRadius, outerRadius * params.radius, anim, params.depth);
   ctx.restore();
 };
 
@@ -87,10 +96,11 @@ $(function(){
     }
   };
   var ui = [
-    {name: 'radius',       value:  0.66, min: 0, max: 1, },
-    {name: 'innerRadius',  value:  0.33, min: 0, max: 1, },
-    {name: 'numLoops',     value:  3, min: 0, max: 100, type: 'int'},
-    {name: 'numSubLoops',  value:  20, min: 0, max: 100, type: 'int'},
+    {name: 'radius',       value:  0.66, min: -1, max:   1, },
+    {name: 'innerRadius',  value:  0.33, min:  0, max:   1, },
+    {name: 'numLoops',     value:  3,    min:  0, max: 100, type: 'int'},
+    {name: 'numSubLoops',  value: 20,    min:  0, max: 100, type: 'int'},
+    {name: 'depth',        value:  1,    min:  1, max:   4, type: 'int'},
   ];
   ctx = Doodles.init(ui, fn);
 });
