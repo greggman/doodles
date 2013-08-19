@@ -191,7 +191,7 @@ Doodles = (function() {
       var now = Date.now() * 0.001;
       ctx.elapsedTime = now - then;
       then = now;
-      ctx.elapsedTime += 1/60; // We need to time to be consistent.
+      ctx.elapsedTime = 1/30; // We need to time to be consistent.
       ctx.time += ctx.elapsedTime;
       applyToCanvases(func, ctx);
       requestAnimFrame(render);
