@@ -46,8 +46,9 @@ Doodles = (function() {
         value: getUIValue(gadget),
         slide: function(gadget, params) {
           return function(event, qui) {
+            var oldValue = gadget.value;
             setUIParam(event, qui, gadget, params);
-            if (fn) {
+            if (gadget.value != oldValue && fn) {
               fn(gadget, params);
             }
           };
