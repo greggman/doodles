@@ -35,7 +35,7 @@ var drawInnerCircle = function(ctx, time, outerRadius, innerRadius, anim, depth)
     ctx.stroke();
   }
 
-  var innerTime = -time * (params.numLoops + (params.numSubLoops ? 1 / params.numSubLoops : 0)) / depth;
+  var innerTime = -time * params.speedRatio * (params.numLoops + (params.numSubLoops ? 1 / params.numSubLoops : 0)) / depth;
   ctx.rotate(innerTime);
 
   if (depth <= 1) {
@@ -71,8 +71,8 @@ var drawOuterCircle = function(ctx, time, elapsedTime, anim) {
   var scale = params.radius >= 0 ? 1 : (1 + params.radius);
   outerRadius *= scale;
   if (anim) {
-    ctx.strokeStyle = "red";
-    ctx.fillStyle = "blue";
+    ctx.strokeStyle = "rgba(255,0,0," + params.circleAlpha + ")";
+    ctx.fillStyle = "rgba(0,0,255," + params.circleAlpha + ")";
     ctx.beginPath();
     ctx.arc(0, 0, outerRadius, 0, Math.PI * 2, 1);
     ctx.stroke();
@@ -83,13 +83,21 @@ var drawOuterCircle = function(ctx, time, elapsedTime, anim) {
 };
 
 var draw = function(ctx) {
-  drawOuterCircle(ctx.animCtx, ctx.time, ctx.elapsedTime, true);
-  drawOuterCircle(ctx.drawCtx, ctx.time, ctx.elapsedTime, false);
-
   var _ = ctx._;
 
   if (ctx.time > _.oldTime) {
+    var elapsedTime = ctx.elapsedTime * params.speed;
+    _.clock += elapsedTime;
     _.count = _.count ? _.count + 1 : 1;
+
+    // old alpha is needed to erase last alpha > 0 drawing.
+    if (params.circleAlpha || _.oldAlpha) {
+      drawOuterCircle(ctx.animCtx, _.clock, elapsedTime, true);
+    }
+    _.oldAlpha = params.circleAlpha;
+
+    drawOuterCircle(ctx.drawCtx, _.clock, elapsedTime, false);
+
     if (!_.points) {
       _.points = [];
       _.cp = 0;
@@ -114,7 +122,7 @@ var draw = function(ctx) {
         ctx.drawCtx.bezierCurveTo(p0.cp[2], p0.cp[3], p1.cp[0], p1.cp[1], p1.x, p1.y);
 
         ctx.drawCtx.strokeStyle = "black";
-        ctx.drawCtx.lineWidth = 0.5;
+        ctx.drawCtx.lineWidth = params.thickness;
         ctx.drawCtx.stroke();
       }
     }
@@ -122,6 +130,7 @@ var draw = function(ctx) {
     _.cp = (cp + 1) % 3;
   } else {
     _.count = 0;
+    _.clock = 0;
   }
   _.oldTime = ctx.time;
 };
@@ -137,13 +146,18 @@ $(function(){
       Doodles.resetCanvases(ctx);
     }
   };
+  var nop = function() {};
   var ui = [
     {name: 'radius',       value:  0.66, min: -1, max:   1, },
     {name: 'innerRadius',  value:  0.33, min:  0, max:   1, },
-    {name: 'numLoops',     value:  3,    min:  0, max: 100, type: 'int'},
-    {name: 'numSubLoops',  value: 20,    min:  0, max: 100, type: 'int'},
-    {name: 'depth',        value:  1,    min:  1, max:   4, type: 'int'},
+    {name: 'speedRatio',   value:  1,    min:  0, max:   4, },
+    {name: 'numLoops',     value:  3,    min:  0, max: 100, type: 'int', },
+    {name: 'numSubLoops',  value: 20,    min:  0, max: 100, type: 'int', },
+    {name: 'depth',        value:  1,    min:  1, max:   4, type: 'int', },
     {name: 'smoothness',   value:  0.5,  min:  0, max:   2, },
+    {name: 'thickness',    value:  0.5,  min:  0, max:   5, },
+    {name: 'speed',        value:  1,    min:  0, max:   5, fn: nop, },
+    {name: 'circleAlpha',  value:  1,    min:  0, max:   1, fn: nop, },
   ];
   ctx = Doodles.init(ui, fn);
   g = ctx;

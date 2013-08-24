@@ -48,8 +48,11 @@ Doodles = (function() {
           return function(event, qui) {
             var oldValue = gadget.value;
             setUIParam(event, qui, gadget, params);
-            if (gadget.value != oldValue && fn) {
-              fn(gadget, params);
+            if (gadget.value != oldValue) {
+              var f = gadget.fn || fn;
+              if (f) {
+                f(gadget, params);
+              }
             }
           };
         }(gadget, params),
