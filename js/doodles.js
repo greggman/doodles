@@ -1,4 +1,94 @@
 Doodles = (function() {
+  var compressor = new LZMA( "js/lzma_worker.js" );
+
+  var log = function(msg) {
+    if (window.console && window.console.log) {
+      window.console.log(msg);
+    }
+  };
+
+  var error = function(msg) {
+    if (window.console && window.console.error) {
+      window.console.error(msg);
+    } else {
+      log("ERROR: " + msg);
+    }
+  };
+
+  var convertHexToBytes = function(text) {
+    var array = [];
+    for (var i = 0; i < text.length; i += 2) {
+      var tmpHex = text.substring(i, i + 2);
+      array.push(parseInt(tmpHex, 16));
+    }
+    return array;
+  };
+
+  var convertBytesToHex = function(byteArray) {
+    var hex = "";
+    for (var i = 0, il = byteArray.length; i < il; i++) {
+      if (byteArray[i] < 0) {
+        byteArray[i] = byteArray[i] + 256;
+      }
+      var tmpHex = byteArray[i].toString(16);
+      // add leading zero
+      if (tmpHex.length == 1) {
+        tmpHex = "0" + tmpHex;
+      }
+      hex += tmpHex;
+    }
+    return hex;
+  };
+
+  var nop = function() {};
+
+  var readURL = function(ui, hash, fn) {
+    var args = hash.split("&");
+    var data = {};
+    for (var i = 0; i < args.length; ++i) {
+      var parts = args[i].split("=");
+      data[parts[0]] = parts[1];
+    }
+    var bytes = convertHexToBytes(data.params);
+    compressor.decompress(bytes, function(text) {
+      try {
+        var params = JSON.parse(text);
+        var nameToIndex = {};
+        ui.forEach(function(gadget, index) {
+          nameToIndex[gadget.name] = index;
+        });
+        for(var key in params) {
+          var index = nameToIndex[key];
+          if (index !== undefined) {
+            var gadget = ui[index];
+            var min = gadget.min || 0;
+            var max = gadget.max;
+            ui[index].value = Math.min(max, Math.max(min, params[key]));
+          } else {
+            error("unknown param key");
+          }
+        }
+      } catch (e) {
+        error("error parsing URL");
+      }
+      fn();
+    },
+    nop);
+  };
+
+  var setURL = function(ui) {
+    var params = {};
+    ui.forEach(function(gadget) {
+       params[gadget.name] = gadget.value;
+    });
+    var str = JSON.stringify(params);
+    compressor.compress(str, 1, function(bytes) {
+      var hex = convertBytesToHex(bytes);
+      window.location.replace('#params=' + hex);
+    },
+    nop);
+  };
+
   var getUIValue = function(gadget) {
     return gadget.value * 1000;
   };
@@ -21,6 +111,25 @@ Doodles = (function() {
   var setUIParam = function(event, qui, gadget, params) {
     setUIValue(gadget, qui.value, params);
   };
+
+  // This is to update the URL only 1 second after we stop updating the params
+  // That way we won't add lots of processing while updating the params.
+  var queueURLUpdate = (function() {
+    var id = undefined;
+
+    return function(gadgets) {
+      var updateURL = function() {
+        id = undefined;
+        setURL(gadgets);
+      };
+
+      if (id !== undefined) {
+        window.clearTimeout(id);
+        id = undefined;
+      }
+      id = window.setTimeout(updateURL, 1000);
+    };
+  }());
 
   var setupUI = function(container, gadgets, params, fn) {
     gadgets.forEach(function(gadget) {
@@ -53,6 +162,7 @@ Doodles = (function() {
               if (f) {
                 f(gadget, params);
               }
+              queueURLUpdate(gadgets);
             }
           };
         }(gadget, params),
@@ -78,9 +188,9 @@ Doodles = (function() {
     var pos = (ramp.length - 1) * l;
     var start = Math.min(Math.floor(pos), ramp.length - 1);
     var lerp = pos % 1;
-    //console.log("l: " + l + ", start: " + start + ", lerp: " + lerp);
+    //log("l: " + l + ", start: " + start + ", lerp: " + lerp);
     var result = lerpVector(ramp[start], ramp[start + 1], lerp);
-    //console.log(result);
+    //log(result);
     return result;
   };
 
@@ -97,15 +207,13 @@ Doodles = (function() {
   };
 
   var resetCanvases = function(ctx) {
-    console.log("success");
     ctx.contexts.forEach(function(ctx) {
       clearCanvas(ctx);
     });
     ctx.time = 0;
   };
 
-  var init = function(ui, fn) {
-
+  var initStep2 = function(ui, updateFn, finishFn) {
     $("body").html([
       '<div id="content">                           ',
       '  <table>                                    ',
@@ -157,7 +265,7 @@ Doodles = (function() {
       },
     };
 
-    setupUI(document.getElementById("ui"), ctx._.ui, ctx._.params, fn);
+    setupUI(document.getElementById("ui"), ctx._.ui, ctx._.params, updateFn);
 
     var resizeCanvas = function() {
       var resizeFn = function(canvas) {
@@ -194,7 +302,7 @@ Doodles = (function() {
         f(ctx);
       } catch (e) {
         success = false;
-        console.log(e);
+        error(e);
       }
       ctx.contexts.forEach(function(ctx) {
         for (var ii = 0; ii < 100; ++ii) {
@@ -219,7 +327,7 @@ Doodles = (function() {
         var f = eval(t).fn;
         success = applyToCanvases(f, ctx);
       } catch (e) {
-        console.log(e);
+        error(e);
         success = false
       }
 
@@ -265,7 +373,22 @@ Doodles = (function() {
     resizeCanvas();
     onSourceChange();
 
-    return ctx;
+    if (finishFn) {
+      finishFn(ctx);
+    }
+  };
+
+  var init = function(ui, updateFn, finishFn) {
+    var nextStep = function() {
+      initStep2(ui, updateFn, finishFn);
+    };
+
+    if (window.location.hash) {
+      var hash = window.location.hash.substr(1);
+      readURL(ui, hash, nextStep);
+    } else {
+      nextStep();
+    }
   };
 
   return {
