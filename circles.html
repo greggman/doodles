@@ -7,21 +7,54 @@
 <script src="js/lzma.js"></script>
 <script src="js/jquery-1.7.1.min.js"></script>
 <script src="js/jquery-ui-1.8.2.custom.min.js"></script>
+<script src="js/jquery.ui.touch-punch.min.js"></script>
 <script src="js/canvas-wrapper.js"></script>
 <script src="js/webgl-utils.js"></script>
 <script src="js/doodles.js"></script>
+<script>
+var colorFuncs = [
+  // rainbow ramp
+  Doodles.makeRampColorFunc(
+  [
+    [255, 0, 255],
+    [255,255,0],
+    [0,255,255],
+    [255,0,255],
+  ]),
+  // black->red ramp
+  Doodles.makeRampColorFunc(
+  [
+    [0, 0, 0],
+    [255, 0, 0],
+  ]),
+  // blue,yellow table
+  Doodles.makeTableColorFunc(
+  [
+    [0, 0, 255],
+    [255, 255, 0],
+  ]),
+  // black, red, white table
+  Doodles.makeTableColorFunc(
+  [
+    [0, 0, 0],
+    [255, 0, 0],
+    [255, 255, 255],
+  ]),
+  // black, white table
+  Doodles.makeTableColorFunc(
+  [
+    [0, 0, 0],
+    [255, 255, 255],
+  ]),
+];
+</script>
 <script id="code" type="something-not-javascript">
 var params = runCtx._.params;
 
 var drawCircle = function(ctx, time, elapsedTime, anim, maxRadius, radius, maxDepth, depth) {
   ctx.save();
   if (anim) {
-    var color = Doodles.makeColor(Doodles.colorRamp([
-       [255, 0, 255],
-       [255,255,0],
-       [0,255,255],
-       [255,0,255]
-       ], depth / maxDepth));
+    var color = colorFuncs[params.colorSet](depth, maxDepth);
     ctx.beginPath();
     ctx.arc(0, 0, radius, 0, Math.PI * 2, 1);
 
@@ -41,7 +74,7 @@ var drawCircle = function(ctx, time, elapsedTime, anim, maxRadius, radius, maxDe
      var newRadius = maxRadius - range * lerp;
      ctx.rotate(time);
      ctx.translate(radius - newRadius, 0);
-     drawCircle(ctx, time * params.timeMult + params.timeOffset, elapsedTime, anim, maxRadius, newRadius, maxDepth, depth + 1);
+     drawCircle(ctx, time * params.timeMult + params.timeOffset * Math.PI, elapsedTime, anim, maxRadius, newRadius, maxDepth, depth + 1);
   }
   ctx.restore();
 };
@@ -67,9 +100,10 @@ $(function(){
     {name: 'power',        value:  2,    min: 0.1, max:   5, },
     {name: 'speed',        value:  0.1,  min: 0,   max:   4, },
     {name: 'timeMult',     value:  1,    min: 0,   max:   4, },
-    {name: 'timeOffset',   value:  0,    min: 0,   max: Math.PI * 2, },
+    {name: 'timeOffset',   value:  0,    min: 0,   max:   8, },
     {name: 'thickness',    value:  1,    min: 0,   max:  40, },
     {name: 'solid',        value:  0,    min: 0,   max:   1, },
+    {name: 'colorSet',     value:  0,    min: 0,   max: colorFuncs.length - 1, type: 'int' },
   ];
   Doodles.init(ui);
 });

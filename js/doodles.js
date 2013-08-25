@@ -202,6 +202,20 @@ Doodles = (function() {
     return "rgba" + color.substring(3, color.length - 1) + "," + alpha + ")";
   };
 
+  var makeRampColorFunc = function(ramp) {
+    return function(depth, maxDepth) {
+      return Doodles.makeColor(Doodles.colorRamp(
+        ramp, depth / maxDepth));
+    };
+  };
+
+  var makeTableColorFunc = function(table) {
+    return function(depth, maxDepth) {
+      var index = depth % table.length;
+      return Doodles.makeColor(table[index]);
+    };
+  };
+
   var clearCanvas = function(ctx) {
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
   };
@@ -400,6 +414,8 @@ Doodles = (function() {
     makeColor: makeColor,
     resetCanvases: resetCanvases,
     addAlphaToRGB: addAlphaToRGB,
+    makeRampColorFunc: makeRampColorFunc,
+    makeTableColorFunc: makeTableColorFunc,
   }
 }());
 
