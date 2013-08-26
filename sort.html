@@ -1,0 +1,343 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<script src="js/webgl-utils.js"></script>
+<script>
+var log = function(msg) {
+  var console = document.getElementById("console");
+  var div = document.createElement("div");
+  div.appendChild(document.createTextNode(msg));
+  console.appendChild(div);
+};
+
+var SortVisualizer = function(canvas) {
+  this.ctx = canvas.getContext("2d");
+};
+
+SortVisualizer.prototype.get = function(id) {
+  return (this.num && this.num[id]) ? this.num[id] : 0;
+};
+
+SortVisualizer.prototype.runSort = function(sortFn, size) {
+  size = size || 50;
+  this.steps = [];
+  var self = this;
+
+  var makeRandomArray = function(size) {
+    var array = [];
+    for (var ii = 0; ii < size; ++ii) {
+      array.push(ii);
+    }
+    for (var ii = 0; ii < size; ++ii) {
+      var a = self.rand(size);
+      var b = self.rand(size);
+      var t = array[a];
+      array[a] = array[b];
+      array[b] = t;
+    }
+    for (var ii = 0; ii < size; ++ii) {
+      self.addStep_(ii, array[ii], 'start');
+    }
+    return array;
+  };
+
+  var array = makeRandomArray(size);
+  sortFn(array, this);
+};
+
+SortVisualizer.prototype.addStep_ = function(index, value, type) {
+  this.steps.push({index: index, value: value, type: type});
+};
+
+SortVisualizer.prototype.playback = function(fn) {
+  var index = 0;
+  var self = this;
+  var steps = this.steps;
+  var ctx = this.ctx;
+  var size = 0;
+  var maxValue = 0;
+
+  this.num = {};
+
+  var comparisonCount = 0;
+  var comparisonsPerFrame = 10;
+  var columnState = [];
+  var columnsModified = [];
+  var time = 0;
+  var timeToRestore = 20;
+
+  ctx.fillStyle = "black";
+  ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+  steps.forEach(function(step) {
+    switch (step.type) {
+    case 'start':
+      size = Math.max(size, step.index);
+      maxValue = Math.max(maxValue, step.value);
+      columnState[size] = {index: step.index, time: 0, value: step.value, state: 'start'};
+      break;
+    default:
+      self.num[step.type] = self.num[step.type] ? (self.num[step.type] + 1) : 1;
+      break;
+    }
+  });
+
+  var queueTask = function(fn) {
+    requestAnimFrame(fn);
+    //setTimeout(fn, 1000);
+  };
+
+  var queueNextStep = function() {
+    queueTask(processStep);
+  };
+
+  var modifyColumn = function(step) {
+    var state = columnState[step.index];
+    state.value = step.value;
+    state.time  = time + timeToRestore;
+    state.state = step.type;
+  };
+
+  var drawColumn = function(step, color) {
+    var width = ctx.canvas.width / size;
+    var height = ctx.canvas.height * step.value / maxValue;
+    var x = width * step.index;
+    var y = ctx.canvas.height - height;
+    ctx.fillStyle = "black";
+    ctx.fillRect(x, 0, width, ctx.canvas.height);
+    ctx.fillStyle = color;
+    ctx.fillRect(x, y, width, height);
+  };
+
+  var restoreColumns = function() {
+    var checkTime = time;
+    columnState.forEach(function(state) {
+      if (state.state != 'start') {
+        if (state.time < checkTime) {
+          state.state = 'start';
+          drawColumn(state, 'white');
+        }
+      }
+    });
+  };
+
+  var stepFuncs = {
+    start: function(step) {
+      drawColumn(step, "white");
+      return false;
+    },
+    cmp: function(step) {
+      drawColumn(step, "blue");
+      modifyColumn(step);
+      ++comparisonCount;
+      if (comparisonCount >= comparisonsPerFrame) {
+        comparisonCount = 0;
+        queueNextStep();
+        return true;
+      }
+      return false;
+    },
+    swap: function(step) {
+      drawColumn(step, "red");
+      modifyColumn(step);
+      queueNextStep();
+      comparisonCount = 0;
+      return true;
+    },
+    copy: function(step) {
+      drawColumn(step, "purple");
+      modifyColumn(step);
+      queueNextStep();
+      comparisonCount = 0;
+      return true;
+    },
+    set: function(step) {
+      drawColumn(step, "orange");
+      modifyColumn(step);
+      queueNextStep();
+      comparisonCount = 0;
+      return true;
+    },
+  };
+
+  var drawAllColumns = function() {
+    var index = 0;
+    var drawNextColumn = function() {
+      if (index < columnState.length) {
+        drawColumn(columnState[index++], "rgb(0,255,0)");
+        restoreColumns();
+        queueTask(drawNextColumn);
+        ++time;
+      }
+    };
+    drawNextColumn();
+  };
+
+  var processStep = function() {
+    var done = false;
+    while (!done) {
+      if (index >= steps.length) {
+        fn();
+        drawAllColumns();
+        done = true;
+      } else {
+        var step = steps[index++];
+        var typeFn = stepFuncs[step.type];
+        if (!typeFn) {
+          throw("unknown step type");
+        }
+        done = typeFn(step);
+      }
+    }
+    ++time;
+    restoreColumns();
+  };
+  processStep();
+};
+
+SortVisualizer.prototype.rand = function(range) {
+  return Math.floor(Math.random() * range);
+};
+
+SortVisualizer.prototype.swap = function(array, a, b) {
+  var temp = array[a];
+  array[a] = array[b];
+  array[b] = temp;
+  this.addStep_(a, array[a], 'swap');
+  this.addStep_(b, array[b], 'swap');
+};
+
+SortVisualizer.prototype.copy = function(array, src, dst) {
+  array[dst] = array[src];
+  this.addStep_(dst, array[dst], 'copy');
+};
+
+SortVisualizer.prototype.set = function(array, ndx, value) {
+  array[ndx] = value;
+  this.addStep_(ndx, value, 'set');
+};
+
+SortVisualizer.prototype.cmp = function(array, ndx, value) {
+  this.addStep_(ndx, array[ndx], 'cmp');
+  return array[ndx] - value;
+};
+
+SortVisualizer.prototype.gt = function(array, ndx, value) {
+  return this.cmp(array, ndx, value) > 0;
+};
+
+SortVisualizer.prototype.lt = function(array, ndx, value) {
+  return this.cmp(array, ndx, value) < 0;
+};
+
+SortVisualizer.prototype.ge = function(array, ndx, value) {
+  return this.cmp(array, ndx, value) >= 0;
+};
+
+SortVisualizer.prototype.le = function(array, ndx, value) {
+  return this.cmp(array, ndx, value) <= 0;
+};
+
+SortVisualizer.prototype.eq = function(array, ndx, value) {
+  return this.cmp(array, ndx, value) == 0;
+};
+
+SortVisualizer.prototype.ne = function(array, ndx, value) {
+  return this.cmp(array, ndx, value) != 0;
+};
+
+
+var quickSort = function(array, sv) {
+  var sort = function(start, end) {
+    var n = end - start;
+    if (n <= 1) {
+      return;
+    }
+
+    var r = start + sv.rand(n);
+    sv.swap(array, start, r, sv);
+
+    var k = start;
+    for (var i = start + 1; i < end; ++i) {
+      if (sv.le(array, i, array[start])) {
+        sv.swap(array, ++k, i, sv);
+      }
+    }
+    sv.swap(array, start, k, sv);
+
+    sort(start, k);
+    sort(k + 1, end);
+  };
+
+  sort(0, array.length);
+};
+
+var quickSortLR = function(array, sv) {
+
+  var sort = function(array, start, end) {
+    if (end - start < 1) {
+      return;
+    }
+
+    var pivotIndex = start;
+    var pivot = array[pivotIndex];
+    var sp = start + 1;
+    var ep = end;
+    while (ep >= sp) {
+      while (ep >= sp && sv.ge(array, ep, pivot)) {
+        --ep;
+      }
+
+      if (ep < sp) {
+        break;
+      }
+
+      sv.copy(array, ep, pivotIndex);
+      pivotIndex = ep;
+
+      while (ep >= sp && sv.le(array, sp, pivot)) {
+        ++sp;
+      }
+
+      if (ep < sp) {
+        break;
+      }
+
+      sv.copy(array, sp, pivotIndex);
+      pivotIndex = sp;
+    }
+
+    sv.set(array, pivotIndex, pivot);
+
+    sort(array, start, pivotIndex - 1);
+    sort(array, pivotIndex + 1, end);
+  };
+
+  log("before: " + array);
+  sort(array, 0, array.length - 1);
+  log("after : " + array);
+};
+
+window.onload = function() {
+  var canvas = document.getElementById("c");
+
+  var sv = new SortVisualizer(canvas);
+  sv.runSort(quickSort);
+//  sv.runSort(quickSortLR);
+  sv.playback(function() {
+    log("done");
+    log("--");
+    log("num copies      : " + sv.get('copy'));
+    log("num comparisions: " + sv.get('cmp'));
+    log("num swaps       : " + sv.get('swap'));
+  });
+}
+</script>
+</head>
+<body>
+<canvas id="c"></canvas>
+<pre id="console"></pre>
+</body>
+</html>
+

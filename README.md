@@ -1,33 +1,51 @@
 Various Random Doodles
 ======================
 
-Faces
----------------------------------------------
-
-Just a few types of eyes, eyebrows and mouths can generate many expressions
-
-http://greggman.github.com/doodles/faces.html
-
-Fork
+Sort
 ----
 
-Playing around with a forking structure.
+A sort visualizer <a href="http://www.youtube.com/watch?v=kPRA0W1kECg">inspired by this video</a>.
 
-http://greggman.github.com/doodles/fork.html
+Mostly I had just never personally implemented a quicksort.  I first
+googled "quicksort explained" which bought up
+<a href="http://www.youtube.com/watch?v=Z5nSXTnD1I4?">this AWESOME video that
+extermely clearly explains the algorithm</a>.  So I implemented that.
 
-Tree
-----
+But, then I found <a href="http://www.sorting-algorithms.com/">this page
+which shows a bunch of algorthms and it has them detailed very tersely.
+Their quicksort is nothing like the one in the video above.  Their's moves
+a random `pivot` through the array going only to the right where as the one
+above uses the left most element as its `pivot`, takes it out of the array
+and uses left and right pointers to move stuff before and after the pivot
+finally inserting the pivot in the space found.
 
-Generating a simple tree.
+The LR one (1st) appears to be much faster than the right only one. I also don't quite
+get the point of choosing a random pivot. I suppose it's to try to avoid the worst
+case which I think is an inversely sorted array and starting from element #1. I'm sure
+somewhere on the net explains why a random pivot is best for algo #2.
 
-http://greggman.github.com/doodles/tree.html
+http://greggman.github.com/doodles/sort.html
 
-Tree-Color
+
+Circles
+-------
+
+Inspired by an exhibit I saw about
+<a href="http://en.wikipedia.org/wiki/Marcel_Duchamp">Marcel Duchamp</a>
+at the Moderna Museet in Stockholm.
+
+http://greggman.github.com/doodles/circles.html
+
+
+
+Spirograph
 ----------
 
-Same as tree but each level is a different color.
+Inspired by Spirograph toys.
 
-http://greggman.github.com/doodles/tree-color.html
+http://greggman.github.com/doodles/spirograph.html
+
+
 
 Missile-Command
 ---------------
@@ -71,19 +89,40 @@ I get "free" glowing similar to the color cycling technique from the 80s.
 
 http://greggman.github.com/doodles/missile-command.html
 
-Spirograph
+
+
+Tree-Color
 ----------
 
-Inspired by Spirograph toys.
+Same as tree but each level is a different color.
 
-http://greggman.github.com/doodles/spirograph.html
+http://greggman.github.com/doodles/tree-color.html
 
-Circles
--------
 
-Inspired by an exhibit I saw about
-<a href="http://en.wikipedia.org/wiki/Marcel_Duchamp">Marcel Duchamp</a>
-at the Moderna Museet in Stockholm.
 
-http://greggman.github.com/doodles/circles.html
+Tree
+----
+
+Generating a simple tree.
+
+http://greggman.github.com/doodles/tree.html
+
+
+
+Fork
+----
+
+Playing around with a forking structure.
+
+http://greggman.github.com/doodles/fork.html
+
+
+
+Faces
+---------------------------------------------
+
+Just a few types of eyes, eyebrows and mouths can generate many expressions
+
+http://greggman.github.com/doodles/faces.html
+
 
