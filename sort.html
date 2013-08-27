@@ -16,7 +16,11 @@ var SortVisualizer = function(canvas) {
 };
 
 SortVisualizer.prototype.get = function(id) {
-  return (this.num && this.num[id]) ? this.num[id] : 0;
+  var v = (this.num && this.num[id]) ? this.num[id] : 0;
+  if (id == 'swap') {
+    v /= 2;
+  }
+  return v;
 };
 
 SortVisualizer.prototype.runSort = function(sortFn, size, type) {
@@ -73,7 +77,9 @@ SortVisualizer.prototype.runSort = function(sortFn, size, type) {
   };
   var t = types[type];
   var array = makeRandomArray(size, t.valueFn, t.swapFn);
+  log("before: " + array);
   sortFn(array, this);
+  log("after : " + array);
 };
 
 SortVisualizer.prototype.addStep_ = function(index, value, type) {
@@ -345,9 +351,7 @@ var quickSortLR = function(array, sv) {
     sort(array, pivotIndex + 1, end);
   };
 
-  log("before: " + array);
   sort(array, 0, array.length - 1);
-  log("after : " + array);
 };
 
 var quickSort3 = function(array, sv) {
@@ -364,18 +368,20 @@ var quickSort3 = function(array, sv) {
 
     for (;;) {
       while (sv.lt(a, ++i, v));
-      while (sv.ge(a, --j, v)) {
+      while (sv.gt(a, --j, v)) {
         if (j == l) {
           break;
         }
       }
       if (i >= j) break;
       sv.swap(a, i, j);
-      if (sv.eq(a, i, v)) {
+      //if (sv.eq(a, i, v)) { // this compare is nearly free because the swap above just accessed these values
+      if (a[i] == v) {
         p++;
         sv.swap(a, p, i);
       }
-      if (sv.eq(a, j, v)) {
+      //if (sv.eq(a, j, v)) {
+      if (a[j] == v) {
         q--;
         sv.swap(a, j, q);
       }
