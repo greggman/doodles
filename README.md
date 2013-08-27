@@ -12,7 +12,7 @@ googled "quicksort explained" which bought up
 extermely clearly explains the algorithm</a>.  So I implemented that.
 
 But, then I found <a href="http://www.sorting-algorithms.com/">this page
-which shows a bunch of algorthms and it has them detailed very tersely.
+which shows a bunch of algorthms and it has them detailed very tersely</a>.
 Their quicksort is nothing like the one in the video above.  Their's moves
 a random `pivot` through the array going only to the right where as the one
 above uses the left most element as its `pivot`, takes it out of the array
