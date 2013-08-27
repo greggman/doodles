@@ -112,10 +112,11 @@ SortVisualizer.prototype.playback = function(fn) {
   var size = 0;
   var maxValue = 0;
 
-  this.num = {};
+  this.num = {cycles: 0};
 
-  var comparisonCount = 0;
-  var comparisonsPerFrame = 10;
+  var totalCycles = 0;
+  var cycleCount = 0;
+  var cyclesPerFrame = 10;
   var columnState = [];
   var columnsModified = [];
   var time = 0;
@@ -149,8 +150,12 @@ SortVisualizer.prototype.playback = function(fn) {
   var modifyColumn = function(step) {
     var state = columnState[step.index];
     state.value = step.value;
-    state.time  = time + timeToRestore;
-    state.state = step.type;
+    if (state.state == 'start' || state.state == 'cmp') {
+      state.state = step.type;
+      state.time  = time + timeToRestore;
+      return true;
+    }
+    return false;
   };
 
   var drawColumn = function(step, color) {
@@ -176,42 +181,34 @@ SortVisualizer.prototype.playback = function(fn) {
     });
   };
 
+  // Each function returns the number of cycles it takes.
+  // TODO: Seems like we could simulate cache times since we
+  // know which elements have been references at what time.
   var stepFuncs = {
     start: function(step) {
       drawColumn(step, "white");
-      return false;
+      return 0;
     },
     cmp: function(step) {
-      drawColumn(step, "blue");
-      modifyColumn(step);
-      ++comparisonCount;
-      if (comparisonCount >= comparisonsPerFrame) {
-        comparisonCount = 0;
-        queueNextStep();
-        return true;
+      if (modifyColumn(step)) {
+        drawColumn(step, "blue");
       }
-      return false;
+      return 3;
     },
     swap: function(step) {
       drawColumn(step, "red");
       modifyColumn(step);
-      queueNextStep();
-      comparisonCount = 0;
-      return true;
+      return 6;
     },
     copy: function(step) {
       drawColumn(step, "purple");
       modifyColumn(step);
-      queueNextStep();
-      comparisonCount = 0;
-      return true;
+      return 4;
     },
     set: function(step) {
       drawColumn(step, "orange");
       modifyColumn(step);
-      queueNextStep();
-      comparisonCount = 0;
-      return true;
+      return 2;
     },
   };
 
@@ -233,6 +230,7 @@ SortVisualizer.prototype.playback = function(fn) {
     var done = false;
     while (!done) {
       if (index >= steps.length) {
+        self.num.cycles = totalCycles;
         fn();
         drawAllColumns();
         done = true;
@@ -242,7 +240,14 @@ SortVisualizer.prototype.playback = function(fn) {
         if (!typeFn) {
           throw("unknown step type");
         }
-        done = typeFn(step);
+        var cycles = typeFn(step);
+        totalCycles += cycles;
+        cycleCount += cycles;
+        if (cycleCount >= cyclesPerFrame) {
+          cycleCount -= cyclesPerFrame;
+          queueNextStep();
+          done = true;
+        }
       }
     }
     ++time;
@@ -485,6 +490,14 @@ window.onload = function() {
     { name: "insertion",   sortFn: insertionSort, },
   ];
 
+  var stats = [
+    { label: "num set: ", id: 'set', },
+    { label: "num cpy: ", id: 'copy', },
+    { label: "num cmp: ", id: 'cmp', },
+    { label: "num swp: ", id: 'swap', },
+    { label: "num cyc: ", id: 'cycles', },
+  ];
+
   var tbody = document.getElementById("t");
   var thead = document.getElementById("h");
 
@@ -511,18 +524,27 @@ window.onload = function() {
       canvas.height = 50;
       td.appendChild(canvas);
 
-      var addDiv = function(parent, msg) {
+      var addDivSpan = function(parent, msg) {
         var div = document.createElement("div");
         div.appendChild(document.createTextNode(msg));
+        var span = document.createElement("span");
+        div.appendChild(span);
         parent.appendChild(div);
+        return span;
       };
+
+      var statElems = [];
+
+      stats.forEach(function(stat) {
+        statElems.push({stat: stat, elem: addDivSpan(td, stat.label)});
+      });
 
       var sv = new SortVisualizer(canvas);
       sv.runSort(algo.sortFn, 50, type);
       sv.playback(function() {
-        addDiv(td, "num set: " + sv.get('copy'));
-        addDiv(td, "num cmp: " + sv.get('cmp'));
-        addDiv(td, "num swp: " + sv.get('swap'));
+        statElems.forEach(function(s) {
+          s.elem.innerText = sv.get(s.stat.id);
+        });
       });
 
       tr.appendChild(td);

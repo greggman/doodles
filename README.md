@@ -19,10 +19,19 @@ above uses the left most element as its `pivot`, takes it out of the array
 and uses left and right pointers to move stuff before and after the pivot
 finally inserting the pivot in the space found.
 
-The LR one (1st) appears to be much faster than the right only one. I also don't quite
+The LR one appears to be much faster than the right only one. I also don't quite
 get the point of choosing a random pivot. I suppose it's to try to avoid the worst
 case which I think is an inversely sorted array and starting from element #1. I'm sure
-somewhere on the net explains why a random pivot is best for algo #2.
+somewhere on the net explains why a random pivot is best for algo #2. I'm a little
+worried there's a bug because the non LR one take so long on the uniform array example.
+
+Anyway, I added a bunch more including the quicksort 3 way partition. I also added
+cycle times but they make no sense currently. It's basically 2 cycles for a load,
+3 for a store, 1 for a compare though a compare includes a load so it's 3 cycles.
+But cache hits are not currently taken into account nor are a few array accesses
+in the algos. Maybe the only thing you care about is array accesses and cache
+misses in which case I should remove the various set, cmp, copy, swap stuff and
+just add have get/put and count cycles and try to guess cache hits.
 
 http://greggman.github.com/doodles/sort.html
 
