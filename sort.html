@@ -54,7 +54,7 @@ SortVisualizer.prototype.runSort = function(sortFn, size, type) {
     return size - ii - 1;
   };
   var manyEqualValues = function(ii, size) {
-    return 1 + Math.floor(ii / 10) * 10;
+    return (1 + Math.floor(ii / 10)) * 10;
   };
   var equalValues = function(ii, size) {
     return Math.floor(size / 2);
@@ -508,7 +508,7 @@ window.onload = function() {
 
       var canvas = document.createElement("canvas");
       canvas.width  = 100;
-      canvas.height = 100;
+      canvas.height = 50;
       td.appendChild(canvas);
 
       var addDiv = function(parent, msg) {
