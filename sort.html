@@ -127,9 +127,9 @@ SortVisualizer.prototype.playback = function(fn) {
   steps.forEach(function(step) {
     switch (step.type) {
     case 'start':
-      size = Math.max(size, step.index);
+      size = Math.max(size, step.index + 1);
       maxValue = Math.max(maxValue, step.value);
-      columnState[size] = {index: step.index, time: 0, value: step.value, state: 'start'};
+      columnState[step.index] = {index: step.index, time: 0, value: step.value, state: 'start'};
       break;
     default:
       self.num[step.type] = self.num[step.type] ? (self.num[step.type] + 1) : 1;
@@ -448,6 +448,23 @@ var selectionSort = function(array, sv) {
   }
 };
 
+var insertionSort = function(array, sv) {
+  var n = array.length;
+  for (var i = 1; i < n; ++i) {
+    var v = array[i];
+    var j = 0;
+    for (; j < i; ++j) {
+      if (sv.gt(array, j, v)) {
+        break;
+      }
+    }
+    for (var k = i; k > j; --k) {
+      sv.copy(array, k - 1, k);
+    }
+    sv.set(array, j, v);
+  }
+};
+
 window.onload = function() {
 
   var types = [
@@ -465,6 +482,7 @@ window.onload = function() {
     { name: "quicksort3",  sortFn: quickSort3,    },
     { name: "bubblesort",  sortFn: bubbleSort,    },
     { name: "selection",   sortFn: selectionSort, },
+    { name: "insertion",   sortFn: insertionSort, },
   ];
 
   var tbody = document.getElementById("t");
