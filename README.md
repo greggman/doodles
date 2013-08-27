@@ -36,6 +36,14 @@ at the Moderna Museet in Stockholm.
 
 http://greggman.github.com/doodles/circles.html
 
+Some samples:
+
+http://goo.gl/s8jsf7
+
+http://goo.gl/IiIyng
+
+http://goo.gl/95hWX6
+
 
 
 Spirograph
@@ -44,6 +52,16 @@ Spirograph
 Inspired by Spirograph toys.
 
 http://greggman.github.com/doodles/spirograph.html
+
+Some Samples:
+
+http://goo.gl/MJ9dwc
+
+http://goo.gl/vSgnT7
+
+http://goo.gl/vvZq0N
+
+http://goo.gl/yp5B4j
 
 
 
