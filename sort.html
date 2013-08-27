@@ -19,22 +19,43 @@ SortVisualizer.prototype.get = function(id) {
   return (this.num && this.num[id]) ? this.num[id] : 0;
 };
 
-SortVisualizer.prototype.runSort = function(sortFn, size) {
+SortVisualizer.prototype.runSort = function(sortFn, size, type) {
+  type = type || 'random';
   size = size || 50;
   this.steps = [];
   var self = this;
 
-  var makeRandomArray = function(size) {
+  var ascendingValues = function(ii, size) {
+    return ii;
+  };
+  var descendingValues = function(ii, size) {
+    return size - ii - 1;
+  };
+  var manyEqualValues = function(ii, size) {
+    return 1 + Math.floor(ii / 10) * 10;
+  };
+  var equalValues = function(ii, size) {
+    return Math.floor(size / 2);
+  };
+  var totallyRandom = function(ii, size) {
+    return self.rand(size);
+  };
+  var slightlyRandom = function(ii, size) {
+    return Math.min(size - 1, Math.max(0, ii - 1 + self.rand(3)));
+  };
+  var makeRandomArray = function(size, valueFn, swapIndexFn) {
     var array = [];
     for (var ii = 0; ii < size; ++ii) {
-      array.push(ii);
+      array.push(valueFn(ii, size));
     }
-    for (var ii = 0; ii < size; ++ii) {
-      var a = self.rand(size);
-      var b = self.rand(size);
-      var t = array[a];
-      array[a] = array[b];
-      array[b] = t;
+    if (swapIndexFn) {
+      for (var ii = 0; ii < size; ++ii) {
+        var a = swapIndexFn(ii, size);
+        var b = swapIndexFn(ii, size);
+        var t = array[a];
+        array[a] = array[b];
+        array[b] = t;
+      }
     }
     for (var ii = 0; ii < size; ++ii) {
       self.addStep_(ii, array[ii], 'start');
@@ -42,7 +63,16 @@ SortVisualizer.prototype.runSort = function(sortFn, size) {
     return array;
   };
 
-  var array = makeRandomArray(size);
+  var types = {
+    random:     { valueFn: ascendingValues, swapFn: totallyRandom, },
+    similar:    { valueFn: ascendingValues, swapFn: slightlyRandom, },
+    ascending:  { valueFn: ascendingValues, },
+    descending: { valueFn: descendingValues, },
+    mostEqual:  { valueFn: manyEqualValues, swapFn: totallyRandom, },
+    equal:      { valueFn: equalValues, },
+  };
+  var t = types[type];
+  var array = makeRandomArray(size, t.valueFn, t.swapFn);
   sortFn(array, this);
 };
 
@@ -165,6 +195,7 @@ SortVisualizer.prototype.playback = function(fn) {
     var index = 0;
     var drawNextColumn = function() {
       if (index < columnState.length) {
+        columnState[index].state = 'start';
         drawColumn(columnState[index++], "rgb(0,255,0)");
         restoreColumns();
         queueTask(drawNextColumn);
@@ -319,12 +350,58 @@ var quickSortLR = function(array, sv) {
   log("after : " + array);
 };
 
+var quickSort3 = function(array, sv) {
+  var sort = function(a, l, r) {
+    if (r <= l) {
+      return;
+    }
+
+    var i = l - 1;
+    var j = r;
+    var p = l - 1;
+    var q = r;
+    var v = a[r];
+
+    for (;;) {
+      while (sv.lt(a, ++i, v));
+      while (sv.ge(a, --j, v)) {
+        if (j == l) {
+          break;
+        }
+      }
+      if (i >= j) break;
+      sv.swap(a, i, j);
+      if (sv.eq(a, i, v)) {
+        p++;
+        sv.swap(a, p, i);
+      }
+      if (sv.eq(a, j, v)) {
+        q--;
+        sv.swap(a, j, q);
+      }
+    }
+    sv.swap(a, i, r);
+    j = i - 1;
+    i = i + 1;
+    for (var k = l; k < p; k++, j--) {
+      sv.swap(a, k, j);
+    }
+    for (var k = r-1; k > q; k--, i++) {
+      sv.swap(a, i, k);
+    }
+    sort(a, l, j);
+    sort(a, i, r);
+  }
+  sort(array, 0, array.length - 1);
+};
+
 window.onload = function() {
   var canvas = document.getElementById("c");
 
   var sv = new SortVisualizer(canvas);
-  sv.runSort(quickSort);
+// sv.runSort(quickSort);
 //  sv.runSort(quickSortLR);
+  sv.runSort(quickSort3);
   sv.playback(function() {
     log("done");
     log("--");
