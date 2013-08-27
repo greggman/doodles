@@ -2,6 +2,18 @@
 <html>
 <head>
 <meta charset="utf-8">
+<style>
+body, html {
+    font-family: monospace;
+    font-size: x-small;
+}
+canvas {
+    border: 1px solid black;
+}
+td {
+    vertical-align: top;
+}
+</style>
 <script src="js/webgl-utils.js"></script>
 <script>
 var log = function(msg) {
@@ -77,9 +89,9 @@ SortVisualizer.prototype.runSort = function(sortFn, size, type) {
   };
   var t = types[type];
   var array = makeRandomArray(size, t.valueFn, t.swapFn);
-  log("before: " + array);
+  //log("before: " + array);
   sortFn(array, this);
-  log("after : " + array);
+  //log("after : " + array);
 };
 
 SortVisualizer.prototype.addStep_ = function(index, value, type) {
@@ -401,25 +413,108 @@ var quickSort3 = function(array, sv) {
   sort(array, 0, array.length - 1);
 };
 
-window.onload = function() {
-  var canvas = document.getElementById("c");
+var bubbleSort = function(array, sv) {
+  var n = array.length;
+  for (var i = 0; i < n; ++i) {
+    var swapped = false;
+    for (var j = n - 1; j >= i + 1; --j) {
+      if (sv.lt(array, j, array[j - 1])) {
+        sv.swap(array, j, j - 1);
+        swapped = true;
+      }
+    }
+    if (!swapped) {
+      break;
+    }
+  }
+};
 
-  var sv = new SortVisualizer(canvas);
-// sv.runSort(quickSort);
-//  sv.runSort(quickSortLR);
-  sv.runSort(quickSort3);
-  sv.playback(function() {
-    log("done");
-    log("--");
-    log("num copies      : " + sv.get('copy'));
-    log("num comparisions: " + sv.get('cmp'));
-    log("num swaps       : " + sv.get('swap'));
+var selectionSort = function(array, sv) {
+  var n = array.length;
+  for (var i = 0; i < n; ++i) {
+    var k = i;
+    for (var j = i + 1; j < n; ++j) {
+      if (sv.lt(array, j, array[k])) {
+        k = j;
+      }
+    }
+    sv.swap(array, i, k);
+  }
+};
+
+window.onload = function() {
+
+  var types = [
+    "random",
+    "similar",
+    "ascending",
+    "descending",
+    "mostEqual",
+    "equal",
+  ];
+
+  var algorithms = [
+    { name: "quicksort",   sortFn: quickSort,     },
+    { name: "quicksortLR", sortFn: quickSortLR,   },
+    { name: "quicksort3",  sortFn: quickSort3,    },
+    { name: "bubblesort",  sortFn: bubbleSort,    },
+    { name: "selection",   sortFn: selectionSort, },
+  ];
+
+  var tbody = document.getElementById("t");
+  var thead = document.getElementById("h");
+
+  types.forEach(function(type) {
+    var td = document.createElement("td");
+    td.appendChild(document.createTextNode(type));
+    thead.appendChild(td);
   });
+
+  algorithms.forEach(function(algo) {
+    var tr = document.createElement("tr");
+
+    var td = document.createElement("td");
+    var div = document.createElement("div");
+    div.appendChild(document.createTextNode(algo.name));
+    td.appendChild(div);
+    tr.appendChild(td);
+
+    types.forEach(function(type) {
+      var td = document.createElement("td");
+
+      var canvas = document.createElement("canvas");
+      canvas.width  = 100;
+      canvas.height = 100;
+      td.appendChild(canvas);
+
+      var addDiv = function(parent, msg) {
+        var div = document.createElement("div");
+        div.appendChild(document.createTextNode(msg));
+        parent.appendChild(div);
+      };
+
+      var sv = new SortVisualizer(canvas);
+      sv.runSort(algo.sortFn, 50, type);
+      sv.playback(function() {
+        addDiv(td, "num set: " + sv.get('copy'));
+        addDiv(td, "num cmp: " + sv.get('cmp'));
+        addDiv(td, "num swp: " + sv.get('swap'));
+      });
+
+      tr.appendChild(td);
+    });
+    tbody.appendChild(tr);
+  });
+
+
 }
 </script>
 </head>
 <body>
-<canvas id="c"></canvas>
+<table>
+  <thead><tr id="h"><td></td></tr></thead>
+  <tbody id="t"></tbody>
+</table>
 <pre id="console"></pre>
 </body>
 </html>
