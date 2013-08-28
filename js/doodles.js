@@ -271,6 +271,7 @@ Doodles = (function() {
       '          <canvas id="animCanvas"></canvas>  ',
       '        </div>                               ',
       '      </td>                                  ',
+      '    </tr>                                    ',
       '  </table>                                   ',
       '</div>                                       ',
       '<div id="uiContainer">                       ',

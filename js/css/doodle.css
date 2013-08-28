@@ -18,8 +18,8 @@ canvas {
     height: 100%;
 }
 #content>table>tbody>tr>td {
-    border: 1px solid black;
     width: 50%;
+    height: 100%;
 }
 #editor {
     width: 100%;
