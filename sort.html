@@ -37,6 +37,13 @@ body, html {
     font-family: monospace;
     font-size: x-small;
 }
+bigContainer {
+    text-align: center;
+}
+big {
+    width: 100%;
+    height: 100%;
+}
 canvas {
     border: 1px solid black;
 }
@@ -50,8 +57,12 @@ thead {
     text-align: center;
 }
 </style>
+<link type="text/css" href="js/css/ui-lightness/jquery-ui-1.10.3.custom.css" rel="stylesheet" />
 <script src="js/webgl-utils.js"></script>
 <script src="js/sort-visualizer.js"></script>
+<script src="js/jquery-1.9.1.js"></script>
+<script src="js/jquery-ui-1.10.3.custom.min.js"></script>
+<script src="js/jquery.ui.touch-punch.min.js"></script>
 <script>
 var log = function(msg) {
   var console = document.getElementById("console");
@@ -236,7 +247,51 @@ var insertionSort = function(array, sv) {
 
 // --------------------------------------------
 
-window.onload = function() {
+$(function() {
+
+  var createCanvas = function(width, height) {
+    var canvas = document.createElement("canvas");
+    canvas.width  = width;
+    canvas.height = height;
+    return canvas;
+  };
+
+
+  var bigSv = undefined;
+
+  $( "#dialog-form" ).dialog({
+        autoOpen: false,
+        height: 900,
+        width: 900,
+        modal: true,
+        close: function() {
+          bigSv.destroy();
+          bigSv = undefined;
+        }
+      });
+
+  var showSort = function(algo, type) {
+
+    var big = document.getElementById("big");
+    var width = Math.max(300, $("body").width() - 200);
+    var height = Math.max(300, $("body").height() - 200);
+    big.width = width - 50;
+    big.height = height - 60;
+
+    if (bigSv !== undefined) {
+      throw("visualization already in progress");
+    }
+    bigSv = new SortVisualizer(big);
+    bigSv.runSort(algo.sortFn, Math.max(100, Math.min(300, width)), type);
+    bigSv.playback(function() {});
+
+    $("#dialog-form").
+      dialog({ title: algo.name + ": " + type }).
+      dialog("option", "width", width).
+      dialog("option", "height", height).
+      dialog("open");
+  };
+
 
   var types = [
     "random",
@@ -285,9 +340,7 @@ window.onload = function() {
     types.forEach(function(type) {
       var td = document.createElement("td");
 
-      var canvas = document.createElement("canvas");
-      canvas.width  = 100;
-      canvas.height = 50;
+      var canvas = createCanvas(100, 50);
       td.appendChild(canvas);
 
       var addDivSpan = function(parent, msg) {
@@ -313,21 +366,27 @@ window.onload = function() {
         });
       });
 
+      $(td).click(function() {showSort(algo, type)});
+
       tr.appendChild(td);
     });
     tbody.appendChild(tr);
   });
 
-
-}
+});
 </script>
 </head>
 <body>
-<table>
-  <thead><tr id="h"><td></td></tr></thead>
-  <tbody id="t"></tbody>
-</table>
-<pre id="console"></pre>
+  <table>
+    <thead><tr id="h"><td></td></tr></thead>
+    <tbody id="t"></tbody>
+  </table>
+  <pre id="console"></pre>
+<div id="dialog-form" title="Sort">
+  <div id="bigContainer">
+    <canvas id="big"></canvas>
+  </div>
+</div>
 </body>
 </html>
 

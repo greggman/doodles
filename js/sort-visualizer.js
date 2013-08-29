@@ -101,6 +101,29 @@ SortVisualizer.prototype.addStep_ = function(index, value, type) {
   this.steps.push({index: index, value: value, type: type});
 };
 
+SortVisualizer.prototype.cancelTask_ = function() {
+  if (this.requestId !== undefined) {
+    console.log("request canceled");
+    cancelRequestAnimFrame(this.requestId);
+    // cancelTimeout(this.requestId);
+    this.requestId = undefined;
+  }
+};
+
+SortVisualizer.prototype.queueTask_ = function(fn) {
+  var self = this;
+  var bk = function() {
+    self.requestId = undefined;
+    fn();
+  };
+  if (this.requestId !== undefined) {
+    throw("task already queued");
+  }
+  this.requestId = requestAnimFrame(bk);
+  //this.requestId = setTimeout(bk, 1000);
+};
+
+
 SortVisualizer.prototype.playback = function(fn) {
   var index = 0;
   var self = this;
@@ -118,6 +141,7 @@ SortVisualizer.prototype.playback = function(fn) {
   var columnsModified = [];
   var time = 0;
   var timeToRestore = 20;
+  var requestId = undefined;
 
   ctx.fillStyle = "black";
   ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
@@ -135,13 +159,8 @@ SortVisualizer.prototype.playback = function(fn) {
     }
   });
 
-  var queueTask = function(fn) {
-    requestAnimFrame(fn);
-    //setTimeout(fn, 1000);
-  };
-
   var queueNextStep = function() {
-    queueTask(processStep);
+    self.queueTask_(processStep);
   };
 
   var modifyColumn = function(step) {
@@ -216,7 +235,7 @@ SortVisualizer.prototype.playback = function(fn) {
         columnState[index].state = 'start';
         drawColumn(columnState[index++], "rgb(0,255,0)");
         restoreColumns();
-        queueTask(drawNextColumn);
+        self.queueTask_(drawNextColumn);
         ++time;
       }
     };
@@ -251,6 +270,10 @@ SortVisualizer.prototype.playback = function(fn) {
     restoreColumns();
   };
   processStep();
+};
+
+SortVisualizer.prototype.destroy = function() {
+  this.cancelTask_();
 };
 
 SortVisualizer.prototype.rand = function(range) {
