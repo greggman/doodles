@@ -35,7 +35,7 @@ var SortVisualizer = function(canvas) {
 SortVisualizer.prototype.get = function(id) {
   var v = (this.num && this.num[id]) ? this.num[id] : 0;
   if (id == 'swap') {
-    v /= 2;
+    v = Math.floor(v / 2);
   }
   return v;
 };
@@ -154,7 +154,7 @@ SortVisualizer.prototype.playback = function(fn) {
       columnState[step.index] = {index: step.index, time: 0, value: step.value, state: 'start'};
       break;
     default:
-      self.num[step.type] = self.num[step.type] ? (self.num[step.type] + 1) : 1;
+      self.num[step.type] = 0;
       break;
     }
   });
@@ -246,8 +246,7 @@ SortVisualizer.prototype.playback = function(fn) {
     var done = false;
     while (!done) {
       if (index >= steps.length) {
-        self.num.cycles = totalCycles;
-        fn();
+        fn(false);
         drawAllColumns();
         done = true;
       } else {
@@ -256,12 +255,15 @@ SortVisualizer.prototype.playback = function(fn) {
         if (!typeFn) {
           throw("unknown step type");
         }
+        self.num[step.type] = self.num[step.type] ? (self.num[step.type] + 1) : 1;
         var cycles = typeFn(step);
         totalCycles += cycles;
         cycleCount += cycles;
+        self.num.cycles = totalCycles;
         if (cycleCount >= cyclesPerFrame) {
           cycleCount -= cyclesPerFrame;
           queueNextStep();
+          fn(true);
           done = true;
         }
       }
