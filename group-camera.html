@@ -1,0 +1,349 @@
+<!--
+ * Copyright 2014, Gregg Tavares.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above
+ * copyright notice, this list of conditions and the following disclaimer
+ * in the documentation and/or other materials provided with the
+ * distribution.
+ *     * Neither the name of Gregg Tavares. nor the names of his
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>Group Camera Experiments</title>
+<style>
+html, body {
+  border: 0px;
+  padding: 0px;
+  margin: 0px;
+  width: 100%;
+  height: 100%;
+}
+#content {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  display: -webkit-flex;
+}
+#c {
+  flex: 1 1 auto;
+  -webkit-flex: 1 1 auto;
+}
+#status {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 1;
+}
+#input {
+  position: absolute;
+  top: 0px;
+  left: 0px;
+  z-index: 10;
+  width: 100%;
+  height: 100%;
+}
+</style>
+<script src="js/hand-1.3.7.js"></script>
+<script>
+window.onload = function() {
+
+  var resizeCanvas = function(canvas) {
+    if (canvas.width != canvas.clientWidth * 2 ||
+        canvas.height != canvas.clientHeight * 2) {
+      canvas.width = canvas.clientWidth * 2;
+      canvas.height = canvas.clientHeight * 2;
+    }
+  };
+
+  /**
+   * Returns the absolute position of an element for certain browsers.
+   * @param {HTML Element} element The element to get a position for.
+   * @return {Object} An object containing x and y as the absolute position
+   *   of the given element.
+   */
+  var getAbsolutePosition = function(element) {
+    var r = { x: element.offsetLeft, y: element.offsetTop };
+    if (element.offsetParent) {
+      var tmp = getAbsolutePosition(element.offsetParent);
+      r.x += tmp.x;
+      r.y += tmp.y;
+    }
+    return r;
+  };
+
+  var getRelativeCoordinates = (function(window, undefined) {
+    return function(reference, event) {
+      // Use absolute coordinates
+      var pos = getAbsolutePosition(reference);
+      var x = event.pageX - pos.x;
+      var y = event.pageY - pos.y;
+      return { x: x, y: y };
+    };
+  }());
+
+  var canvas = document.getElementById("c");
+  resizeCanvas(canvas);
+  var ctx = canvas.getContext("2d");
+
+  var playerRadius = 16;
+  var players = [
+    { x: 100, y: 110, },
+    { x: 200, y: 100, },
+    { x: 160, y: 80, },
+  ];
+
+  var camera = {
+    x: 150,
+    y: 200,
+    fov: Math.PI / 4,
+    dir: 0,
+  };
+
+  var drawCircle = function(position, radius) {
+    ctx.beginPath();
+    ctx.arc(position.x, position.y, radius, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+  };
+
+  var requestId = undefined;
+  var statusElement = document.getElementById("status");
+  var statusNode = statusElement.firstChild;
+  if (!statusNode) {
+    statusNode = document.createTextNode("");
+    statusElement.appendChild(statusNode);
+  }
+
+  var currentPlayer;
+  var startOffset;
+
+  var inputElem = document.getElementById("input");
+
+  var inPlayer = function(player, pos) {
+    var dx = player.x - pos.x;
+    var dy = player.y - pos.y;
+    return dx * dx + dy * dy < playerRadius * playerRadius;
+  };
+
+  inputElem.addEventListener('pointerdown', function(e) {
+    var pos = getRelativeCoordinates(e.target, e);
+    for (var ii = 0; ii < players.length; ++ii) {
+      var player = players[ii];
+      if (inPlayer(player, pos)) {
+        currentPlayer = player;
+        startOffset = { x: player.x - pos.x, y: player.y - pos.y };
+        return;
+      }
+    }
+  }, false);
+
+  inputElem.addEventListener('pointermove', function(e) {
+    if (!currentPlayer) {
+      return;
+    }
+    var pos = getRelativeCoordinates(e.target, e);
+    currentPlayer.x = pos.x + startOffset.x;
+    currentPlayer.y = pos.y + startOffset.y;
+  }, false);
+
+  var pointerFinish = function() {
+    currentPlayer = undefined;
+  };
+
+  var normalize = function(v) {
+    var mag = Math.sqrt(v.x * v.x + v.y * v.y);
+    if (mag > 0.0000001) {
+      v.x /= mag;
+      v.y /= mag;
+    }
+  };
+
+  var lengthSq = function(v) {
+    return v.x * v.x + v.y * v.y;
+  };
+
+  var length = function(v) {
+    return Math.sqrt(lengthSq(v));
+  };
+
+  var distance = function(p0, p1) {
+    var dx = p0.x - p1.x;
+    var dy = p0.y - p1.y;
+  };
+
+  inputElem.addEventListener('pointerup', pointerFinish, false);
+  inputElem.addEventListener('pointerout', pointerFinish, false);
+
+  var render = function() {
+    var s = [];
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    ctx.save();
+    ctx.scale(2, 2);
+
+    var playerSort = [];
+
+    for (var ii = 0; ii < players.length; ++ii) {
+      var player = players[ii];
+      ctx.fillStyle = "#48F";
+      ctx.strokeStyle = "#000";
+      drawCircle(player, playerRadius);
+
+      // Compute angle from camera.
+      var dx = player.x - camera.x;
+      var dy = player.y - camera.y;
+
+      var realAngle = Math.atan2(dx, -dy);
+      var deltaAngle = realAngle - camera.dir;
+
+      ctx.fillStyle = "#000";
+      ctx.fillText("ra: " + realAngle.toFixed(3), player.x, player.y - 10);
+      ctx.fillText("da: " + deltaAngle.toFixed(3), player.x, player.y - 20);
+
+      playerSort.push({
+        player: player,
+        deltaAngle: deltaAngle,
+      });
+    }
+    playerSort.sort(function(a, b) {
+      return a.deltaAngle < b.deltaAngle;
+    });
+
+    // take the players at both ends. compute the midpoint
+    // assume we want to be perpendicular to that midpoint.
+    var p0 = playerSort[0].player;
+    var p1 = playerSort[playerSort.length - 1].player;
+
+    var center = {
+      x: (p0.x + p1.x) * 0.5,
+      y: (p0.y + p1.y) * 0.5,
+    };
+
+    ctx.fillStyle = "#F84";
+    drawCircle(camera, playerRadius);
+    ctx.save();
+    ctx.translate(camera.x, camera.y);
+    ctx.rotate(camera.dir);
+    ctx.beginPath();
+    ctx.moveTo(0,0);
+    ctx.lineTo(0,-100);
+    ctx.stroke();
+    ctx.restore();
+
+    ctx.fillStyle = "#F00";
+    drawCircle(center, 4);
+
+    var dx = p0.x - p1.x;
+    var dy = p0.y - p1.y;
+    var bbSize = Math.sqrt(dx * dx + dy * dy);
+
+    var desiredDistFromBBCenter = (bbSize / 2.0) / Math.tan(camera.fov / 2.0);
+    s.push("ddfbbc: " + desiredDistFromBBCenter.toFixed(3));
+
+    var direction = {
+      x:   p0.y - p1.y,
+      y: -(p0.x - p1.x),
+    };
+
+    // Is this the right direction?
+    var desiredAngle = Math.atan2(direction.x, -direction.y);
+    var angle = desiredAngle - camera.dir;
+    s.push("dsagl: " + desiredAngle.toFixed(3));
+    s.push("angle: " + angle.toFixed(3));
+
+
+    normalize(direction);
+
+    var desiredPosition = {
+      x: center.x + direction.x * -desiredDistFromBBCenter,
+      y: center.y + direction.y * -desiredDistFromBBCenter,
+    };
+
+    ctx.fillStyle = "#FF0";
+    drawCircle(desiredPosition, 5);
+    ctx.save();
+    ctx.translate(desiredPosition.x, desiredPosition.y);
+    ctx.rotate(Math.atan2(direction.x, -direction.y));
+    ctx.beginPath();
+    ctx.moveTo(0,0);
+    ctx.lineTo(0, -100);
+    ctx.stroke();
+
+    for (var ii = -1; ii <= 1; ii += 2) {
+      ctx.save();
+      ctx.rotate(camera.fov * ii * 0.5);
+      ctx.beginPath();
+      ctx.moveTo(0,0);
+      ctx.lineTo(0, -1000);
+      ctx.stroke();
+      ctx.restore();
+    }
+
+    ctx.restore();
+
+    ctx.restore();
+
+    camera.x += (desiredPosition.x - camera.x) * 0.1;
+    camera.y += (desiredPosition.y - camera.y) * 0.1;
+
+    camera.dir += (desiredAngle - camera.dir) * 0.1;
+
+    statusNode.nodeValue = s.join("\n");
+    requestId = requestAnimationFrame(render);
+  };
+
+  var startRendering = function() {
+    if (requestId === undefined) {
+      render();
+    }
+  };
+
+  var stopRendering = function() {
+    if (requestId !== undefined) {
+      cancelAnimationFrame(requestId);
+      requestId = undefined;
+    }
+  };
+
+  window.addEventListener('blur', stopRendering);
+  window.addEventListener('focus', startRendering);
+  startRendering();
+};
+
+</script>
+</head>
+<body>
+<div id="content">
+  <canvas id="c"></canvas>
+</div>
+<pre id="status">
+</pre>
+<div id="input">
+</div>
+</body>
+</html>
+
+
