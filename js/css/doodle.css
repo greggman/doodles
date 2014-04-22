@@ -30,6 +30,12 @@ canvas {
     height: 100%;
     position: relative;
 }
+#drawCanvas {
+    position: absolute;
+    left: 0px;
+    top: 0px;
+    z-index: 9;
+}
 #animCanvas {
     position: absolute;
     left: 0px;

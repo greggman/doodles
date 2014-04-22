@@ -314,10 +314,13 @@ Doodles = (function() {
 
     var resizeCanvas = function() {
       var resizeFn = function(canvas) {
-        if (canvas.width != canvas.clientWidth ||
-            canvas.heigt != canvas.clientHeight) {
-          canvas.width = canvas.clientWidth;
-          canvas.height = canvas.clientHeight;
+        var mult = window.devicePixelRatio || 1;
+        var width  = Math.floor(canvas.clientWidth  * mult);
+        var height = Math.floor(canvas.clientHeight * mult);
+        if (canvas.width != width ||
+            canvas.height != height) {
+          canvas.width  = width;
+          canvas.height = height;
         }
       };
       contexts.forEach(function(ctx) {

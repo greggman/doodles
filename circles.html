@@ -119,6 +119,9 @@ var draw = function(runCtx) {
   ctx.translate(ctx.canvas.width / 2, ctx.canvas.height / 2);
   drawCircle(ctx, runCtx.time * params.speed, runCtx.elapsedTime, true, outerRadius, outerRadius, maxDepth, 0);
   ctx.restore();
+  if (!window.c) {
+    window.c = ctx;
+  }
 };
 draw(runCtx);
 </script>
