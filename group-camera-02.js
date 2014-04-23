@@ -157,7 +157,8 @@ var main = function(
     ctx.scale(2, 2);
 
     var playerSort = [];
-
+    var min = { x: players[0].x, y: players[0].y };
+    var max = { x: players[0].x, y: players[0].y };
     for (var ii = 0; ii < players.length; ++ii) {
       var player = players[ii];
       ctx.fillStyle = "#48F";
@@ -167,6 +168,11 @@ var main = function(
       // Compute angle from camera.
       var dx = player.x - camera.x;
       var dy = player.y - camera.y;
+
+      min.x = Math.min(player.x, min.x);
+      min.y = Math.min(player.y, min.y);
+      max.x = Math.max(player.x, max.x);
+      max.y = Math.max(player.y, max.y);
 
       var realAngle = Math.atan2(dx, -dy);
       var deltaAngle = wrapAngle(realAngle - camera.dir);
@@ -195,6 +201,14 @@ var main = function(
       y: (p0.y + p1.y) * 0.5,
     };
 
+    var bbCenter = {
+      x: (min.x + max.x) * 0.5,
+      y: (min.y + max.y) * 0.5,
+    };
+
+    ctx.fillStyle = "#4F4";
+    drawCircle(bbCenter, 5);
+
     ctx.fillStyle = "#F00";
     drawCircle(center, 4);
 
@@ -206,24 +220,31 @@ var main = function(
     desiredDistFromBBCenter = Math.max(desiredDistFromBBCenter, globals.minDist);
     s.push("ddfbbc: " + desiredDistFromBBCenter.toFixed(3));
 
+    //var direction = {
+    //  x:   p0.y - p1.y,
+    //  y: -(p0.x - p1.x),
+    //};
+    //
+    //
+    //normalize(direction);
+    //var l = length(direction);
+    //s.push(l);
+    //if (l < 0.00001) {
+    //  var temp = {
+    //    x: center.x - camera.x,
+    //    y: center.y - camera.y,
+    //  };
+    //  direction.x = temp.x;
+    //  direction.y = temp.y;
+    //  normalize(direction);
+    //}
+
     var direction = {
-      x:   p0.y - p1.y,
-      y: -(p0.x - p1.x),
+      x: bbCenter.x - camera.x,
+      y: bbCenter.y - camera.y,
     };
-
-
     normalize(direction);
-    var l = length(direction);
-    s.push(l);
-    if (l < 0.00001) {
-      var temp = {
-        x: center.x - camera.x,
-        y: center.y - camera.y,
-      };
-      direction.x = temp.x;
-      direction.y = temp.y;
-      normalize(direction);
-    }
+
 
     // Is this the right direction?
     var desiredAngle = Math.atan2(direction.x, -direction.y);
@@ -262,7 +283,7 @@ var main = function(
 
     ctx.restore();
 
-    // Draw Camera
+    // Draw camera
     ctx.fillStyle = "#F84";
     drawCircle(camera, playerRadius);
     ctx.save();
