@@ -92,6 +92,10 @@ define(function() {
     return Math.floor(Math.random() * value);
   };
 
+  var rand = function(v) {
+    return Math.random() * v;
+  };
+
   var randCSSColor = function() {
     var strong = randInt(3);
     var colors = [];
@@ -202,6 +206,7 @@ define(function() {
     getAbsolutePosition: getAbsolutePosition,
     radToDeg: radToDeg,
     randInt: randInt,
+    rand: rand,
     randCSSColor: randCSSColor,
     resize: resize,
     sign: sign,
