@@ -1,0 +1,186 @@
+<!--
+ * Copyright 2013, Gregg Tavares.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above
+ * copyright notice, this list of conditions and the following disclaimer
+ * in the documentation and/or other materials provided with the
+ * distribution.
+ *     * Neither the name of Gregg Tavares. nor the names of his
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+body, html {
+    width: 100%;
+    height: 100%;
+    padding: 0px;
+    margin: 0px;
+}
+textarea {
+    font-family: Courier-New, Courier, monospace;
+}
+#canvas {
+    width: 100%;
+    height: 100%;
+}
+#content {
+    width: 100%;
+    height: 100%;
+}
+
+#content>table {
+    width: 100%;
+    height: 100%;
+}
+#content>table>tbody>tr>td {
+    border: 1px solid black;
+    width: 50%;
+    height: 100%;
+}
+#editor {
+    width: 100%;
+    height: 100%;
+}
+</style>
+<script src="js/jquery-1.9.1.js"></script>
+<script src="js/webgl-utils.js"></script>
+<script id="code" type="something-not-javascript">
+var draw = function(ctx) {
+  var width = ctx.canvas.width;
+  var height = ctx.canvas.height;
+  var maxSize = Math.max(width, height);
+  var minSize = Math.min(width, height);
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  ctx.strokeStyle = "white";
+  ctx.fillStyle = "black";
+  ctx.lineWidth = 2;
+  ctx.save();
+  ctx.translate(width / 2, height / 2);
+
+  var numRects = 2000;
+  for (var ii = 0; ii < numRects; ++ii) {
+    var lerp = ii / numRects;
+    var minusLerp = 1 - lerp;
+    var scaleLerp = Math.pow(lerp, 5);
+    var range = minSize * 0.4 * Math.pow(minusLerp, 0.13);
+    var radius = (1 - Math.pow(Math.random(), 1.5)) * range;
+    var angle = Math.random() * Math.PI * 2;
+    var centerX =  Math.cos(angle) * radius;
+    var centerY = -Math.sin(angle) * radius;
+    var largeMin = 20;
+    var largeRange = 60;
+    var smallMin = 4 + 8 * scaleLerp;
+    var smallRange = 0 + 10 * scaleLerp;
+    var w = largeMin + Math.random() * largeRange;
+    var h = smallMin + Math.random() * smallRange;
+    if (Math.random() > 0.5) {
+      var t = w; w = h; h = t;
+    }
+    ctx.save();
+    ctx.translate(centerX, centerY);
+    ctx.beginPath();
+    ctx.moveTo(-w * 0.5, -h * 0.5);
+    ctx.lineTo( w * 0.5, -h * 0.5);
+    ctx.lineTo( w * 0.5,  h * 0.5);
+    ctx.lineTo(-w * 0.5,  h * 0.5);
+    ctx.lineTo(-w * 0.5, -h * 0.5);
+    ctx.fill();
+    ctx.stroke();
+    ctx.restore();
+  }
+
+  ctx.restore();
+};
+
+draw(ctx);
+</script>
+<script>
+function main() {
+  var canvas = document.getElementById("canvas");
+  var ctx = canvas.getContext("2d");
+
+  var source = document.getElementById("code").text;
+  var editor = document.getElementById("editor");
+  var func = function() {};
+  editor.value = source;
+
+  var resizeCanvas = function() {
+    if (canvas.width != canvas.clientWidth ||
+        canvas.heigt != canvas.clientHeight) {
+      canvas.width = canvas.clientWidth;
+      canvas.height = canvas.clientHeight;
+    }
+    func(ctx);
+  };
+
+  var temp;
+  var onSourceChange = function() {
+    source = editor.value;
+    var success = true;
+    var e;
+    var temp;
+    try {
+      var t = "temp = {fn: function() { return function(ctx) {" + source + "}; }()}";
+      var f = eval(t).fn;
+      f(ctx);
+    } catch (e) {
+      console.log(e);
+      success = false
+    }
+
+    if (success) {
+      func = f;
+    }
+  };
+
+  $(window).resize(resizeCanvas);
+  editor.addEventListener('keyup', onSourceChange);
+
+  resizeCanvas();
+  onSourceChange();
+}
+
+$(function(){
+  main();
+});
+
+</script>
+</head>
+<body>
+<div id="content">
+  <table>
+    <tr>
+      <td>
+        <textarea id="editor"></textarea>
+      </td>
+      <td>
+        <canvas id="canvas"></canvas>
+      </td>
+  </table>
+</div>
+</body>
+</html>
+
