@@ -117,6 +117,24 @@ I get "free" glowing similar to the color cycling technique from the 80s.
 http://greggman.github.com/doodles/missile-command.html
 
 
+Emoji-Draw
+----------
+
+Just wanted to see if canvas supports drawing with emoji.
+Yes on Safari 7+, FF 29+. No on Chrome as of v34.
+
+http://greggman.github.com/doodles/emoji-draw.html
+
+
+
+Rects
+-----
+
+Inspired by some t-shirt I saw at Design Festa 39
+
+http://greggman.github.com/doodles/rects.html
+
+
 
 Tree-Color
 ----------
