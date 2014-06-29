@@ -136,6 +136,7 @@ Doodles = (function() {
       gadget.valueElem.innerHTML = gadget.value;
     }
     params[gadget.name] = gadget.value;
+    params.changed = true;
   };
 
   var setUIParam = function(event, qui, gadget, params) {
@@ -357,6 +358,7 @@ Doodles = (function() {
           ctx.restore();
          }
       });
+      ctx._.params.changed = false;
       return success;
     };
 
@@ -386,6 +388,7 @@ Doodles = (function() {
     };
 
     var then = Date.now() * 0.001;
+    var requestId;
     var render = function() {
       var now = Date.now() * 0.001;
       ctx.elapsedTime = now - then;
@@ -393,10 +396,26 @@ Doodles = (function() {
       ctx.elapsedTime = 1/30; // We need to time to be consistent.
       ctx.time += ctx.elapsedTime;
       applyToCanvases(func, ctx);
-      requestAnimFrame(render);
+      requestId = requestAnimationFrame(render);
     };
-    render();
 
+    var startRendering = function() {
+      if (!requestId) {
+        render();
+      }
+    };
+
+    var stopRendering = function() {
+      if (requestId) {
+        cancelAnimationFrame(requestId);
+        requestId = undefined;
+      }
+    }
+
+    startRendering();
+
+    window.addEventListener('focus', startRendering, false);
+    window.addEventListener('blur', stopRendering, false);
     window.addEventListener('keyup', function(event) {
       switch (event.keyCode) {
       case 27: // esc
