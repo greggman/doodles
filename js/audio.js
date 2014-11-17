@@ -188,7 +188,7 @@
             // just playing any sound does not seem to work.
             var source = g_context.createOscillator();
             var gain = g_context.createGain();
-            source.frequency.value = 440;
+            source.frequency.value = 1;
             source.connect(gain);
             gain.gain.value = 0;
             gain.connect(g_context.destination);
