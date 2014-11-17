@@ -19,13 +19,19 @@
 //      audioMgr.playSound('explosion');
 //      audioMgr.playSound('fire');
 //
-// etc...
+// `samples` is how may of that sound you want to be able to play at
+// the same time. THIS IS NOT NEEDED for any browser that supports the
+// Web Audio API. In other words it's only needed for IE.
+//
+// Also note Firefox doesn't support MP3s as far as I know so you'll need
+// to supply .ogg files for it. Conversely, Safari doesn't support .ogg.
+// The library handles loading .mp3 or .ogg files regardless of what you specify
+// when you init the library. In other words if you put `filename: "foo.mp3"`
+// the library will try to load `foo.mp3` or `foo.ogg` depending on if the
+// browser supports one or the other.
 
 (function(global) {
   var webAudioAPI = window.AudioContext || window.webkitAudioContext || window.mozAudioContext;
-
-  // To play a sound, simply call audio.playSound(id), where id is
-  // one of the keys of the g_sound_files array, e.g. "damage".
 
   // options:
   //   startedOnTouchCallback: on iOS no sounds can be played unless at least one is first initiated during
