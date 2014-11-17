@@ -1,8 +1,19 @@
 <html>
 <head>
+  <meta name="viewport" content="width=device-width, target-densitydpi=160dpi, initial-scale=1.0, maximum-scale=1, user-scalable=no, minimal-ui">
+<style>
+html, body, #c {
+    width: 100%;
+    height: 100%;
+    font-size: xx-large;
+}
+#c {
+    text-align: center;
+}
+</style>
 </head>
 <body>
-Click to play a sound
+<div id="c">Click to play a sound</d>
 </body>
   <script src="js/audio.js"></script>
   <script>
@@ -18,6 +29,7 @@ var audioMgr = new AudioManager({
 var snd = 0;
 
 function playSound() {
+console.log("play snd:" + snd);
   switch (snd) {
     case 0: audioMgr.playSound('fire');      break;
     case 1: audioMgr.playSound('explosion'); break;
@@ -29,7 +41,7 @@ function playSound() {
   snd = (snd + 1) % 6;
 }
 
-document.body.addEventListener('click', playSound, false);
+document.getElementById("c").addEventListener('click', playSound, false);
   </script>
 </html>
 

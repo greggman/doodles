@@ -184,11 +184,11 @@
         var eventNames = ['touchstart', 'mousedown'];
         var playSoundToStartAudio = function() {
           ++count;
-          if (count == 1) {
+         if (count < 3) {
             // just playing any sound does not seem to work.
             var source = g_context.createOscillator();
             var gain = g_context.createGain();
-            source.frequency.value = 1;
+            source.frequency.value = 440;
             source.connect(gain);
             gain.gain.value = 0;
             gain.connect(g_context.destination);
@@ -200,6 +200,8 @@
             setTimeout(function() {
               source.disconnect();
             }, 100);
+          }
+          if (count == 3) {
             for (var ii = 0; ii < eventNames.length; ++ii) {
               elem.removeEventListener(eventNames[ii], playSoundToStartAudio, false);
             }
@@ -208,7 +210,6 @@
             }
           }
         }
-
         for (var ii = 0; ii < eventNames.length; ++ii) {
           elem.addEventListener(eventNames[ii], playSoundToStartAudio, false);
         }
