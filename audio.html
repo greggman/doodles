@@ -1,0 +1,35 @@
+<html>
+<head>
+</head>
+<body>
+Click to play a sound
+</body>
+  <script src="js/audio.js"></script>
+  <script>
+var audioMgr = new AudioManager({
+  fire:      { filename: "assets/snds/fire.ogg",      samples: 8, },
+  explosion: { filename: "assets/snds/explosion.ogg", samples: 6, },
+  hitshield: { filename: "assets/snds/hitshield.ogg", samples: 6, },
+  launch:    { filename: "assets/snds/launch.ogg",    samples: 2, },
+  gameover:  { filename: "assets/snds/gameover.ogg",  samples: 1, },
+  play:      { filename: "assets/snds/play.ogg",      samples: 1, },
+});
+
+var snd = 0;
+
+function playSound() {
+  switch (snd) {
+    case 0: audioMgr.playSound('fire');      break;
+    case 1: audioMgr.playSound('explosion'); break;
+    case 2: audioMgr.playSound('hitshield'); break;
+    case 3: audioMgr.playSound('launch');    break;
+    case 4: audioMgr.playSound('gameover');  break;
+    case 5: audioMgr.playSound('play');      break;
+  }
+  snd = (snd + 1) % 6;
+}
+
+document.body.addEventListener('click', playSound, false);
+  </script>
+</html>
+
