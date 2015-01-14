@@ -1,0 +1,218 @@
+<html>
+<head>
+<style>
+html, body {
+    padding: 0px;
+    margin: 0px;
+    width: 100%;
+    height: 100%;
+}
+canvas {
+    width: 100%;
+    height: 100%;
+}
+iframe {
+    z-index: 2;
+    position: absolute;
+    bottom: 0px;
+    width: 200px;
+    height: 60px;
+}
+</style>
+</head>
+<body>
+<iframe scrolling="no" frameborder="no" src="https://w.soundcloud.com/player/?url=https%3A//api.soundcloud.com/tracks/149666716&amp;color=ff5500&amp;auto_play=true&amp;hide_related=true&amp;show_comments=false&amp;show_user=false&amp;show_reposts=false"></iframe>
+</body>
+<script src="js/three.min.js"></script>
+<script>
+
+"use strict";
+
+var renderer = new THREE.WebGLRenderer(  { antialias: true }  );
+document.body.appendChild( renderer.domElement );
+var canvas = renderer.domElement;
+
+var backgroundColor = 0x9040C0;
+renderer.setClearColor( backgroundColor, 1 );
+
+var camera = new THREE.PerspectiveCamera( 20, canvas.clientWidth, canvas.clientHeight, 10000 );
+var scene = new THREE.Scene();
+
+var FLOOR = -150;
+var NEAR = 10;
+var FAR = 3000;
+
+scene.fog = new THREE.Fog( backgroundColor, NEAR, FAR );
+
+//var geometry = new THREE.PlaneGeometry( 100, 100 );
+//var planeMaterial = new THREE.MeshPhongMaterial( { color: 0xffdd99 } );
+//planeMaterial.ambient = planeMaterial.color;
+//
+//var ground = new THREE.Mesh( geometry, planeMaterial );
+//
+//ground.position.set( 0, FLOOR, 0 );
+//ground.rotation.x = - Math.PI / 2;
+//ground.scale.set( 100, 100, 100 );
+//
+//scene.add( ground );
+
+var sphereGeo = new THREE.SphereGeometry( 40, 4, 4 );
+var sphereGeo2 = new THREE.SphereGeometry( 40, 12, 12 );
+
+var ambient = new THREE.AmbientLight( 0x444444 );
+scene.add( ambient );
+
+var light = new THREE.SpotLight( 0xffffff, 1, 0, Math.PI / 2, 1 );
+light.position.set( 500, 300, 1000 );
+light.target.position.set( 0, 0, 0 );
+
+
+scene.add( light );
+
+camera.position.z = 1000;
+
+var meshes = [];
+var numBack = 6;
+var numDown = 8;
+var numAcross= 8;
+for ( var zz = 0; zz < numBack; ++zz ) {
+  var zlerp = zz / numBack;
+  for ( var yy = 0; yy < 6; ++yy ) {
+    var ylerp = yy / (numDown - 1) * 2 - 1;
+    for ( var xx = 0; xx < numAcross; ++xx ) {
+      var material = new THREE.MeshPhongMaterial( {
+          ambient: 0x808080,
+          color: 0xFF80FF,
+          specular: 0xFFFFFF,
+          shininess: 30,
+          shading: THREE.FlatShading,
+      } );
+
+      var wireMaterial = new THREE.MeshBasicMaterial( {
+        wireframe: true,
+        wireframeLinewidth: 2,
+        color: 0x0,
+      } );
+
+      var xlerp = xx / (numAcross - 1) * 2 - 1;
+      var mesh = new THREE.Mesh( sphereGeo, material );
+      scene.add( mesh );
+      mesh.position.x = 400 * xlerp;
+      mesh.position.y = 400 * ylerp
+      mesh.position.z = zlerp * -FAR;
+      var mesh2 = new THREE.Mesh( sphereGeo2, wireMaterial );
+      scene.add(mesh2);
+      mesh2.position.x = 400 * xlerp;
+      mesh2.position.y = 400 * ylerp
+      mesh2.position.z = zlerp * -FAR;
+      mesh2.rotation.z = 0.1;
+      meshes.push({
+        mat: material,
+        wireMat: wireMaterial,
+        mesh: mesh,
+        wireMesh: mesh2,
+      });
+    }
+  }
+}
+
+// Resize by clientWidth and clientHeight
+var resize = function() {
+    var width = canvas.clientWidth;
+    var height = canvas.clientHeight;
+    if ( canvas.width != width ||
+        canvas.height != height ) {
+          renderer.setSize( canvas.clientWidth, canvas.clientHeight, false );
+
+        camera.aspect = canvas.clientWidth / canvas.clientHeight;
+        camera.updateProjectionMatrix();
+    }
+};
+
+var randInt = function(v) {
+  return Math.floor(Math.random() * v);
+};
+
+var movers = [];
+var ndx = 0;
+var frameCount = 0;
+var target = new THREE.Color( 0xFF8080 );
+var targetHSL = target.getHSL();
+var targetCount = 1;
+
+var render = function() {
+    resize();
+
+    var time = Date.now() * 0.001;
+    var radius = 100;
+
+    camera.rotation.x = 0.03;
+    camera.rotation.y = 0.015;
+
+    for ( var ii = 0; ii < 3; ++ii ) {
+      var ndx = randInt(meshes.length);
+      movers.push({
+        mesh: meshes[ndx],
+        ticks: 0,
+      });
+    }
+
+    if ( frameCount % 1200 == 0 ) {
+      var h = (targetHSL.h + Math.random() * 0.5 + 0.25) % 1;
+      target.setHSL(h, Math.random() * 0.1 + 0.9, Math.random() * 0.2 + 0.6);
+      targetHSL = target.getHSL();
+    }
+
+    meshes.forEach(function(mesh) {
+      mesh.wireMesh.rotation.x += Math.random();
+      mesh.wireMesh.rotation.y += Math.random();
+    });
+
+    var c = renderer.getClearColor();
+    c.lerp(target, 0.01);
+    renderer.setClearColor(c);
+    scene.fog.color.lerp(target, 0.01);
+
+    while ( movers[0].ticks > 15 ) {
+      var mover = movers.shift();
+    }
+
+    for ( var ii = 0; ii < movers.length; ++ii ) {
+      var mover = movers[ii];
+      if ( mover.ticks === 0 ) {
+        mover.mesh.mesh.rotation.z += 0.1;
+        mover.mesh.wireMesh.rotation.z += 0.2;
+      }
+      ++mover.ticks;
+      var lerp = mover.ticks / 15;
+      var v = 1 - lerp; //Math.max(0, Math.min(255, Math.floor((1 - lerp) * 256)));
+      mover.mesh.wireMat.color.r = v;
+      mover.mesh.wireMat.color.g = v;
+      mover.mesh.wireMat.color.b = v;
+
+      mover.mesh.mat.color.setHSL(targetHSL.h + ii / movers.length, targetHSL.s - v, targetHSL.l + v);
+
+      var s = 1 + v * 0.2;
+      mover.mesh.mesh.scale.x = s;
+      mover.mesh.mesh.scale.y = s;
+      mover.mesh.mesh.scale.z = s;
+      mover.mesh.wireMesh.scale.x = s;
+      mover.mesh.wireMesh.scale.y = s;
+      mover.mesh.wireMesh.scale.z = s;
+      //mover.mesh.mat.color = 0xFF80FF;
+    }
+
+    renderer.clear();
+    renderer.render( scene, camera );
+
+    ++frameCount;
+
+    // This should always go at the bottom. That way you can actually debug.
+    // With it at the top the problem is even if your code causes an exeption
+    // you've already asked the browser to queue a new event so the code will
+    // keep executing
+    requestAnimationFrame( render, canvas );
+};
+render();
+</script>
+</html>
