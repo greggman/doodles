@@ -7,8 +7,7 @@
     <style>
       html, body {
         font-family: Monospace;
-        background-color: #000;
-        color: #fff;
+        color: #666;
         margin: 0px;
         overflow: hidden;
         width: 100%;
@@ -31,9 +30,7 @@
   </head>
   <body>
     <div id="info">
-    <a href="http://threejs.org" target="_blank">three.js</a> - procedural 3D text by <a href="http://www.lab4games.net/zz85/blog" target="_blank">zz85</a> &amp; alteredq
-    (fonts from <a href="http://typeface.neocracy.org/">typeface.js</a> and <a href="http://en.wikipedia.org/wiki/Droid_%28font%29">Droid</a>)
-    <br/>type to enter new text, drag to spin the text
+    type to enter new text, drag to spin the text
     <br/>
       <span class="button" id="font">change font</span>,
       <span class="button" id="weight">change weight</span>,
@@ -76,6 +73,8 @@
       uniform sampler2D randomTexture;
       uniform vec2 randomOffset;
 
+      varying vec4 v_position;
+
       void main() {
 
         vec4 pos = vec4(position, 1.0);
@@ -84,7 +83,7 @@
         mvPosition.xy += rand.xy * 2.0;
 
         gl_Position = projectionMatrix * mvPosition;
-
+        v_position = pos;
       }
 
     </script>
@@ -92,10 +91,17 @@
     <script type="not-js" id="fragmentshader">
 
       uniform vec3 color;
+      uniform sampler2D randomTexture;
+      uniform vec2 randomOffset2;
+
+      varying vec4 v_position;
 
       void main() {
 
-        gl_FragColor = vec4(color, 1.0);
+        vec4 rand = texture2D(randomTexture, randomOffset2 + fract(v_position.xy * 0.002));
+        float bw = rand.x * rand.y;
+        bw = pow(1.0 - bw, 8.0);
+        gl_FragColor = vec4(color + vec3(bw, bw, bw), 1.0);
 
       }
 
@@ -339,7 +345,6 @@ function init() {
   var hash = document.location.hash.substr(1);
 
   if (hash.length !== 0) {
-
     var fonthash   = hash.substr(0, 1);
     var weighthash = hash.substr(1, 1);
     var pphash     = hash.substr(2, 1);
@@ -353,7 +358,6 @@ function init() {
     text = decodeURI(texthash);
 
     updatePermalink();
-
   }
 
   var r = {
@@ -370,9 +374,10 @@ function init() {
   randomTexture.needsUpdate = true;
 
   uniforms = {
-      color:           { type: "c", value: new THREE.Color(0x000000) },
+      color:           { type: "c", value: new THREE.Color(0x606060) },
       randomTexture:   { type: "t", value: randomTexture },
       randomOffset:    { type: "v2", value: new THREE.Vector2(0, 0) },
+      randomOffset2:   { type: "v2", value: new THREE.Vector2(0, 0) },
   };
   material = new THREE.ShaderMaterial({
 
@@ -494,7 +499,7 @@ function boolToNum(b) {
 
 function updatePermalink() {
 
-  var link = fontMap[ font ] + weightMap[ weight ] + boolToNum(postprocessing.enabled) + "#" + encodeURI(text);
+  var link = "" + fontMap[ font ] + weightMap[ weight ] + boolToNum(postprocessing.enabled) + "#" + encodeURI(text);
 
   permalink.href = "#" + link;
   window.location.hash = link;
@@ -655,8 +660,9 @@ function onDocumentTouchMove(event) {
 }
 
 //
-
+var frameCount = 0;
 function animate() {
+  ++frameCount;
   render();
   requestAnimationFrame(animate);
 }
@@ -667,9 +673,12 @@ function render() {
 
   camera.lookAt(cameraTarget);
 
-  material.uniforms.randomOffset.value.x += 0.001;
-  material.uniforms.randomOffset.value.y += 0.0013;
-  material.uniforms.color.value.offsetHSL(0.1, 0, 0);
+  if (frameCount % 5 == 0) {
+    material.uniforms.randomOffset.value.x += 0.001;
+    material.uniforms.randomOffset.value.y += 0.0013;
+    material.uniforms.randomOffset2.value.x = frameCount % 3 / 3;
+    material.uniforms.randomOffset2.value.y = frameCount % 3 / 3;
+  }
 
   renderer.clear();
 
