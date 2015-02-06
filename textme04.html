@@ -76,8 +76,8 @@
 
 			var targetRotation = 0;
 			var targetRotationOnMouseDown = 0;
-            var modelM;
-            var modelL;
+			var modelM;
+			var modelL;
 
 			var mouseX = 0;
 			var mouseXOnMouseDown = 0;
@@ -100,15 +100,16 @@
 				"narrow-sans-serif": "Helvetica,Arial,sans-serif",
 				"wide-sans-serif": "Verdana,Geneva,sans-serif",
 			};
-            var glyphExtras = {
-              color: [255, 255, 255],
-            };
+			var glyphExtras = {
+				color: [255, 255, 255],
+			};
 			var glyphPass;
 			var glyphSets = {};
 			var glyphPassOptions = {
 
 				glyphOptions: {
 
+					checker: false,
 					glyphSets: [ "ascii" ],
 
 					fontOptions: {
@@ -155,17 +156,13 @@
 				var geometry = new THREE.IcosahedronGeometry( radius, 1 );
 				var mat1 = new THREE.MeshLambertMaterial( { color: 0xff4f8f, shading: THREE.FlatShading } );
 
-				modelM = new THREE.Mesh(
-				  geometry,
-				  mat1);
+				modelM = new THREE.Mesh(geometry, mat1);
 				group.add(modelM);
 
 				var geometry = new THREE.SphereGeometry( radius, 48, 24 );
 				var mat1 = new THREE.MeshLambertMaterial( { color: 0x4f8fff, shading: THREE.SmoothShading } );
 
-				modelL = new THREE.Mesh(
-				  geometry,
-				  mat1);
+				modelL = new THREE.Mesh( geometry, mat1 );
 				modelL.position.x -= radius * 2.5;
 				group.add(modelL);
 
@@ -227,10 +224,10 @@
 //				gui.add(dummy, "datGui");
 				gui.add(postprocessing, 'enabled');
 				gui.add(glyphPass, 'textScale', 0.2, 2.0);
-                gui.addColor(glyphExtras, 'color').onChange(function() {
-                  var c = glyphExtras.color;
-                  glyphPass.color.setRGB(c[0] / 255, c[1] / 255, c[2] / 255);
-                });
+				gui.addColor(glyphExtras, 'color').onChange(function() {
+					var c = glyphExtras.color;
+					glyphPass.color.setRGB(c[0] / 255, c[1] / 255, c[2] / 255);
+				});
 				gui.add(fontOptions, 'font', Object.keys(fontFamilies)).onFinishChange(updateGlyphSets);
 				gui.add(fontOptions, 'fontSize', 6, 32).step(1).onFinishChange(updateGlyphSets);
 
@@ -243,6 +240,9 @@
 
 					});
 				});
+
+				var debugFolder = gui.addFolder( 'debug' );
+				debugFolder.add(glyphPassOptions.glyphOptions, 'checker').onChange(updateGlyphSets);
 
 			}
 
@@ -374,7 +374,7 @@
 
 				setRenderTargetSize();
 
-                modelM.rotation.z += 0.002;
+				modelM.rotation.z += 0.002;
 				group.rotation.y += ( targetRotation - group.rotation.y ) * 0.05;
 
 				camera.aspect = renderer.domElement.clientWidth / renderer.domElement.clientHeight;

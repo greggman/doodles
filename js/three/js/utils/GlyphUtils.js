@@ -334,6 +334,12 @@
                         var xOff = ll * glyphWidth    + lr * segmentWidth;
                         var yOff = rl * glyphHeight + rr * segmentHeight;
                         ctx.clearRect(xOff, yOff, glyphWidth, glyphHeight);
+                        if (settings.checker) {
+                            ctx.save();
+                            ctx.fillStyle = (ll + lr + rl + rr) % 2 ? "red" : "green";
+                            ctx.fillRect(xOff, yOff, glyphWidth, glyphHeight);
+                            ctx.restore();
+                        }
                         ctx.fillText(match.glyph, offsetX + xOff, offsetY + yOff);
                     }
                 }
