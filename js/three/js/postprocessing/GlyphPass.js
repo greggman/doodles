@@ -9,6 +9,8 @@ THREE.GlyphPass = function ( options ) {
 
 	this.color = options.color || new THREE.Color( 0xFFFFFF );
 	this.textScale = options.textScale || 1;
+	this.dosColors = options.dosColors || false;
+	this.oldDosColors = false;
 
 	// glyph material
 
@@ -20,6 +22,16 @@ THREE.GlyphPass = function ( options ) {
 	this.uniforms = THREE.UniformsUtils.clone( glyphShader.uniforms );
 
 	this.uniforms[ "tGlyphs" ].value = this.glyphsTexture;
+
+	var data = new Uint8Array( [
+	    0, 128, 0,
+	    0, 255, 0,
+	    128, 255, 0,
+	]);
+	var dosBrightTex = new THREE.DataTexture( data, 3, 1, THREE.RGBFormat, THREE.UnsignedByteType, THREE.Texture.DEFAULT_MAPPNG, THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping, THREE.NearestFilter, THREE.NearestFilter );
+	dosBrightTex.needsUpdate = true;
+
+	this.uniforms[ "tDosBrightness" ].value = dosBrightTex;
 
 	this.materialGlyph = new THREE.ShaderMaterial( {
 
@@ -52,7 +64,7 @@ THREE.GlyphPass.prototype = {
 
 		if ( !this.glyphsTexture ) {
 
-		  this.glyphsTexture = new THREE.Texture( glyphs.canvas, THREE.Texture.DEFAULT_MAPPNG, THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping, THREE.LinearFilter, THREE.NearestFilter );
+			this.glyphsTexture = new THREE.Texture( glyphs.canvas, THREE.Texture.DEFAULT_MAPPNG, THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping, THREE.LinearFilter, THREE.NearestFilter );
 
 		}
 
@@ -104,6 +116,16 @@ THREE.GlyphPass.prototype = {
 
 	render: function ( renderer, writeBuffer, readBuffer, delta, maskActive ) {
 
+		if ( this.dosColors != this.oldDosColors ) {
+
+			this.oldDosColors = this.dosColors;
+			var glyphShader = THREE.GlyphShader;
+			this.materialGlyph.fragmentShader =
+				glyphShader.fragmentShader.replace("USE_DOS_COLORS 0", "USE_DOS_COLORS " + (this.dosColors ? "1" : "0"))
+			this.materialGlyph.needsUpdate = true;
+
+		}
+
 		this.uniforms[ "color" ].value = this.color;
 		this.uniforms[ "tDiffuse" ].value = readBuffer;
 		this.uniforms[ "diffuseDimensions" ].value.set( readBuffer.width, readBuffer.height );
@@ -116,17 +138,19 @@ THREE.GlyphPass.prototype = {
 
 		if ( this.renderToScreen ) {
 
-			this.uniforms[ "textSize" ].value.set(
-				renderer.context.drawingBufferWidth  / this.glyphs.glyphWidth  / this.textScale | 0,
-				renderer.context.drawingBufferHeight / this.glyphs.glyphHeight / this.textScale | 0 );
+			var tw = renderer.context.drawingBufferWidth  / this.glyphs.glyphWidth  / this.textScale | 0;
+			var th = renderer.context.drawingBufferHeight / this.glyphs.glyphHeight / this.textScale | 0;
+
+			this.uniforms[ "textSize" ].value.set( tw, th );
 			this.uniforms[ "resolution" ].value.set( renderer.context.drawingBufferWidth, renderer.context.drawingBufferHeight );
 			renderer.render( this.scene, this.camera );
 
 		} else {
 
-			this.uniforms[ "textSize" ].value.set(
-				writeBuffer.width  / this.glyphs.glyphWidth  / this.textScale | 0,
-				writeBuffer.Height / this.glyphs.glyphHeight / this.textScale | 0 );
+			var tw = writeBuffer.width  / this.glyphs.glyphWidth  / this.textScale | 0;
+			var th = writeBuffer.Height / this.glyphs.glyphHeight / this.textScale | 0;
+
+			this.uniforms[ "textSize" ].value.set( tw, th );
 			this.uniforms[ "resolution" ].value.set( writeBuffer.width, writeBuffer.height );
 			renderer.render( this.scene, this.camera, writeBuffer, this.clear );
 

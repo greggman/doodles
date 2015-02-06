@@ -218,10 +218,6 @@
 
 			function initGUI() {
 				var gui = new dat.GUI();
-//				var dummy = {
-//					datGui: "first line no worky"
-//				};
-//				gui.add(dummy, "datGui");
 				gui.add(postprocessing, 'enabled');
 				gui.add(glyphPass, 'textScale', 0.2, 2.0);
 				gui.addColor(glyphExtras, 'color').onChange(function() {
@@ -243,6 +239,7 @@
 
 				var debugFolder = gui.addFolder( 'debug' );
 				debugFolder.add(glyphPassOptions.glyphOptions, 'checker').onChange(updateGlyphSets);
+				debugFolder.add(glyphPass, 'dosColors');
 
 			}
 
