@@ -216,6 +216,11 @@
 
 			}
 
+			function isMobile() {
+				var ua = navigator.userAgent.toLowerCase();
+				return ua.indexOf("iphone") >= 0 || ua.indexOf("mobile") >= 0;
+			}
+
 			function initGUI() {
 				var gui = new dat.GUI();
 				gui.add(postprocessing, 'enabled');
@@ -241,6 +246,9 @@
 				debugFolder.add(glyphPassOptions.glyphOptions, 'checker').onChange(updateGlyphSets);
 				debugFolder.add(glyphPass, 'dosColors');
 
+				if ( isMobile() ) {
+					gui.close();
+				}
 			}
 
 			function updateGlyphSets() {
