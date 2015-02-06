@@ -1,0 +1,401 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - postprocessing - glyphs</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			html, body {
+				font-family: Monospace;
+				background-color: #000;
+				color: #fff;
+				margin: 0px;
+				overflow: hidden;
+				width: 100%;
+				height: 100%;
+			}
+			canvas {
+				width: 100%;
+				height: 100%;
+			}
+			#info {
+				position: absolute;
+				top: 10px;
+				width: 100%;
+				text-align: center;
+				z-index: 100;
+				display:block;
+			}
+			#info a, .button { color: #f00; font-weight: bold; text-decoration: underline; cursor: pointer }
+			.dg.ac {
+				z-index: 1000 !important;
+			}
+		</style>
+	</head>
+	<body>
+
+		<div id="info">
+		<a href="http://threejs.org" target="_blank">three.js</a> - glyph postprocessing - by <a href="http://games.greggman.com" target="_blank">greggman</a>
+		</div>
+
+		<script src="js/three.min.js"></script>
+		<script src="js/three/js/utils/GeometryUtils.js"></script>
+		<script src="js/three/js/utils/GlyphUtils.js"></script>
+
+		<script src="js/three/js/shaders/CopyShader.js"></script>
+		<script src="js/three/js/shaders/GlyphShader.js"></script>
+
+		<script src="js/three/js/postprocessing/EffectComposer.js"></script>
+		<script src="js/three/js/postprocessing/MaskPass.js"></script>
+		<script src="js/three/js/postprocessing/RenderPass.js"></script>
+		<script src="js/three/js/postprocessing/ShaderPass.js"></script>
+		<script src="js/three/js/postprocessing/GlyphPass.js"></script>
+
+		<script src="js/three/js/Detector.js"></script>
+		<script src="js/three/js/libs/stats.min.js"></script>
+		<script src="js/three/js/libs/dat.gui.min.js"></script>
+
+		<script>
+
+			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+
+			var container, stats, permalink, hex, color;
+
+			var camera, cameraTarget, scene, renderer;
+
+			var composer;
+			var renderTarget;
+
+			var group, textMesh1, textMesh2, textGeo, material;
+
+			var text = "three.js",
+
+				height = 20,
+				size = 70,
+				hover = 30;
+
+			var targetRotation = 0;
+			var targetRotationOnMouseDown = 0;
+            var modelM;
+            var modelL;
+
+			var mouseX = 0;
+			var mouseXOnMouseDown = 0;
+
+			var windowHalfX = window.innerWidth / 2;
+			var windowHalfY = window.innerHeight / 2;
+
+			var postprocessing = { enabled : true };
+			var glow = 0.9;
+
+			var fontOptions = {
+				font: "monospace",
+				fontSize: 20,
+			};
+			var fontFamilies = {
+				"monospace": "monospace",
+				"courier": "'Courier New',Courier,monospace",
+				"narrow-serif": "'Courier New',Courier,monospace",
+				"wide-serif": "Georgia,Utopia,Charter,serif",
+				"narrow-sans-serif": "Helvetica,Arial,sans-serif",
+				"wide-sans-serif": "Verdana,Geneva,sans-serif",
+			};
+            var glyphExtras = {
+              color: [255, 255, 255],
+            };
+			var glyphPass;
+			var glyphSets = {};
+			var glyphPassOptions = {
+
+				glyphOptions: {
+
+					glyphSets: [ "ascii" ],
+
+					fontOptions: {
+					}
+
+				}
+
+			};
+
+			init();
+			animate();
+
+			function init() {
+
+				container = document.body;
+
+				// CAMERA
+
+				camera = new THREE.PerspectiveCamera( 30, 1, 1, 1500 );
+				camera.position.set( 0, 400, 700 );
+
+				cameraTarget = new THREE.Vector3( 0, 150, 0 );
+
+				// SCENE
+
+				scene = new THREE.Scene();
+				scene.fog = new THREE.Fog( 0x000000, 250, 1400 );
+
+				// LIGHTS
+
+				var dirLight = new THREE.DirectionalLight( 0xffffff, 1.725 );
+				dirLight.position.set( 200, 100, 100 ).normalize();
+				scene.add( dirLight );
+
+				var pointLight = new THREE.PointLight( 0xffffff, 1.5 );
+				pointLight.position.set( -120, 0, 50 );
+				scene.add( pointLight );
+
+				group = new THREE.Group();
+				group.position.y = 120;
+
+
+				var radius = 150;
+				var geometry = new THREE.IcosahedronGeometry( radius, 1 );
+				var mat1 = new THREE.MeshLambertMaterial( { color: 0xff4f8f, shading: THREE.FlatShading } );
+
+				modelM = new THREE.Mesh(
+				  geometry,
+				  mat1);
+				group.add(modelM);
+
+				var geometry = new THREE.SphereGeometry( radius, 48, 24 );
+				var mat1 = new THREE.MeshLambertMaterial( { color: 0x4f8fff, shading: THREE.SmoothShading } );
+
+				modelL = new THREE.Mesh(
+				  geometry,
+				  mat1);
+				modelL.position.x -= radius * 2.5;
+				group.add(modelL);
+
+
+				scene.add( group );
+
+				// RENDERER
+
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				container.appendChild( renderer.domElement );
+				renderer.setClearColor( scene.fog.color );
+				renderer.setPixelRatio( window.devicePixelRatio );
+				renderer.setSize( renderer.domElement.clientWidth, renderer.domElement.clientHeight );
+
+				// STATS
+
+				stats = new Stats();
+				stats.domElement.style.position = 'absolute';
+				stats.domElement.style.top = '0px';
+				//container.appendChild( stats.domElement );
+
+				// POSTPROCESSING
+
+				renderer.autoClear = false;
+
+				var renderModel = new THREE.RenderPass( scene, camera );
+				glyphPass = new THREE.GlyphPass( glyphPassOptions );
+
+				glyphPass.renderToScreen = true;
+
+				var parameters = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBFormat, stencilBuffer: false };
+				renderTarget = new THREE.WebGLRenderTarget( 1, 1, parameters );
+				setRenderTargetSize();
+
+				composer = new THREE.EffectComposer( renderer, renderTarget );
+
+				composer.addPass( renderModel );
+				composer.addPass( glyphPass );
+
+				//
+
+				initGUI();
+
+				// EVENTS
+
+				renderer.domElement.addEventListener( 'mousedown', onDocumentMouseDown, false );
+				renderer.domElement.addEventListener( 'touchstart', onDocumentTouchStart, false );
+				renderer.domElement.addEventListener( 'touchmove', onDocumentTouchMove, false );
+
+				window.addEventListener( 'resize', onWindowResize, false );
+
+			}
+
+			function initGUI() {
+				var gui = new dat.GUI();
+//				var dummy = {
+//					datGui: "first line no worky"
+//				};
+//				gui.add(dummy, "datGui");
+				gui.add(postprocessing, 'enabled');
+				gui.add(glyphPass, 'textScale', 0.2, 2.0);
+                gui.addColor(glyphExtras, 'color').onChange(function() {
+                  var c = glyphExtras.color;
+                  glyphPass.color.setRGB(c[0] / 255, c[1] / 255, c[2] / 255);
+                });
+				gui.add(fontOptions, 'font', Object.keys(fontFamilies)).onFinishChange(updateGlyphSets);
+				gui.add(fontOptions, 'fontSize', 6, 32).step(1).onFinishChange(updateGlyphSets);
+
+				var glyphsFolder = gui.addFolder( 'glyphs' );
+				Object.keys(THREE.GlyphUtils.unicodeRanges).forEach(function(rangeName) {
+					glyphSets[rangeName] = glyphPassOptions.glyphOptions.glyphSets.indexOf(rangeName) >= 0;
+					glyphsFolder.add( glyphSets, rangeName ).onChange(function() {
+
+						updateGlyphSets();
+
+					});
+				});
+
+			}
+
+			function updateGlyphSets() {
+
+				glyphPassOptions.glyphOptions.glyphSets = Object.keys(glyphSets).filter(function(set) {
+					return glyphSets[set];
+				});
+
+				glyphPassOptions.glyphOptions.fontOptions.font =
+					fontOptions.fontSize.toString() + "px " + fontFamilies[fontOptions.font];
+
+				console.log(glyphPassOptions.glyphOptions.fontOptions.font);
+
+				glyphPass.updateGlyphs( glyphPassOptions );
+
+			}
+
+			function setRenderTargetSize() {
+
+				// Make it twice as many pixels as there are glyphs
+				var width  = (renderer.context.drawingBufferWidth  / (glyphPass.glyphs.glyphWidth  * glyphPass.textScale) | 0) * 2;
+				var height = (renderer.context.drawingBufferHeight / (glyphPass.glyphs.glyphHeight * glyphPass.textScale) | 0) * 2;
+
+				if ( renderTarget.width !== width || renderTarget.height !== height) {
+
+					renderTarget.setSize( width, height );
+
+				}
+			}
+
+
+			function onWindowResize() {
+
+				windowHalfX = window.innerWidth / 2;
+				windowHalfY = window.innerHeight / 2;
+
+				renderer.setSize( renderer.domElement.clientWidth, renderer.domElement.clientHeight );
+
+				setRenderTargetSize();
+
+				composer.reset();
+
+			}
+
+			//
+
+			function onDocumentMouseDown( event ) {
+
+				event.preventDefault();
+
+				renderer.domElement.addEventListener( 'mousemove', onDocumentMouseMove, false );
+				renderer.domElement.addEventListener( 'mouseup', onDocumentMouseUp, false );
+				renderer.domElement.addEventListener( 'mouseout', onDocumentMouseOut, false );
+
+				mouseXOnMouseDown = event.clientX - windowHalfX;
+				targetRotationOnMouseDown = targetRotation;
+
+			}
+
+			function onDocumentMouseMove( event ) {
+
+				event.preventDefault();
+
+				mouseX = event.clientX - windowHalfX;
+
+				targetRotation = targetRotationOnMouseDown + ( mouseX - mouseXOnMouseDown ) * 0.02;
+
+			}
+
+			function onDocumentMouseUp( event ) {
+
+				event.preventDefault();
+
+				renderer.domElement.removeEventListener( 'mousemove', onDocumentMouseMove, false );
+				renderer.domElement.removeEventListener( 'mouseup', onDocumentMouseUp, false );
+				renderer.domElement.removeEventListener( 'mouseout', onDocumentMouseOut, false );
+
+			}
+
+			function onDocumentMouseOut( event ) {
+
+				event.preventDefault();
+
+				renderer.domElement.removeEventListener( 'mousemove', onDocumentMouseMove, false );
+				renderer.domElement.removeEventListener( 'mouseup', onDocumentMouseUp, false );
+				renderer.domElement.removeEventListener( 'mouseout', onDocumentMouseOut, false );
+
+			}
+
+			function onDocumentTouchStart( event ) {
+
+				if ( event.touches.length == 1 ) {
+
+					event.preventDefault();
+
+					mouseXOnMouseDown = event.touches[ 0 ].pageX - windowHalfX;
+					targetRotationOnMouseDown = targetRotation;
+
+				}
+
+			}
+
+			function onDocumentTouchMove( event ) {
+
+				if ( event.touches.length == 1 ) {
+
+					event.preventDefault();
+
+					mouseX = event.touches[ 0 ].pageX - windowHalfX;
+					targetRotation = targetRotationOnMouseDown + ( mouseX - mouseXOnMouseDown ) * 0.05;
+
+				}
+
+			}
+
+			//
+
+			function animate() {
+
+				requestAnimationFrame( animate );
+
+				render();
+				stats.update();
+
+			}
+
+			function render() {
+
+				setRenderTargetSize();
+
+                modelM.rotation.z += 0.002;
+				group.rotation.y += ( targetRotation - group.rotation.y ) * 0.05;
+
+				camera.aspect = renderer.domElement.clientWidth / renderer.domElement.clientHeight;
+				camera.updateProjectionMatrix();
+				camera.lookAt( cameraTarget );
+
+				renderer.clear();
+
+				if ( postprocessing.enabled ) {
+
+					composer.render( 0.05 );
+
+				} else {
+
+					renderer.render( scene, camera );
+
+				}
+
+			}
+
+		</script>
+
+	</body>
+</html>

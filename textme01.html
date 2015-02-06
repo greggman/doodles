@@ -1,0 +1,264 @@
+<!--
+ * Copyright 2015, Gregg Tavares.
+ * All rights reserved.
+ *
+ * Redistribution and use in source and binary forms, with or without
+ * modification, are permitted provided that the following conditions are
+ * met:
+ *
+ *     * Redistributions of source code must retain the above copyright
+ * notice, this list of conditions and the following disclaimer.
+ *     * Redistributions in binary form must reproduce the above
+ * copyright notice, this list of conditions and the following disclaimer
+ * in the documentation and/or other materials provided with the
+ * distribution.
+ *     * Neither the name of Gregg Tavares. nor the names of his
+ * contributors may be used to endorse or promote products derived from
+ * this software without specific prior written permission.
+ *
+ * THIS SOFTWARE IS PROVIDED BY THE COPYRIGHT HOLDERS AND CONTRIBUTORS
+ * "AS IS" AND ANY EXPRESS OR IMPLIED WARRANTIES, INCLUDING, BUT NOT
+ * LIMITED TO, THE IMPLIED WARRANTIES OF MERCHANTABILITY AND FITNESS FOR
+ * A PARTICULAR PURPOSE ARE DISCLAIMED. IN NO EVENT SHALL THE COPYRIGHT
+ * OWNER OR CONTRIBUTORS BE LIABLE FOR ANY DIRECT, INDIRECT, INCIDENTAL,
+ * SPECIAL, EXEMPLARY, OR CONSEQUENTIAL DAMAGES (INCLUDING, BUT NOT
+ * LIMITED TO, PROCUREMENT OF SUBSTITUTE GOODS OR SERVICES; LOSS OF USE,
+ * DATA, OR PROFITS; OR BUSINESS INTERRUPTION) HOWEVER CAUSED AND ON ANY
+ * THEORY OF LIABILITY, WHETHER IN CONTRACT, STRICT LIABILITY, OR TORT
+ * (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY WAY OUT OF THE USE
+ * OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
+-->
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+canvas {
+  background-color: black;
+}
+</style>
+<script src="js/jquery-1.9.1.js"></script>
+<script src="js/webgl-utils.js"></script>
+<script>
+"use strict";
+
+var copyOptions = function(defaults, options) {
+  options = options || {};
+  var settings = {};
+  Object.keys(defaults).forEach(function(key) {
+    var value = defaults[key];
+    if (typeof value === "object") {
+      settings[key] = copyOptions(value, options[key]);
+    } else {
+      settings[key] = options[key] || value;
+    }
+  });
+  return settings;
+};
+
+var GlyphMaker = (function(options) {
+  var defaults = {
+    glyphs: "",
+    fontOptions: {
+      font: "20px monospace",
+      fillStyle: "white",
+      textAlign: "center",
+      textBaseLine: undefined,
+    },
+    maxWidth: 32,
+    maxHeight: 32,
+    baseLine: 20,
+    pack: 0,
+    checker: false,
+  };
+
+  var settings = copyOptions(defaults, options);
+  if (!settings.glyphs) {
+    var s = "";
+//    for (var ii = 32; ii < 128; ++ii) {
+    for (var ii = 32; ii < 1280; ++ii) {
+//    for (var ii = 0x3400; ii < 0x3600; ++ii) {
+      s += String.fromCharCode(ii);  // warning. Won't work for all unicode
+    };
+    settings.glyphs = s;
+  }
+
+  var canvas = document.createElement("canvas");
+  canvas.width  = settings.maxWidth;
+  canvas.height = settings.maxHeight;
+  var ctx = canvas.getContext("2d");
+  document.body.appendChild(canvas);
+
+  var setFontSettings = function() {
+    Object.keys(settings.fontOptions).forEach(function(key) {
+      ctx[key] = settings.fontOptions[key];
+    });
+  };
+
+  var allZero = function(imageData, offset, start, end, stride) {
+    for (; start < end; ++start) {
+      if (imageData.data[offset]) {
+        return false;
+      }
+      offset += stride;
+    }
+    return true;
+  };
+
+  var columnEmpty = function(imageData, column, opt_y, opt_height) {
+    var y      = opt_y || 0;
+    var end    = Math.min(y + (opt_height || imageData.height), imageData.height);
+    var offset = (imageData.width * y + column) * 4 + 3;
+    var stride = imageData.width * 4;
+    return allZero(imageData, offset, y, end, stride);
+  };
+
+  var rowEmpty = function(imageData, row, opt_x, opt_width) {
+    var x     = opt_x || 0;
+    var end   = Math.min(x + (opt_width || imageData.width), imageData.width);
+    var offset = (imageData.width * row + x) * 4 + 3;
+    return allZero(imageData, offset, x, end, 4);
+  };
+
+  var offsetX = Math.floor(ctx.canvas.width / 2);
+  var offsetY = settings.baseLine;
+  var getExtentsForGlyph = function(glyph) {
+    var x0 = 0;
+    var y0 = 0;
+    var x1 = settings.maxWidth  - 1;
+    var y1 = settings.maxHeight - 1;
+
+    ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    ctx.fillText(glyph, offsetX, offsetY);
+    var imageData = ctx.getImageData(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+    // scan left to right
+    while (x0 < settings.maxWidth && columnEmpty(imageData, x0)) {
+      ++x0;
+    }
+
+    // scan right to left
+    while (x1 >= x0 && columnEmpty(imageData, x1)) {
+      --x1;
+    }
+
+    var width = x1 - x0 + 1;
+
+    // scan left to right
+    while (y0 < settings.maxHeight && rowEmpty(imageData, y0, x0, width)) {
+      ++y0;
+    }
+
+    // scan right to left
+    while (y1 >= y0 && rowEmpty(imageData, y1, x0, width)) {
+      --y1;
+    }
+
+    var extents = {
+      x0: x0,
+      y0: y0,
+      x1: x1,
+      y1: y1,
+      width:  x1 - x0 + 1,
+      height: y1 - y0 + 1,
+      glyph: glyph,
+    };
+
+    return extents;
+  };
+
+  setFontSettings();
+  var extents = Array.prototype.map.call(settings.glyphs, getExtentsForGlyph);
+  var limits = extents.filter(function(extent) {
+    return extent.x0 <= extent.x1 && extent.y0 <= extent.y1;
+  }).reduce(function(prev, curr) {
+    return {
+      x0: Math.min(prev.x0, curr.x0),
+      y0: Math.min(prev.y0, curr.y0),
+      x1: Math.max(prev.x1, curr.x1),
+      y1: Math.max(prev.y1, curr.y1),
+      width:  Math.max(prev.width , curr.width ),
+      height: Math.max(prev.height, curr.height),
+    };
+  });
+
+  var maxWidth = 0;
+  var maxWidthGlyph;
+  var maxHeight = 0;
+  var maxHeightGlyph;
+
+  extents.forEach(function(extent) {
+    if (extent.width > maxWidth) {
+      maxWidth = extent.width;
+      maxWidthGlyph = extent.glyph;
+    }
+    if (extent.height > maxHeight) {
+      maxHeight = extent.height;
+      maxHeightGlyph = extent.glyph;
+    }
+  });
+
+  console.log("mw: " + maxWidth + " mwg: " + maxWidthGlyph + " : " + maxWidthGlyph.charCodeAt(0));
+  console.log("mh: " + maxHeight + " mhg: " + maxHeightGlyph + " : " + maxHeightGlyph.charCodeAt(0));
+
+  var glyphWidth  = limits.x1 - limits.x0 + 1 - settings.pack * 2;
+  var glyphHeight = limits.y1 - limits.y0 + 1 - settings.pack * 2;
+console.log("gw: " + glyphWidth + ", w: " + limits.width);
+console.log("gh: " + glyphHeight + ", h: " + limits.height);
+
+  var numGlyphs      = settings.glyphs.length;
+  var maxTextureSize = 1024;  // look up from GL?
+  var glyphsPerRow   = Math.floor(maxTextureSize / glyphWidth);
+  var numRows        = Math.floor((numGlyphs + glyphsPerRow - 1) / glyphsPerRow);
+  var numCols        = (numRows == 1 ? numGlyphs : glyphsPerRow)
+
+  ctx.canvas.width  = numCols * glyphWidth;
+  ctx.canvas.height = numRows * glyphHeight;
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+  offsetX = Math.floor(glyphWidth / 2);// - limits.x0;
+  offsetY -= limits.y0 + settings.pack;
+
+  setFontSettings();
+  ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+//  console.log(extents.map(JSON.stringify).join("\n"));
+
+  var extents = Array.prototype.map.call(settings.glyphs, function(glyph, ndx) {
+    var col = ndx % numCols;
+    var row = ndx / numCols | 0;
+//    console.log(glyph + ": " + col + "," + row + ": " + (offsetX + col * glyphWidth) + "," + (offsetY + row * glyphHeight));
+    ctx.save();
+    if (settings.checker) {
+      ctx.fillStyle = (col + row) % 2 ? "black" : "gray";
+      ctx.fillRect(col * glyphWidth, row * glyphHeight, glyphWidth, glyphHeight);
+    }
+    ctx.beginPath();
+    ctx.rect(col * glyphWidth, row * glyphHeight, glyphWidth, glyphHeight);
+    ctx.clip();
+    ctx.fillStyle = settings.fontOptions.fillStyle;
+    ctx.fillText(glyph, offsetX + col * glyphWidth, offsetY + row * glyphHeight);
+    ctx.restore();
+  });
+});
+
+function main() {
+  var glyphMaker = new GlyphMaker({
+//    glyphs: ",.!123abcABCWpgjy",
+    pack: 2,
+    checker: true,
+  });
+}
+
+$(function(){
+  main();
+});
+
+
+</script>
+</head>
+<body>
+</body>
+</html>
+
+
