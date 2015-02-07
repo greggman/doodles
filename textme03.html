@@ -46,6 +46,39 @@ canvas {
 <script>
 "use strict";
 
+var copyArray = function(defaults, array) {
+    var src = array || defaults;
+    return src.slice();
+};
+
+var copyOptions = function(defaults, options) {
+
+    options = options || {};
+    var settings = {};
+
+    Object.keys(defaults).forEach(function(key) {
+
+        var value = defaults[key];
+        if (value instanceof Array) {
+
+            settings[key] = copyArray(value, options[key]);
+
+        } else if (typeof value === "object") {
+
+            settings[key] = copyOptions(value, options[key]);
+
+        } else {
+
+            settings[key] = options[key] || value;
+
+        }
+
+    });
+
+    return settings;
+};
+
+
 function main() {
 
   var fontOptions = {
@@ -70,37 +103,59 @@ function main() {
       }
 
   };
+
+  var settings = {
+    glyphOptions: glyphOptions,
+    fontOptions: fontOptions,
+  };
+
+  var hash = document.location.hash.substr( 1 );
+  if (hash) {
+
+    try {
+      var tempSettings = JSON.parse(decodeURI(hash));
+      var newSettings = copyOptions(settings, tempSettings);
+      settings = newSettings;
+    } catch (e) {
+      console.error("could not parse URL settings");
+    }
+
+  }
+
   var glyphSets = {};
 
   var glyphs;
   var gui = new dat.GUI();
   var glyphsFolder = gui.addFolder( 'glyphs' );
   Object.keys( THREE.GlyphUtils.unicodeRanges ).forEach( function( rangeName ) {
-      glyphSets[ rangeName ] = glyphOptions.glyphSets.indexOf( rangeName ) >= 0;
+      glyphSets[ rangeName ] = settings.glyphOptions.glyphSets.indexOf( rangeName ) >= 0;
       glyphsFolder.add( glyphSets, rangeName ).onChange( function() {
 
           updateGlyphSets();
 
       } );
   } );
-  gui.add( glyphOptions, 'checker' ).onChange( updateGlyphSets );
-  gui.add( glyphOptions, 'shade' ).onChange( updateGlyphSets );
-  gui.add( fontOptions, 'font', Object.keys( fontFamilies )).onFinishChange( updateGlyphSets );
-  gui.add( fontOptions, 'fontSize', 6, 32 ).step( 1 ).onFinishChange( updateGlyphSets );
+  gui.add( settings.glyphOptions, 'checker' ).onChange( updateGlyphSets );
+  gui.add( settings.glyphOptions, 'shade' ).onChange( updateGlyphSets );
+  gui.add( settings.fontOptions, 'font', Object.keys( fontFamilies )).onFinishChange( updateGlyphSets );
+  gui.add( settings.fontOptions, 'fontSize', 6, 32 ).step( 1 ).onFinishChange( updateGlyphSets );
 
   updateGlyphSets();
   document.body.appendChild(glyphs.canvas);
 
   function updateGlyphSets() {
 
-    glyphOptions.glyphSets = Object.keys( glyphSets ).filter( function( set ) {
+    settings.glyphOptions.glyphSets = Object.keys( glyphSets ).filter( function( set ) {
         return glyphSets[ set ];
     } );
 
-    glyphOptions.fontOptions.font =
-        fontOptions.fontSize.toString() + "px " + fontFamilies[ fontOptions.font ];
+    settings.glyphOptions.fontOptions.font =
+        settings.fontOptions.fontSize.toString() + "px " + fontFamilies[ settings.fontOptions.font ];
 
-    glyphs = THREE.GlyphUtils.makeGlyphShadingCanvas( glyphOptions, glyphs );
+    var link = encodeURI(JSON.stringify(settings));
+    window.location.hash = link;
+
+    glyphs = THREE.GlyphUtils.makeGlyphShadingCanvas( settings.glyphOptions, glyphs );
   }
 }
 
