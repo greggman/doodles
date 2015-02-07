@@ -70,6 +70,7 @@
                 baseLine: 20,
                 pack: 0,
                 checker: false,
+                shade: false,
             };
 
             function generateGlyphRange(start, end) {
@@ -321,6 +322,11 @@
                 setFontSettings();
                 ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
+                function v(v) {
+                  var b = v / 7 * 200 | 0;
+                  return "rgb(" + b + "," + b + "," + b + ")";
+                }
+
                 function drawClosestGlyph(spot) {
                     var ll = spot[0];
                     var lr = spot[1];
@@ -339,6 +345,20 @@
                             ctx.fillStyle = (ll + lr + rl + rr) % 2 ? "red" : "green";
                             ctx.fillRect(xOff, yOff, glyphWidth, glyphHeight);
                             ctx.restore();
+                        }
+                        if (settings.shade) {
+                          var hw = glyphWidth  / 2;
+                          var hh = glyphHeight / 2;
+                          ctx.save();
+                          ctx.fillStyle = v(ll);
+                          ctx.fillRect(xOff, yOff, hw, hh);
+                          ctx.fillStyle = v(lr);
+                          ctx.fillRect(xOff + hw, yOff, hw, hh);
+                          ctx.fillStyle = v(rl);
+                          ctx.fillRect(xOff, yOff + hh, hw, hh);
+                          ctx.fillStyle = v(rr);
+                          ctx.fillRect(xOff + hw, yOff + hh, hw, hh);
+                          ctx.restore();
                         }
                         ctx.fillText(match.glyph, offsetX + xOff, offsetY + yOff);
                     }

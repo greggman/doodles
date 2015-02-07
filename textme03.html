@@ -63,6 +63,7 @@ function main() {
   var glyphOptions = {
 
       checker: false,
+      shade: false,
       glyphSets: [ "ascii" ],
 
       fontOptions: {
@@ -83,6 +84,7 @@ function main() {
       } );
   } );
   gui.add( glyphOptions, 'checker' ).onChange( updateGlyphSets );
+  gui.add( glyphOptions, 'shade' ).onChange( updateGlyphSets );
   gui.add( fontOptions, 'font', Object.keys( fontFamilies )).onFinishChange( updateGlyphSets );
   gui.add( fontOptions, 'fontSize', 6, 32 ).step( 1 ).onFinishChange( updateGlyphSets );
 
