@@ -1,6 +1,7 @@
 /**
  * @author greggman / http://greggman.com/
  */
+"use strict";
 
 THREE.GlyphPass = function ( options ) {
 

@@ -56,6 +56,7 @@
 		<script src="js/three/js/libs/dat.gui.min.js"></script>
 
 		<script>
+			"use strict";
 
 			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
 
@@ -67,6 +68,7 @@
 			var renderTarget;
 
 			var group, textMesh1, textMesh2, textGeo, material;
+			var scenes = {};
 
 			var text = "three.js",
 
@@ -76,8 +78,6 @@
 
 			var targetRotation = 0;
 			var targetRotationOnMouseDown = 0;
-			var modelM;
-			var modelL;
 
 			var mouseX = 0;
 			var mouseXOnMouseDown = 0;
@@ -88,6 +88,8 @@
 			var postprocessing = { enabled : true };
 			var glow = 0.9;
 
+			var globalOptions = {
+			};
 			var fontOptions = {
 				font: "monospace",
 				fontSize: 20,
@@ -100,8 +102,9 @@
 				"narrow-sans-serif": "Helvetica,Arial,sans-serif",
 				"wide-sans-serif": "Verdana,Geneva,sans-serif",
 			};
+			var renderModel;
 			var glyphExtras = {
-				color: [255, 255, 255],
+				color: [255, 255, 255 ],
 			};
 			var glyphPass;
 			var glyphSets = {};
@@ -133,49 +136,17 @@
 
 				cameraTarget = new THREE.Vector3( 0, 150, 0 );
 
-				// SCENE
-
-				scene = new THREE.Scene();
-				scene.fog = new THREE.Fog( 0x000000, 250, 1400 );
-
-				// LIGHTS
-
-				var dirLight = new THREE.DirectionalLight( 0xffffff, 1.725 );
-				dirLight.position.set( 200, 100, 100 ).normalize();
-				scene.add( dirLight );
-
-				var pointLight = new THREE.PointLight( 0xffffff, 1.5 );
-				pointLight.position.set( -120, 0, 50 );
-				scene.add( pointLight );
-
-				group = new THREE.Group();
-				group.position.y = 120;
-
-
-				var radius = 150;
-				var geometry = new THREE.IcosahedronGeometry( radius, 1 );
-				var mat1 = new THREE.MeshLambertMaterial( { color: 0xff4f8f, shading: THREE.FlatShading } );
-
-				modelM = new THREE.Mesh(geometry, mat1);
-				group.add(modelM);
-
-				var geometry = new THREE.SphereGeometry( radius, 48, 24 );
-				var mat1 = new THREE.MeshLambertMaterial( { color: 0x4f8fff, shading: THREE.SmoothShading } );
-
-				modelL = new THREE.Mesh( geometry, mat1 );
-				modelL.position.x -= radius * 2.5;
-				group.add(modelL);
-
-
-				scene.add( group );
+				globalOptions.scene = "spheres";
+				scenes.spheres = createSphereScene();
+				scenes.cubes = createCubeScene( false );
+				scenes[ "wireframe cubes" ] = createCubeScene( true );
+				scene = scenes.spheres;
 
 				// RENDERER
 
 				renderer = new THREE.WebGLRenderer( { antialias: true } );
 				container.appendChild( renderer.domElement );
-				renderer.setClearColor( scene.fog.color );
 				renderer.setPixelRatio( window.devicePixelRatio );
-				renderer.setSize( renderer.domElement.clientWidth, renderer.domElement.clientHeight );
 
 				// STATS
 
@@ -188,7 +159,7 @@
 
 				renderer.autoClear = false;
 
-				var renderModel = new THREE.RenderPass( scene, camera );
+				renderModel = new THREE.RenderPass( scene, camera );
 				glyphPass = new THREE.GlyphPass( glyphPassOptions );
 
 				glyphPass.renderToScreen = true;
@@ -213,38 +184,174 @@
 				renderer.domElement.addEventListener( 'touchmove', onDocumentTouchMove, false );
 
 				window.addEventListener( 'resize', onWindowResize, false );
+				onWindowResize();
+			}
 
+			function createSphereScene() {
+				// SCENE
+
+				var scene = new THREE.Scene();
+				scene.fog = new THREE.Fog( 0x000000, 250, 1400 );
+
+				// LIGHTS
+
+				var dirLight = new THREE.DirectionalLight( 0xffffff, 1.725 );
+				dirLight.position.set( 200, 100, 100 ).normalize();
+				scene.add( dirLight );
+
+				var pointLight = new THREE.PointLight( 0xffffff, 1.5 );
+				pointLight.position.set( -120, 0, 50 );
+				scene.add( pointLight );
+
+				var group = new THREE.Group();
+				group.position.y = 120;
+
+
+				var radius = 150;
+				var geometry = new THREE.IcosahedronGeometry( radius, 1 );
+				var mat1 = new THREE.MeshLambertMaterial( { color: 0xff4f8f, shading: THREE.FlatShading } );
+
+				var modelM = new THREE.Mesh( geometry, mat1 );
+				group.add( modelM );
+
+				var geometry = new THREE.SphereGeometry( radius, 48, 24 );
+				var mat1 = new THREE.MeshLambertMaterial( { color: 0x4f8fff, shading: THREE.SmoothShading } );
+
+				var modelL = new THREE.Mesh( geometry, mat1 );
+				modelL.position.x -= radius * 2.5;
+				group.add( modelL );
+
+				var geometry = new THREE.SphereGeometry( radius, 4, 2 );
+				var mat1 = new THREE.MeshLambertMaterial( { color: 0x8fff4f, shading: THREE.FlatShading } );
+
+				var modelR = new THREE.Mesh( geometry, mat1 );
+				modelR.position.x = radius * 2.5;
+				group.add( modelR );
+
+				scene.add( group );
+
+				return {
+
+					update: function() {
+
+						modelR.rotation.z -= 0.003;
+						modelM.rotation.z += 0.002;
+						group.rotation.y += ( targetRotation - group.rotation.y ) * 0.05;
+
+					},
+
+					getScene: function() {
+
+						return scene;
+
+					}
+				};
+			}
+
+			function createCubeScene( wireframe ) {
+				// SCENE
+
+				var scene = new THREE.Scene();
+				scene.fog = new THREE.Fog( 0x000000, 250, 1400 );
+
+				// LIGHTS
+
+				var dirLight = new THREE.DirectionalLight( 0xffffff, 0.725 );
+				dirLight.position.set( 200, 100, 100 ).normalize();
+				scene.add( dirLight );
+
+				var pointLight = new THREE.HemisphereLight( 0xddeeff, 0x806040, 0.5 );
+				pointLight.position.set( -120, 0, 50 );
+				scene.add( pointLight );
+
+				var group = new THREE.Group();
+				group.position.y = 120;
+
+				var size = 50;
+				var spread = size * 2.5;
+				var geometry = new THREE.BoxGeometry( size, size, size );
+
+				var materials = [];
+				var num = 4;
+				for ( var xx = -num; xx <= num; ++xx ) {
+					for ( var yy = -num; yy <= num; ++yy ) {
+						for ( var zz = -num; zz <= num; ++zz ) {
+							var color = ( (( (xx / num * 0.5 + 0.5 ) * 255 ) | 0 ) <<  0 ) |
+										( (( (yy / num * 0.5 + 0.5 ) * 255 ) | 0 ) <<  8 ) |
+										( (( (zz / num * 0.5 + 0.5 ) * 255 ) | 0 ) << 16 ) ;
+							var mat = new THREE.MeshLambertMaterial( { color: color, shading: THREE.FlatShading, wireframe: wireframe } );
+							var model = new THREE.Mesh( geometry, mat );
+							materials.push( mat );
+							model.position.x = xx * spread;
+							model.position.y = yy * spread;
+							model.position.z = zz * spread;
+							group.add( model );
+						}
+					}
+				}
+
+				scene.add( group );
+
+				return {
+
+					resize: function() {
+
+						var lineWidth = Math.max(1, renderer.domElement.clientHeight / 30);
+						materials.forEach( function( mat ) {
+
+							mat.wireframeLinewidth = lineWidth;
+
+						});
+
+					},
+
+					update: function() {
+
+						group.rotation.z += 0.002;
+						group.rotation.y += ( targetRotation - group.rotation.y ) * 0.05;
+
+					},
+
+					getScene: function() {
+
+						return scene;
+
+					}
+				};
 			}
 
 			function isMobile() {
 				var ua = navigator.userAgent.toLowerCase();
-				return ua.indexOf("iphone") >= 0 || ua.indexOf("mobile") >= 0;
+				return ua.indexOf( "iphone" ) >= 0 || ua.indexOf( "mobile" ) >= 0;
 			}
 
 			function initGUI() {
 				var gui = new dat.GUI();
-				gui.add(postprocessing, 'enabled');
-				gui.add(glyphPass, 'textScale', 0.2, 2.0);
-				gui.addColor(glyphExtras, 'color').onChange(function() {
+				gui.add( globalOptions, 'scene', Object.keys( scenes )).onChange( function() {
+					scene = scenes[ globalOptions.scene ];
+				} );
+				gui.add( postprocessing, 'enabled' );
+				gui.add( glyphPass, 'textScale', 0.2, 2.0 );
+				gui.addColor( glyphExtras, 'color' ).onChange( function() {
 					var c = glyphExtras.color;
-					glyphPass.color.setRGB(c[0] / 255, c[1] / 255, c[2] / 255);
-				});
-				gui.add(fontOptions, 'font', Object.keys(fontFamilies)).onFinishChange(updateGlyphSets);
-				gui.add(fontOptions, 'fontSize', 6, 32).step(1).onFinishChange(updateGlyphSets);
+					glyphPass.color.setRGB( c[ 0 ] / 255, c[ 1 ] / 255, c[ 2 ] / 255 );
+				} );
 
 				var glyphsFolder = gui.addFolder( 'glyphs' );
-				Object.keys(THREE.GlyphUtils.unicodeRanges).forEach(function(rangeName) {
-					glyphSets[rangeName] = glyphPassOptions.glyphOptions.glyphSets.indexOf(rangeName) >= 0;
-					glyphsFolder.add( glyphSets, rangeName ).onChange(function() {
+				Object.keys( THREE.GlyphUtils.unicodeRanges ).forEach( function( rangeName ) {
+					glyphSets[ rangeName ] = glyphPassOptions.glyphOptions.glyphSets.indexOf( rangeName ) >= 0;
+					glyphsFolder.add( glyphSets, rangeName ).onChange( function() {
 
 						updateGlyphSets();
 
-					});
-				});
+					} );
+				} );
 
 				var debugFolder = gui.addFolder( 'debug' );
-				debugFolder.add(glyphPassOptions.glyphOptions, 'checker').onChange(updateGlyphSets);
-				debugFolder.add(glyphPass, 'dosColors');
+				debugFolder.add( glyphPassOptions.glyphOptions, 'checker' ).onChange( updateGlyphSets );
+				debugFolder.add( glyphPass, 'dosColors' );
+				debugFolder.add( fontOptions, 'font', Object.keys( fontFamilies )).onFinishChange( updateGlyphSets );
+				debugFolder.add( fontOptions, 'fontSize', 6, 32 ).step( 1 ).onFinishChange( updateGlyphSets );
 
 				if ( isMobile() ) {
 					gui.close();
@@ -253,14 +360,14 @@
 
 			function updateGlyphSets() {
 
-				glyphPassOptions.glyphOptions.glyphSets = Object.keys(glyphSets).filter(function(set) {
-					return glyphSets[set];
-				});
+				glyphPassOptions.glyphOptions.glyphSets = Object.keys( glyphSets ).filter( function( set ) {
+					return glyphSets[ set ];
+				} );
 
 				glyphPassOptions.glyphOptions.fontOptions.font =
-					fontOptions.fontSize.toString() + "px " + fontFamilies[fontOptions.font];
+					fontOptions.fontSize.toString() + "px " + fontFamilies[ fontOptions.font ];
 
-				console.log(glyphPassOptions.glyphOptions.fontOptions.font);
+				console.log( glyphPassOptions.glyphOptions.fontOptions.font );
 
 				glyphPass.updateGlyphs( glyphPassOptions );
 
@@ -269,10 +376,10 @@
 			function setRenderTargetSize() {
 
 				// Make it twice as many pixels as there are glyphs
-				var width  = (renderer.context.drawingBufferWidth  / (glyphPass.glyphs.glyphWidth  * glyphPass.textScale) | 0) * 2;
-				var height = (renderer.context.drawingBufferHeight / (glyphPass.glyphs.glyphHeight * glyphPass.textScale) | 0) * 2;
+				var width  = ( renderer.context.drawingBufferWidth  / ( glyphPass.glyphs.glyphWidth  * glyphPass.textScale ) | 0 ) * 2;
+				var height = ( renderer.context.drawingBufferHeight / ( glyphPass.glyphs.glyphHeight * glyphPass.textScale ) | 0 ) * 2;
 
-				if ( renderTarget.width !== width || renderTarget.height !== height) {
+				if ( renderTarget.width !== width || renderTarget.height !== height ) {
 
 					renderTarget.setSize( width, height );
 
@@ -285,12 +392,18 @@
 				windowHalfX = window.innerWidth / 2;
 				windowHalfY = window.innerHeight / 2;
 
-				renderer.setSize( renderer.domElement.clientWidth, renderer.domElement.clientHeight );
+				renderer.setSize( renderer.domElement.clientWidth, renderer.domElement.clientHeight, false );
 
 				setRenderTargetSize();
 
 				composer.reset();
 
+				Object.keys( scenes ).forEach( function( sceneName ) {
+					var scene = scenes[ sceneName ];
+					if ( scene.resize ) {
+						scene.resize();
+					}
+				} );
 			}
 
 			//
@@ -379,8 +492,10 @@
 
 				setRenderTargetSize();
 
-				modelM.rotation.z += 0.002;
-				group.rotation.y += ( targetRotation - group.rotation.y ) * 0.05;
+				scene.update();
+				var renderScene = scene.getScene();
+				renderModel.scene = renderScene;
+				renderer.setClearColor( renderScene.fog.color );
 
 				camera.aspect = renderer.domElement.clientWidth / renderer.domElement.clientHeight;
 				camera.updateProjectionMatrix();
@@ -394,7 +509,7 @@
 
 				} else {
 
-					renderer.render( scene, camera );
+					renderer.render( renderScene, camera );
 
 				}
 

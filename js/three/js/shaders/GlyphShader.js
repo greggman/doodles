@@ -4,6 +4,7 @@
  *
  * Full-screen textured quad shader
  */
+"use strict";
 
 THREE.GlyphShader = {
 
