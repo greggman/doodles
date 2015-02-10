@@ -11,34 +11,79 @@
   <meta name="viewport" content="width=device-width, target-densitydpi=160dpi, initial-scale=1.0, maximum-scale=1, user-scalable=no, minimal-ui">
 <style>
 html,body {
-    background-color: #666;
-    font-family: Helvetica, Arial, sans-serif;
-    line-height: 1.4em;
+    background-color: #191919;
+    font-family: monospace;
+    color: #808080;
+    margin: 0px;
+    font-size: large;
 }
 h1 {
-    padding: 10px;
-    color: white;
-    font-size: xx-large;
-    text-shadow: 0.1em 0.1em 0.2em #000;
-    line-height: 1.4em;
+    font-size: inherit;
+    font-weight: bold;
+    margin: 10px;
+    color: #a080f0;
+    text-decoration: underline;
+}
+h2 {
+    color: #acf0e9;
+    font-size: inherit;
+    font-weight: bold;
+}
+b {
+    color: #c0ddd0;
+    font-weight: normal;
 }
 .doodle {
-    max-width: 700px;
-    margin: 10px;
-    margin-left: auto;
-    margin-right: auto;
     padding: 1em;
-    background-color: white;
-    border-radius: 20px;
+    margin-bottom: 10px;
+}
+.doodle:nth-child(odd) {
+    gbackground-color: #202020;
+}
+
+h2:before {
+    content: "$ ";
+    color: #44e;
+}
+a:visited,
+a:active,
+a:link {
+    color: #82b0fd;
+}
+a:hover,
+a:focus {
+    color: #ffb080;
 }
 </style>
 </head>
 <body>
-<h1>Various Random Doodles</h1>
+<h1>Various Random Doodles by <a href="http://games.greggman.com">Greggman</a></h1>
+
+<div class="doodle">
+<h2>Textme</h2>
+<p>This was an attempt at making a glyph postprocessing effect to turn whatever is
+being displayed into text.</p>
+<p><a href="textme01.html">textme01</a>: First step, make a grid of letters</p>
+<p><a href="textme02.html">textme02</a>: Second step, organize by brightness</p>
+<p><a href="textme03.html">textme03</a>: Third step, support different glyphs</p>
+<p><a href="textme04.html">textme04</a>: Fourth step, render with it</p>
+<p>Note: under <b>glyphs</b> de-select <b>ascii</b> and select <b>boxElements</b> and <b>geometricShapes</b>. Also
+under <b>debug</b> select <b>dosColors</b>. Try changing the scene as well.
+</div>
+
+
+<div class="doodle">
+<h2>Sketchtext</h2>
+<p>an attempt to make lines look like they've been
+sketched in a low framerate hand drawn animation kind of way. Still a work in progress.</p>
+<p><a href="sketchtext01.html">sketchtext01</a></p>
+</div>
+
 
 <div class="doodle">
 <h2>Scribble</h2>
-<p>Not sure what this is. Just goofin</p>
+<p>This was a step on the way to sketchtext. It's was easier to use built in primitives
+first rather than figure out how to get the outlines of glyphs from a font.</p>
 <p><a href="scribble01.html">scribble01</a></p>
 <p><a href="scribble02.html">scribble02</a></p>
 </div>
@@ -47,9 +92,9 @@ h1 {
 <div class="doodle">
 <h2>Atom</h2>
 <p>Not sure what this is. Just goofin</p>
-<p><a href="atom01.html">atom01</a></p>
-<p><a href="atom02.html">atom02</a></p>
 <p><a href="atom03.html">atom03</a></p>
+<p><a href="atom02.html">atom02</a></p>
+<p><a href="atom01.html">atom01</a></p>
 </div>
 
 
