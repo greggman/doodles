@@ -63,39 +63,10 @@ var gl;                   // the gl context.
 var canvas;               // the canvas
 var math;                 // the math lib.
 var fast;                 // the fast math lib.
-var g_logGLCalls = true;  // whether or not to log webgl calls
-var g_debug = false;      // whether or not to debug.
-var g_drawOnce = false;   // draw just one frame.
-
-//g_drawOnce = true;
-//g_debug = true;
 
 var g_eyeSpeed          = 0.1;
 var g_eyeHeight         = 2;
 var g_eyeRadius         = 9;
-
-function ValidateNoneOfTheArgsAreUndefined(functionName, args) {
-  for (var ii = 0; ii < args.length; ++ii) {
-    if (args[ii] === undefined) {
-      tdl.error("undefined passed to gl." + functionName + "(" +
-                tdl.webgl.glFunctionArgsToString(functionName, args) + ")");
-    }
-  }
-}
-
-function Log(msg) {
-  if (g_logGLCalls) {
-    tdl.log(msg);
-  }
-}
-
-function LogGLCall(functionName, args) {
-  if (g_logGLCalls) {
-    ValidateNoneOfTheArgsAreUndefined(functionName, args)
-    tdl.log("gl." + functionName + "(" +
-                tdl.webgl.glFunctionArgsToString(functionName, args) + ")");
-  }
-}
 
 var expandIndexedVertices = function(arrays) {
   var indices = arrays.indices;
@@ -143,6 +114,16 @@ function setupSphere() {
   return new tdl.models.Model(program, arrays, textures);
 }
 
+function setupCube() {
+  var textures = {};
+  var program = createProgramFromTags(
+      'cubeVertexShader',
+      'cubeFragmentShader');
+  var arrays = tdl.primitives.createCube(4);
+
+  return new tdl.models.Model(program, arrays, textures);
+}
+
 var numberSuffix = (function() {
   var suffixes = [ "th", "st", "nd", "rd" ];
   return function(v) {
@@ -159,9 +140,6 @@ function initialize() {
   if (!gl) {
     return false;
   }
-  if (g_debug) {
-    gl = tdl.webgl.makeDebugContext(gl, undefined, LogGLCall);
-  }
 
   function getTextNode(id) {
     var elem = document.getElementById(id);
@@ -170,8 +148,8 @@ function initialize() {
     return node;
   }
 
-  Log("--Setup Sphere---------------------------------------");
   var sphere = setupSphere();
+  var cube = setupCube();
 
   var then = 0.0;
   var clock = 0.0;
@@ -236,9 +214,6 @@ function initialize() {
     }
 
     ++frameCount;
-    if (!g_drawOnce) {
-      tdl.webgl.requestAnimationFrame(render, canvas);
-    }
     var now = (new Date()).getTime() * 0.001;
     var elapsedTime;
     if(then == 0.0) {
@@ -291,24 +266,37 @@ function initialize() {
 //      projection: projection,
 //      viewProjection: viewProjection,
 
-    Log("--Draw sphere---------------------------------------");
-
-    sphere.drawPrep(sphereConst);
     var lightColor = spherePer.lightColor;
-    lightColor[0] = 1;
-    lightColor[1] = 0.5;
-    lightColor[2] = 0.7;
     var scale = 1;
+    fast.matrix4.rotationY(m4t0, clock * 0.63);
+    fast.matrix4.rotationZ(m4t1, clock * 0.77);
+    fast.matrix4.mul(world, m4t0, m4t1);
+    fast.matrix4.mul(worldViewProjection, world, viewProjection);
+    fast.matrix4.inverse(worldInverse, world);
+    fast.matrix4.transpose(worldInverseTranspose, worldInverse);
+
+    lightColor[0] = 0.7;
+    lightColor[1] = 0.5;
+    lightColor[2] = 1;
+
+    cube.drawPrep(sphereConst);
+    cube.draw(spherePer);
+
     fast.matrix4.scaling(m4t0, [scale, scale, scale]);
     fast.matrix4.translation(m4t1, [0, 0, 0]);
     fast.matrix4.mul(world, m4t0, m4t1);
     fast.matrix4.mul(worldViewProjection, world, viewProjection);
     fast.matrix4.inverse(worldInverse, world);
     fast.matrix4.transpose(worldInverseTranspose, worldInverse);
+
+    lightColor[0] = 0.5;
+    lightColor[1] = 1;
+    lightColor[2] = 0.7;
+
+    sphere.drawPrep(sphereConst);
     sphere.draw(spherePer);
 
-    // turn off logging after 1 frame.
-    g_logGLCalls = false;
+    tdl.webgl.requestAnimationFrame(render, canvas);
   }
   render();
   return true;
@@ -380,6 +368,63 @@ void main() {
   if (diff < 0.1) {
     discard;
   }
+  vec3 normal = normalize(v_normal);
+  vec3 surfaceToLight = normalize(v_surfaceToLight);
+  vec3 surfaceToView = normalize(v_surfaceToView);
+  vec3 halfVector = normalize(surfaceToLight + surfaceToView);
+  vec4 litR = lit(dot(normal, surfaceToLight),
+                    dot(normal, halfVector), shininess);
+  gl_FragColor = vec4((
+  lightColor * (litR.y
+                        + specular * litR.z * specularFactor)).rgb,
+      1);
+}
+</script>
+<script id="cubeVertexShader" type="text/something-not-javascript">
+uniform mat4 worldViewProjection;
+uniform vec3 lightWorldPos;
+uniform mat4 world;
+uniform mat4 viewInverse;
+uniform mat4 worldInverseTranspose;
+attribute vec4 position;
+attribute vec3 normal;
+attribute vec2 texCoord;
+varying vec4 v_position;
+varying vec2 v_texCoord;
+varying vec3 v_normal;
+varying vec3 v_surfaceToLight;
+varying vec3 v_surfaceToView;
+void main() {
+  v_texCoord = texCoord;
+  v_position = (worldViewProjection * position);
+  v_normal = (worldInverseTranspose * vec4(normal, 0)).xyz;
+  v_surfaceToLight = lightWorldPos - (world * position).xyz;
+  v_surfaceToView = (viewInverse[3] - (world * position)).xyz;
+  gl_Position = v_position;
+}
+
+</script>
+<script id="cubeFragmentShader" type="text/something-not-javascript">
+precision mediump float;
+uniform vec4 lightColor;
+varying vec4 v_position;
+varying vec2 v_texCoord;
+varying vec3 v_normal;
+varying vec3 v_surfaceToLight;
+varying vec3 v_surfaceToView;
+
+uniform vec4 specular;
+uniform sampler2D bumpSampler;
+uniform float shininess;
+uniform float specularFactor;
+
+vec4 lit(float l ,float h, float m) {
+  return vec4(1.0,
+              max(l, 0.0),
+              (l > 0.0) ? pow(max(0.0, h), m) : 0.0,
+              1.0);
+}
+void main() {
   vec3 normal = normalize(v_normal);
   vec3 surfaceToLight = normalize(v_surfaceToLight);
   vec3 surfaceToView = normalize(v_surfaceToView);
