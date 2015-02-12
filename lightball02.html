@@ -11,7 +11,7 @@ html, body {
   padding: 0px;
   margin: 0px;
   background-color: red;
-  font-family: sans-serif;
+  font-family: monospace;
   overflow: hidden;
   color: #fff;
 }
@@ -35,7 +35,6 @@ CANVAS {
   left: 10px;
   z-index: 2;
   color: white;
-  font-family: sans-serif;
   background-color: rgba(0,0,0,0.5);
   border-radius: 10px;
   padding: 10px;
@@ -64,7 +63,6 @@ var gl;                   // the gl context.
 var canvas;               // the canvas
 var math;                 // the math lib.
 var fast;                 // the fast math lib.
-var g_fpsTimer;           // object to measure frames per second;
 var g_logGLCalls = true;  // whether or not to log webgl calls
 var g_debug = false;      // whether or not to debug.
 var g_drawOnce = false;   // draw just one frame.
@@ -146,7 +144,7 @@ function setupSphere() {
 }
 
 var numberSuffix = (function() {
-  var suffixes = [ "st", "nd", "rd" ];
+  var suffixes = [ "th", "st", "nd", "rd" ];
   return function(v) {
     return suffixes[v] || "th";
   };
@@ -156,7 +154,6 @@ function initialize() {
   math = tdl.math;
   fast = tdl.fast;
   canvas = document.getElementById("canvas");
-  g_fpsTimer = new tdl.fps.FPSTimer();
 
   gl = tdl.webgl.setupWebGL(canvas, { alpha: false });
   if (!gl) {
@@ -178,7 +175,6 @@ function initialize() {
 
   var then = 0.0;
   var clock = 0.0;
-  var fpsNode = getTextNode("fps");
   var triModNode = getTextNode("triMod");
   var triToHideNode = getTextNode("triToHide")
 
@@ -252,9 +248,6 @@ function initialize() {
     }
     then = now;
 
-    g_fpsTimer.update(elapsedTime);
-    fpsNode.nodeValue = g_fpsTimer.averageFPS;
-
     clock += elapsedTime;
     eyePosition[0] = Math.sin(clock * g_eyeSpeed) * g_eyeRadius;
     eyePosition[1] = g_eyeHeight;
@@ -325,7 +318,6 @@ function initialize() {
 <body>
 <div id="info"><a href="http://threedlibrary.googlecode.com" target="_blank">tdl.js</a> - vertexId example</div>
 <div class="fpsContainer">
-  <div class="fps">fps: <span id="fps"></span></div>
   <div class="fps">for every <span id="triMod"></span> triangles hide the <span id="triToHide"></span> one</div>
 </div>
 <div id="viewContainer">
