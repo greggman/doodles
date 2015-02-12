@@ -213,7 +213,7 @@
 				// SCENE
 
 				var scene = new THREE.Scene();
-				scene.fog = new THREE.Fog( 0x000000, 250, 1400 );
+				scene.fog = new THREE.Fog( 0x0000A0, 250, 1400 );
 
 				// LIGHTS
 
@@ -225,11 +225,21 @@
 				pointLight.position.set( -120, 0, 50 );
 				scene.add( pointLight );
 
+
+
 				var group = new THREE.Group();
 				group.position.y = 120;
 
 
 				var radius = 150;
+
+
+				var geometry = new THREE.IcosahedronGeometry( radius * 0.8, 1 );
+				var mat1 = new THREE.MeshLambertMaterial( { color: 0x4fff8f, shading: THREE.FlatShading } );
+
+				var modelM = new THREE.Mesh( geometry, mat1 );
+				group.add( modelM );
+
 
 				var attributes = {
 
@@ -307,6 +317,7 @@
 						++frameCount;
 
 						sphere.rotation.z += 0.002;
+						modelM.rotation.x += 0.003;
 						group.rotation.y += ( targetRotation - group.rotation.y ) * 0.05;
 
 					},
