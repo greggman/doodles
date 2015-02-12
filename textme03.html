@@ -34,7 +34,9 @@
 <meta charset="utf-8">
 <style>
 canvas {
-  background-color: black;
+
+	background-color: black;
+
 }
 </style>
 <script src="js/three.min.js"></script>
@@ -47,116 +49,122 @@ canvas {
 "use strict";
 
 var copyArray = function(defaults, array) {
-    var src = array || defaults;
-    return src.slice();
+
+	var src = array || defaults;
+	return src.slice();
+
 };
 
 var copyOptions = function(defaults, options) {
 
-    options = options || {};
-    var settings = {};
+	options = options || {};
+	var settings = {};
 
-    Object.keys(defaults).forEach(function(key) {
+	Object.keys(defaults).forEach(function(key) {
 
-        var value = defaults[key];
-        if (value instanceof Array) {
+		var value = defaults[key];
+		if (value instanceof Array) {
 
-            settings[key] = copyArray(value, options[key]);
+			settings[key] = copyArray(value, options[key]);
 
-        } else if (typeof value === "object") {
+		} else if (typeof value === "object") {
 
-            settings[key] = copyOptions(value, options[key]);
+			settings[key] = copyOptions(value, options[key]);
 
-        } else {
+		} else {
 
-            settings[key] = options[key] || value;
+			settings[key] = options[key] || value;
 
-        }
+		}
 
-    });
+	});
 
-    return settings;
+	return settings;
 };
 
 
 function main() {
 
-  var fontOptions = {
-      font: "monospace",
-      fontSize: 20,
-  };
-  var fontFamilies = {
-      "monospace": "monospace",
-      "courier": "'Courier New',Courier,monospace",
-      "narrow-serif": "'Courier New',Courier,monospace",
-      "wide-serif": "Georgia,Utopia,Charter,serif",
-      "narrow-sans-serif": "Helvetica,Arial,sans-serif",
-      "wide-sans-serif": "Verdana,Geneva,sans-serif",
-  };
-  var glyphOptions = {
+	var fontOptions = {
+		font: "monospace",
+		fontSize: 20,
+	};
+	var fontFamilies = {
+		"monospace": "monospace",
+		"courier": "'Courier New',Courier,monospace",
+		"narrow-serif": "'Courier New',Courier,monospace",
+		"wide-serif": "Georgia,Utopia,Charter,serif",
+		"narrow-sans-serif": "Helvetica,Arial,sans-serif",
+		"wide-sans-serif": "Verdana,Geneva,sans-serif",
+	};
+	var glyphOptions = {
 
-      checker: false,
-      shade: false,
-      glyphSets: [ "ascii" ],
+		checker: false,
+		shade: false,
+		weighNeighbors: false,
+		glyphSets: [ "ascii" ],
 
-      fontOptions: {
-      }
+		fontOptions: {
+		}
 
-  };
+	};
 
-  var settings = {
-    glyphOptions: glyphOptions,
-    fontOptions: fontOptions,
-  };
+	var settings = {
+		glyphOptions: glyphOptions,
+		fontOptions: fontOptions,
+	};
 
-  var hash = document.location.hash.substr( 1 );
-  if (hash) {
+	var hash = document.location.hash.substr( 1 );
+	if (hash) {
 
-    try {
-      var tempSettings = JSON.parse(decodeURI(hash));
-      var newSettings = copyOptions(settings, tempSettings);
-      settings = newSettings;
-    } catch (e) {
-      console.error("could not parse URL settings");
-    }
+		try {
+			var tempSettings = JSON.parse(decodeURI(hash));
+			var newSettings = copyOptions(settings, tempSettings);
+			settings = newSettings;
+		} catch (e) {
+			console.error("could not parse URL settings");
+		}
 
-  }
+	}
 
-  var glyphSets = {};
+	var glyphSets = {};
 
-  var glyphs;
-  var gui = new dat.GUI();
-  var glyphsFolder = gui.addFolder( 'glyphs' );
-  Object.keys( THREE.GlyphUtils.unicodeRanges ).forEach( function( rangeName ) {
-      glyphSets[ rangeName ] = settings.glyphOptions.glyphSets.indexOf( rangeName ) >= 0;
-      glyphsFolder.add( glyphSets, rangeName ).onChange( function() {
+	var glyphs;
+	var gui = new dat.GUI();
+	var glyphsFolder = gui.addFolder( 'glyphs' );
+	Object.keys( THREE.GlyphUtils.unicodeRanges ).forEach( function( rangeName ) {
+		glyphSets[ rangeName ] = settings.glyphOptions.glyphSets.indexOf( rangeName ) >= 0;
+		glyphsFolder.add( glyphSets, rangeName ).onChange( function() {
 
-          updateGlyphSets();
+			updateGlyphSets();
 
-      } );
-  } );
-  gui.add( settings.glyphOptions, 'checker' ).onChange( updateGlyphSets );
-  gui.add( settings.glyphOptions, 'shade' ).onChange( updateGlyphSets );
-  gui.add( settings.fontOptions, 'font', Object.keys( fontFamilies )).onFinishChange( updateGlyphSets );
-  gui.add( settings.fontOptions, 'fontSize', 6, 32 ).step( 1 ).onFinishChange( updateGlyphSets );
+		} );
+	} );
+	gui.add( settings.glyphOptions, 'weighNeighbors' ).onChange( updateGlyphSets );
+	gui.add( settings.glyphOptions, 'checker' ).onChange( updateGlyphSets );
+	gui.add( settings.glyphOptions, 'shade' ).onChange( updateGlyphSets );
+	gui.add( settings.fontOptions, 'font', Object.keys( fontFamilies )).onFinishChange( updateGlyphSets );
+	gui.add( settings.fontOptions, 'fontSize', 6, 32 ).step( 1 ).onFinishChange( updateGlyphSets );
 
-  updateGlyphSets();
-  document.body.appendChild(glyphs.canvas);
+	updateGlyphSets();
+	document.body.appendChild(glyphs.canvas);
 
-  function updateGlyphSets() {
+	function updateGlyphSets() {
 
-    settings.glyphOptions.glyphSets = Object.keys( glyphSets ).filter( function( set ) {
-        return glyphSets[ set ];
-    } );
+		settings.glyphOptions.glyphSets = Object.keys( glyphSets ).filter( function( set ) {
 
-    settings.glyphOptions.fontOptions.font =
-        settings.fontOptions.fontSize.toString() + "px " + fontFamilies[ settings.fontOptions.font ];
+			return glyphSets[ set ];
 
-    var link = encodeURI(JSON.stringify(settings));
-    window.location.hash = link;
+		} );
 
-    glyphs = THREE.GlyphUtils.makeGlyphShadingCanvas( settings.glyphOptions, glyphs );
-  }
+		settings.glyphOptions.fontOptions.font =
+		settings.fontOptions.fontSize.toString() + "px " + fontFamilies[ settings.fontOptions.font ];
+
+		var link = encodeURI(JSON.stringify(settings));
+		window.location.hash = link;
+
+		glyphs = THREE.GlyphUtils.makeGlyphShadingCanvas( settings.glyphOptions, glyphs );
+	}
 }
 
 main();

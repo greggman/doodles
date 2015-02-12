@@ -113,6 +113,8 @@
 				glyphOptions: {
 
 					checker: false,
+					shade: false,
+					weighNeighbors: false,
 					glyphSets: [ "ascii" ],
 
 					fontOptions: {
@@ -348,7 +350,9 @@
 				} );
 
 				var debugFolder = gui.addFolder( 'debug' );
+				debugFolder.add( glyphPassOptions.glyphOptions, 'weighNeighbors' ).onChange( updateGlyphSets );
 				debugFolder.add( glyphPassOptions.glyphOptions, 'checker' ).onChange( updateGlyphSets );
+				debugFolder.add( glyphPassOptions.glyphOptions, 'shade' ).onChange( updateGlyphSets );
 				debugFolder.add( glyphPass, 'dosColors' );
 				debugFolder.add( fontOptions, 'font', Object.keys( fontFamilies )).onFinishChange( updateGlyphSets );
 				debugFolder.add( fontOptions, 'fontSize', 6, 32 ).step( 1 ).onFinishChange( updateGlyphSets );
