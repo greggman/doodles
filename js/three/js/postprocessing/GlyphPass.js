@@ -22,7 +22,8 @@ THREE.GlyphPass = function ( options ) {
 
 	this.uniforms = THREE.UniformsUtils.clone( glyphShader.uniforms );
 
-	this.uniforms[ "tGlyphs" ].value = this.glyphsTexture;
+	this.uniforms[ "tGlyphs" ].value   = this.glyphTexture;
+	this.uniforms[ "tGlyphMap" ].value = this.glyphMapTexture;
 
 	var data = new Uint8Array( [
 	    0, 128, 0,
@@ -54,7 +55,7 @@ THREE.GlyphPass = function ( options ) {
 
 	this.quad = new THREE.Mesh( new THREE.PlaneBufferGeometry( 2, 2 ), this.materialGlyph );
 	this.scene.add( this.quad );
-
+window.ggg = this;
 };
 
 THREE.GlyphPass.prototype = {
@@ -65,14 +66,22 @@ THREE.GlyphPass.prototype = {
 
 		if ( !this.glyphsTexture ) {
 
-			this.glyphsTexture = new THREE.Texture( glyphs.canvas, THREE.Texture.DEFAULT_MAPPNG, THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping, THREE.LinearFilter, THREE.NearestFilter );
+			this.glyphTexture = new THREE.Texture( glyphs.glyphCanvas, THREE.Texture.DEFAULT_MAPPNG, THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping, THREE.LinearFilter, THREE.NearestFilter );
+			this.glyphMapTexture = new THREE.Texture( glyphs.glyphMapCanvas, THREE.Texture.DEFAULT_MAPPNG, THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping, THREE.NearestFilter, THREE.NearestFilter );
 
 		}
 
-		this.glyphsTexture.needsUpdate = true;
-		this.glyphsTexture.flipY = false;
-		glyphs.textureWidth = glyphs.canvas.width;
-		glyphs.textureHeight = glyphs.canvas.height;
+		this.glyphTexture.needsUpdate = true;
+		this.glyphTexture.flipY = false;
+
+		this.glyphMapTexture.needsUpdate = true;
+		this.glyphMapTexture.flipY = false;
+
+		this.glyphTextureWidth     = glyphs.glyphCanvas.width;
+		this.glyphTextureHeight    = glyphs.glyphCanvas.height;
+		this.glyphMapTextureWidth  = glyphs.glyphMapCanvas.width;
+		this.glyphMapTextureHeight = glyphs.glyphMapCanvas.height;
+
   //document.body.insertBefore(glyphs.canvas, document.body.firstChild);
   ////var ctx = glyphs.canvas.getContext("2d");
   ////ctx.fillStyle = "green";
@@ -127,15 +136,14 @@ THREE.GlyphPass.prototype = {
 
 		}
 
+		this.uniforms[ "numLevels" ].value = 8;
 		this.uniforms[ "color" ].value = this.color;
 		this.uniforms[ "tDiffuse" ].value = readBuffer;
 		this.uniforms[ "diffuseDimensions" ].value.set( readBuffer.width, readBuffer.height );
 		this.uniforms[ "glyphDimensions" ].value.set(
-			this.glyphs.glyphWidth    / this.glyphs.textureWidth,
-			this.glyphs.glyphHeight   / this.glyphs.textureHeight,
-			this.glyphs.segmentWidth  / this.glyphs.textureWidth,
-			this.glyphs.segmentHeight / this.glyphs.textureHeight );
-
+			this.glyphTextureWidth  / this.glyphs.glyphWidth,
+			this.glyphTextureHeight / this.glyphs.glyphHeight,
+			0, 0);
 
 		if ( this.renderToScreen ) {
 

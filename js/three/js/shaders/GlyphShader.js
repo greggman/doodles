@@ -14,7 +14,9 @@ THREE.GlyphShader = {
 		"tDiffuse":          { type: "t",   value: null },                         // the image to Glyph shader
 		"diffuseDimensions": { type: "v2",  value: new THREE.Vector2() },          // dimension of diffuse texture
 		"tGlyphs":           { type: "t",   value: null },                         // the glyph texture
-		"glyphDimensions":   { type: "v4",  value: new THREE.Vector4() },          // xy = glyphWidth, glyphHeight, zw = segmentWidth, segmentHeight
+		"tGlyphMap":         { type: "t",   value: null },                         // the glyph map texture (brightness -> glyph)
+		"numLevels":         { type: "f",   value: 8 },                            // numLevels
+		"glyphDimensions":   { type: "v4",  value: new THREE.Vector4() },          // xy = glyphsAcross, glyphsDown
 		"resolution":        { type: "v2",  value: new THREE.Vector2() },          // output resolution
 		"textSize":          { type: "v2",  value: new THREE.Vector2() },          // num glyphs across, down output
 		"tDosBrightness":    { type: "t",   value: null },                         // Used to shade dosColors
@@ -35,6 +37,7 @@ THREE.GlyphShader = {
 		"#define USE_DOS_COLORS 0",
 
 		"uniform vec3 color;",
+		"uniform float numLevels;",
 		"uniform vec4 glyphDimensions;",
 		"uniform vec2 diffuseDimensions;",
 		"uniform vec2 resolution;",
@@ -42,6 +45,7 @@ THREE.GlyphShader = {
 
 		"uniform sampler2D tDiffuse;",
 		"uniform sampler2D tGlyphs;",
+		"uniform sampler2D tGlyphMap;",
 		"uniform sampler2D tDosBrightness;",
 
 		"vec4 K = vec4(0.0, -1.0 / 3.0, 2.0 / 3.0, -1.0);",
@@ -76,12 +80,7 @@ THREE.GlyphShader = {
 
 		"float getBrightness(vec2 uv, vec2 offset) {",
 		"    vec4 texel = getSrcTexel(uv, offset);",
-		"    float brightness = rgb2v(texel.rgb); //max(texel.r, max(texel.g, texel.b));",
-		"    #if USE_DOS_COLORS",
-		"        return floor(mod(brightness * 23.999, 8.0)) / 1.0;",
-		"    #else",
-		"        return floor(min(7.0, brightness * 8.0)) / 1.0;",
-		"    #endif",
+		"    return rgb2v(texel.rgb);",
 		"}",
 
 		"vec4 getDosColor(vec2 uv, vec2 offset) {",
@@ -106,6 +105,14 @@ THREE.GlyphShader = {
 			"                getBrightness(diffuseUv, vec2(1, 1)),",
 			"                getBrightness(diffuseUv, vec2(0, 0)),",
 			"                getBrightness(diffuseUv, vec2(1, 0)));",
+
+    "    #if USE_DOS_COLORS",
+    "        gUv = floor(mod(gUv * 23.999, numLevels)) / numLevels;",
+    "    #else",
+    "        gUv = floor(min(gUv * numLevels, numLevels - 1.0)) / numLevels;",
+    "    #endif",
+
+
 			"#if USE_DOS_COLORS",
 			"    vec3 srcHSV = rgb2hsv(getSrcTexel(diffuseUv, vec2(0.5, 0.5)).rgb);",
 			"    srcHSV = floor(srcHSV * vec3(8, 1, 3)) / vec3(8, 1, 3);",
@@ -123,9 +130,13 @@ THREE.GlyphShader = {
 			//"gl_FragColor = vec4(gUv.xyw, 1); return;",
 			//"gl_FragColor = mix(vec4(1,0,0,1), vec4(0,1,0,1), step(7.0/8.0, gUv.w)); return;",
 			//"gl_FragColor = vec4(gUv.xyz, 1); return;",
-			"gUv = gUv * glyphDimensions.xzyw;",
-			"vec2 uv = vec2(gUv.x + gUv.y, gUv.z + gUv.w) +",
-			"               vec2(glyphUv.x, 1.0 - glyphUv.y) * glyphDimensions.xy;",
+//			"gUv = gUv * glyphDimensions.xzyw;",
+            "vec2 uv = vec2(gUv.x + gUv.y / numLevels,",
+            "               gUv.z + gUv.w / numLevels);",
+//	"gl_FragColor = vec4(uv, 0, 1); return;",
+            "uv = texture2D(tGlyphMap, uv).xy * 255.0 / glyphDimensions.xy;",
+			" uv = uv +",
+			"               vec2(glyphUv.x, 1.0 - glyphUv.y) / glyphDimensions.xy;",
 
 			"vec4 tColor = texture2D(tGlyphs, uv);",
 			"#if USE_DOS_COLORS",
@@ -139,3 +150,6 @@ THREE.GlyphShader = {
 	].join("\n")
 
 };
+
+
+
