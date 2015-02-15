@@ -104,6 +104,13 @@ first rather than figure out how to get the outlines of glyphs from a font.</p>
 <p><a href="lightball03.html">lightball03</a></p>
 <p><a href="lightball02.html">lightball02</a></p>
 <p><a href="lightball01.html">lightball01</a></p>
+<p><a href="http://stackoverflow.com/users/868679/brendan-annable">Brendan Annable</a> suggested moving
+the vertices behind the camera in the vertex shader instead of discarding in the fragment shader
+because that would be faster. The GPU will clip the triangle instead of trying to draw every pixel
+and having it get discarded. So, here's those versions.</p>
+<p><a href="lightball03-vertex-shader-discard.html">lightball03-vertex-shader-discard</a></p>
+<p><a href="lightball02-vertex-shader-discard.html">lightball02-vertex-shader-discard</a></p>
+<p><a href="lightball01-vertex-shader-discard.html">lightball01-vertex-shader-discard</a></p>
 </div>
 
 

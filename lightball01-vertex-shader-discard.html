@@ -1,0 +1,489 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<title>three.js webgl - skipping triangles in glsl</title>
+		<meta charset="utf-8">
+		<meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+		<style>
+			html, body {
+				font-family: Monospace;
+				background-color: #000;
+				color: #fff;
+				margin: 0px;
+				overflow: hidden;
+				width: 100%;
+				height: 100%;
+			}
+			canvas {
+				width: 100%;
+				height: 100%;
+			}
+			#info {
+				position: absolute;
+				top: 10px;
+				width: 100%;
+				text-align: center;
+				z-index: 100;
+				display:block;
+			}
+			#info a, .button { color: #f00; font-weight: bold; text-decoration: underline; cursor: pointer }
+			.num {
+				color: red;
+				font-weight: bold;
+			}
+		</style>
+	</head>
+	<body>
+
+		<div id="info">
+			<div><a href="http://threejs.org" target="_blank">three.js</a> - skipping triangles in glsl - by <a href="http://games.greggman.com" target="_blank">greggman</a></div>
+			<div>skipping triangle number <span class="num" id="tri-id"></span> of every <span class="num" id="tri-mod"></span> triangles</div>
+		</div>
+
+		<script src="js/three.min.js"></script>
+		<script src="js/three/js/utils/GeometryUtils.js"></script>
+
+		<script src="js/three/js/shaders/CopyShader.js"></script>
+
+		<script src="js/three/js/postprocessing/EffectComposer.js"></script>
+		<script src="js/three/js/postprocessing/MaskPass.js"></script>
+		<script src="js/three/js/postprocessing/RenderPass.js"></script>
+		<script src="js/three/js/postprocessing/ShaderPass.js"></script>
+
+		<script src="js/three/js/Detector.js"></script>
+		<script src="js/three/js/libs/stats.min.js"></script>
+
+		<script type="not-js" id="vertexshader">
+
+			attribute float vertexId;
+
+			uniform float triangleMod;
+			uniform float triangleHideId;
+
+			varying vec3 vNormal;
+
+			void main() {
+
+				vNormal = normal;
+
+				gl_Position = projectionMatrix * modelViewMatrix * vec4( position, 1.0 );
+
+				float triangleId = floor(vertexId / 3.0) + 0.05;
+				float triId = mod(triangleId, triangleMod);
+				float diff = abs(triId - triangleHideId);
+				if ( diff < 0.1 ) {
+					// put this vertex behind the camera.
+					// since all 3 of a given triangle will do this
+					// that will get the triangle clipped.
+					gl_Position = vec4(0, 0, 2, 1);
+				}
+
+
+			}
+
+		</script>
+
+		<script type="not-js" id="fragmentshader">
+
+			varying vec3 vNormal;
+			uniform vec3 color;
+
+			void main() {
+
+				vec3 light = vec3( 0.5, 0.2, 1.0 );
+				light = normalize( light );
+
+				float dProd = dot( vNormal, light ) * 0.5 + 0.5;
+
+				gl_FragColor = vec4( vec3( dProd ) * vec3( color ), 1.0 );
+
+			}
+
+		</script>
+
+
+		<script>
+			"use strict";
+
+			if ( ! Detector.webgl ) Detector.addGetWebGLMessage();
+
+			var container, stats, permalink, hex, color;
+
+			var camera, cameraTarget, scene, renderer;
+
+			var composer;
+			var renderTarget;
+
+			var group, textMesh1, textMesh2, textGeo, material;
+			var scenes = {};
+
+			var text = "three.js",
+
+				height = 20,
+				size = 70,
+				hover = 30;
+
+			var targetRotation = 0;
+			var targetRotationOnMouseDown = 0;
+
+			var mouseX = 0;
+			var mouseXOnMouseDown = 0;
+
+			var triIdNode = getTextNode("tri-id");
+			var triModNode = getTextNode("tri-mod");
+
+			var windowHalfX = window.innerWidth / 2;
+			var windowHalfY = window.innerHeight / 2;
+
+			var postprocessing = { enabled : false };
+			var glow = 0.9;
+
+			var globalOptions = {
+			};
+			var renderModel;
+
+			init();
+			animate();
+
+			function getTextNode( id ) {
+
+				var elem = document.getElementById( id );
+				var node = document.createTextNode( "" );
+				elem.appendChild( node );
+				return node;
+
+			}
+
+			function init() {
+
+				container = document.body;
+
+				// CAMERA
+
+				camera = new THREE.PerspectiveCamera( 30, 1, 1, 1500 );
+				camera.position.set( 0, 400, 700 );
+
+				cameraTarget = new THREE.Vector3( 0, 150, 0 );
+
+				globalOptions.scene = "spheres";
+				scenes.spheres = createSphereScene();
+				scene = scenes.spheres;
+
+				// RENDERER
+
+				renderer = new THREE.WebGLRenderer( { antialias: true } );
+				container.appendChild( renderer.domElement );
+				renderer.setPixelRatio( 2 );
+
+				// STATS
+
+				stats = new Stats();
+				stats.domElement.style.position = 'absolute';
+				stats.domElement.style.top = '0px';
+				//container.appendChild( stats.domElement );
+
+				// POSTPROCESSING
+
+				renderer.autoClear = false;
+
+				renderModel = new THREE.RenderPass( scene, camera );
+
+				renderModel.renderToScreen = true;
+
+				var parameters = { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter, format: THREE.RGBFormat, stencilBuffer: false };
+				renderTarget = new THREE.WebGLRenderTarget( 1, 1, parameters );
+				setRenderTargetSize();
+
+				composer = new THREE.EffectComposer( renderer, renderTarget );
+
+				composer.addPass( renderModel );
+
+				//
+
+				initGUI();
+
+				// EVENTS
+
+				renderer.domElement.addEventListener( 'mousedown', onDocumentMouseDown, false );
+				renderer.domElement.addEventListener( 'touchstart', onDocumentTouchStart, false );
+				renderer.domElement.addEventListener( 'touchmove', onDocumentTouchMove, false );
+
+				window.addEventListener( 'resize', onWindowResize, false );
+				onWindowResize();
+			}
+
+			function createSphereScene() {
+				// SCENE
+
+				var scene = new THREE.Scene();
+				scene.fog = new THREE.Fog( 0x0000A0, 250, 1400 );
+
+				// LIGHTS
+
+				var dirLight = new THREE.DirectionalLight( 0xffffff, 1.725 );
+				dirLight.position.set( 200, 100, 100 ).normalize();
+				scene.add( dirLight );
+
+				var pointLight = new THREE.PointLight( 0xffffff, 1.5 );
+				pointLight.position.set( -120, 0, 50 );
+				scene.add( pointLight );
+
+
+
+				var group = new THREE.Group();
+				group.position.y = 120;
+
+
+				var radius = 150;
+
+
+				var geometry = new THREE.IcosahedronGeometry( radius * 0.8, 1 );
+				var mat1 = new THREE.MeshLambertMaterial( { color: 0x4fff8f, shading: THREE.FlatShading } );
+
+				var modelM = new THREE.Mesh( geometry, mat1 );
+				group.add( modelM );
+
+
+				var attributes = {
+
+				  vertexId:  { type: 'f', value: [] }
+
+				};
+
+				var uniforms = {
+
+					color:          { type: "c", value: new THREE.Color( 0xff2200 ) },
+					triangleMod:    { type: "f", value: 10, },
+					triangleHideId: { type: "f", value: 1, },
+
+				};
+
+				var shaderMaterial = new THREE.ShaderMaterial( {
+
+					uniforms:       uniforms,
+					attributes:     attributes,
+					vertexShader:   document.getElementById( 'vertexshader' ).textContent,
+					fragmentShader: document.getElementById( 'fragmentshader' ).textContent
+
+				});
+
+
+				var geometry = new THREE.SphereGeometry( radius, 48, 24 );
+				var sphere = new THREE.Mesh( geometry, shaderMaterial );
+				sphere.geometry = new THREE.BufferGeometry().fromGeometry( sphere.geometry );
+
+				var numVerts = sphere.geometry.attributes.position.length / 3;
+				var vertexIds = new Float32Array(numVerts);
+
+				for ( var v = 0; v < numVerts; ++v ) {
+
+					vertexIds[ v ] = v;
+
+				}
+
+				var vertexIdAttribute = new THREE.BufferAttribute( vertexIds, 1 );
+				vertexIdAttribute.needsUpdate = true;
+
+				sphere.geometry.addAttribute( "vertexId", vertexIdAttribute );
+
+				group.add( sphere );
+
+				scene.add( group );
+
+				var frameCount = 0;
+
+				return {
+
+					update: function() {
+
+						if (frameCount % (60 * 3) == 0) {
+
+							uniforms.triangleMod.value = uniforms.triangleMod.value + 1;
+
+							if (uniforms.triangleMod.value > 20) {
+
+								uniforms.triangleMod.value = 2;
+
+							}
+
+							triModNode.nodeValue = uniforms.triangleMod.value;
+
+						}
+
+						if (frameCount % 30 == 0) {
+
+							uniforms.triangleHideId.value = (uniforms.triangleHideId.value + 1) % uniforms.triangleMod.value;
+							triIdNode.nodeValue = uniforms.triangleHideId.value;
+
+						}
+
+						++frameCount;
+
+						sphere.rotation.z += 0.002;
+						modelM.rotation.x += 0.003;
+						group.rotation.y += ( targetRotation - group.rotation.y ) * 0.05;
+
+					},
+
+					getScene: function() {
+
+						return scene;
+
+					}
+				};
+			}
+
+			function isMobile() {
+				var ua = navigator.userAgent.toLowerCase();
+				return ua.indexOf( "iphone" ) >= 0 || ua.indexOf( "mobile" ) >= 0;
+			}
+
+			function initGUI() {
+			}
+
+			function setRenderTargetSize() {
+
+				// Make it twice as many pixels as there are glyphs
+				var width  = renderer.context.drawingBufferWidth ;
+				var height = renderer.context.drawingBufferHeight;
+
+				if ( renderTarget.width !== width || renderTarget.height !== height ) {
+
+					renderTarget.setSize( width, height );
+
+				}
+			}
+
+
+			function onWindowResize() {
+
+				windowHalfX = window.innerWidth / 2;
+				windowHalfY = window.innerHeight / 2;
+
+				renderer.setSize( renderer.domElement.clientWidth, renderer.domElement.clientHeight, false );
+
+				setRenderTargetSize();
+
+				composer.reset();
+
+				Object.keys( scenes ).forEach( function( sceneName ) {
+					var scene = scenes[ sceneName ];
+					if ( scene.resize ) {
+						scene.resize();
+					}
+				} );
+			}
+
+			//
+
+			function onDocumentMouseDown( event ) {
+
+				event.preventDefault();
+
+				renderer.domElement.addEventListener( 'mousemove', onDocumentMouseMove, false );
+				renderer.domElement.addEventListener( 'mouseup', onDocumentMouseUp, false );
+				renderer.domElement.addEventListener( 'mouseout', onDocumentMouseOut, false );
+
+				mouseXOnMouseDown = event.clientX - windowHalfX;
+				targetRotationOnMouseDown = targetRotation;
+
+			}
+
+			function onDocumentMouseMove( event ) {
+
+				event.preventDefault();
+
+				mouseX = event.clientX - windowHalfX;
+
+				targetRotation = targetRotationOnMouseDown + ( mouseX - mouseXOnMouseDown ) * 0.02;
+
+			}
+
+			function onDocumentMouseUp( event ) {
+
+				event.preventDefault();
+
+				renderer.domElement.removeEventListener( 'mousemove', onDocumentMouseMove, false );
+				renderer.domElement.removeEventListener( 'mouseup', onDocumentMouseUp, false );
+				renderer.domElement.removeEventListener( 'mouseout', onDocumentMouseOut, false );
+
+			}
+
+			function onDocumentMouseOut( event ) {
+
+				event.preventDefault();
+
+				renderer.domElement.removeEventListener( 'mousemove', onDocumentMouseMove, false );
+				renderer.domElement.removeEventListener( 'mouseup', onDocumentMouseUp, false );
+				renderer.domElement.removeEventListener( 'mouseout', onDocumentMouseOut, false );
+
+			}
+
+			function onDocumentTouchStart( event ) {
+
+				if ( event.touches.length == 1 ) {
+
+					event.preventDefault();
+
+					mouseXOnMouseDown = event.touches[ 0 ].pageX - windowHalfX;
+					targetRotationOnMouseDown = targetRotation;
+
+				}
+
+			}
+
+			function onDocumentTouchMove( event ) {
+
+				if ( event.touches.length == 1 ) {
+
+					event.preventDefault();
+
+					mouseX = event.touches[ 0 ].pageX - windowHalfX;
+					targetRotation = targetRotationOnMouseDown + ( mouseX - mouseXOnMouseDown ) * 0.05;
+
+				}
+
+			}
+
+			//
+
+			function animate() {
+
+				requestAnimationFrame( animate );
+
+				render();
+				stats.update();
+
+			}
+
+			function render() {
+
+				setRenderTargetSize();
+
+				scene.update();
+				var renderScene = scene.getScene();
+				renderModel.scene = renderScene;
+				renderer.setClearColor( renderScene.fog.color );
+
+				camera.aspect = renderer.domElement.clientWidth / renderer.domElement.clientHeight;
+				camera.updateProjectionMatrix();
+				camera.lookAt( cameraTarget );
+
+				renderer.clear();
+
+				if ( postprocessing.enabled ) {
+
+					composer.render( 0.05 );
+
+				} else {
+
+					renderer.render( renderScene, camera );
+
+				}
+
+			}
+
+		</script>
+
+	</body>
+</html>

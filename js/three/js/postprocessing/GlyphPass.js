@@ -64,10 +64,24 @@ THREE.GlyphPass.prototype = {
 
 		var glyphs = THREE.GlyphUtils.makeGlyphShadingCanvas( options.glyphOptions, this.glyphs );
 
-		if ( !this.glyphsTexture ) {
+		if ( !this.glyphTexture ) {
 
 			this.glyphTexture = new THREE.Texture( glyphs.glyphCanvas, THREE.Texture.DEFAULT_MAPPNG, THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping, THREE.LinearFilter, THREE.NearestFilter );
 			this.glyphMapTexture = new THREE.Texture( glyphs.glyphMapCanvas, THREE.Texture.DEFAULT_MAPPNG, THREE.ClampToEdgeWrapping, THREE.ClampToEdgeWrapping, THREE.NearestFilter, THREE.NearestFilter );
+
+			glyphs.glyphCanvas.style.zIndex = 10;
+			glyphs.glyphCanvas.style.position = "absolute";
+			glyphs.glyphCanvas.style.left = "20px";
+			glyphs.glyphCanvas.style.bottom = "20px";
+
+			glyphs.glyphMapCanvas.style.zIndex = 10;
+			glyphs.glyphMapCanvas.style.position = "absolute";
+			glyphs.glyphMapCanvas.style.left = "20px";
+			glyphs.glyphMapCanvas.style.bottom = "20px";
+			glyphs.glyphMapCanvas.style.border = "1px solid blue";
+
+//			document.body.appendChild( glyphs.glyphCanvas );
+//			document.body.appendChild( glyphs.glyphMapCanvas );
 
 		}
 

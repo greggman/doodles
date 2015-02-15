@@ -1,0 +1,457 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>WebGL triangles mapped to texels</title>
+<style>
+html, body {
+  width: 100%;
+  height: 100%;
+  border: 0px;
+  padding: 0px;
+  margin: 0px;
+  background-color: red;
+  font-family: monospace;
+  overflow: hidden;
+  color: #fff;
+}
+a {
+  color: #fff;
+}
+#info {
+    font-size: small;
+    position: absolute;
+	top: 0px; width: 100%;
+	padding: 5px;
+	text-align: center;
+	z-index: 2;
+}
+CANVAS {
+  background-color: gray;
+}
+.fpsContainer {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  z-index: 2;
+  color: white;
+  background-color: rgba(0,0,0,0.5);
+  border-radius: 10px;
+  padding: 10px;
+}
+#viewContainer {
+  width: 100%;
+  height: 100%;
+}
+</style>
+<script type="text/javascript" src="js/tdl.min.js"></script>
+<script type="text/javascript">
+//tdl.require('tdl.buffers');
+//tdl.require('tdl.fast');
+//tdl.require('tdl.fps');
+//tdl.require('tdl.log');
+//tdl.require('tdl.math');
+//tdl.require('tdl.models');
+//tdl.require('tdl.primitives');
+//tdl.require('tdl.programs');
+//tdl.require('tdl.textures');
+//tdl.require('tdl.webgl');
+window.onload = initialize;
+
+// globals
+var gl;                   // the gl context.
+var canvas;               // the canvas
+var math;                 // the math lib.
+var fast;                 // the fast math lib.
+
+var g_eyeSpeed     = 0.1;
+var g_eyeHeight    = 2;
+var g_eyeRadius    = 9;
+var g_visTexture;
+var g_visCanvas    = document.createElement("canvas");
+var g_visCanvasCtx = g_visCanvas.getContext("2d");
+
+var expandIndexedVertices = function(arrays) {
+  var indices = arrays.indices;
+  var numVerts = indices.numElements * 3;
+  var newArrays = {};
+  Object.keys(arrays).forEach(function(key) {
+    if (key !== 'indices') {
+      var srcArray = arrays[key]
+      var dstArray = new tdl.primitives.AttribBuffer(srcArray.numComponents, numVerts, srcArray.type);
+      newArrays[key] = dstArray;
+      for (var ndx = 0; ndx < numVerts; ++ndx) {
+        var verts = indices.getElement(ndx);
+        dstArray.push(srcArray.getElement(verts[0]));
+        dstArray.push(srcArray.getElement(verts[1]));
+        dstArray.push(srcArray.getElement(verts[2]));
+      }
+    }
+  });
+
+  return newArrays;
+}
+
+function createProgramFromTags(vertexTagId, fragmentTagId) {
+  return tdl.programs.loadProgram(
+      document.getElementById(vertexTagId).text,
+      document.getElementById(fragmentTagId).text);
+}
+
+/**
+ * Sets up Planet.
+ */
+function setupSphere() {
+  var textures = {};
+  var program = createProgramFromTags(
+      'sphereVertexShader',
+      'sphereFragmentShader');
+  var numAcross = 48;
+  var numDown = 24;
+  var arrays = tdl.primitives.createSphere(4, numAcross, numDown);
+  arrays = expandIndexedVertices(arrays);
+  // in this case since we know the sphere is 48x24 quads lets make the texture 48x48 (since we're doing triangles)
+  // Let's use a canvas for it so we can draw to the canvas to update
+  g_visCanvas.width = numAcross;
+  g_visCanvas.height = numDown * 2;
+  g_visTexture = tdl.textures.loadTexture(canvas);
+  g_visTexture.setParameter(gl.TEXTURE_MIN_FILTER, gl.NEAREST);
+  g_visTexture.setParameter(gl.TEXTURE_MAG_FILTER, gl.NEAREST);
+  textures.visTexture = g_visTexture;
+  var numVerts = arrays.position.numElements;
+  arrays.extraUV = new tdl.primitives.AttribBuffer(2, numVerts);
+  var trisAcross = numAcross * 2;
+  // for whatever reason tdl spheres are made by columns not rows.
+  for (var ii = 0; ii < numVerts; ++ii) {
+    var tri = Math.floor(ii / 3);
+    var quad = Math.floor(tri / 2);
+    var col = Math.floor(quad / numDown);
+    var row = Math.floor(quad % numDown) * 2 + (tri % 2);
+    var u = (col + 0.5) / g_visCanvas.width;
+    var v = (row + 0.5) / g_visCanvas.height;
+    arrays.extraUV.push([u, v]);
+  }
+
+  return new tdl.models.Model(program, arrays, textures);
+}
+
+function setupCube() {
+  var textures = {};
+  var program = createProgramFromTags(
+      'cubeVertexShader',
+      'cubeFragmentShader');
+  var arrays = tdl.primitives.createCube(2);
+
+  return new tdl.models.Model(program, arrays, textures);
+}
+
+var numberSuffix = (function() {
+  var suffixes = [ "th", "st", "nd", "rd" ];
+  return function(v) {
+    return suffixes[v] || "th";
+  };
+}());
+
+function initialize() {
+  math = tdl.math;
+  fast = tdl.fast;
+  canvas = document.getElementById("canvas");
+
+  gl = tdl.webgl.setupWebGL(canvas, { alpha: false });
+  if (!gl) {
+    return false;
+  }
+
+  var sphere = setupSphere();
+  var cube = setupCube();
+
+  var then = 0.0;
+  var clock = 0.0;
+
+  // pre-allocate a bunch of arrays
+  var projection = new Float32Array(16);
+  var view = new Float32Array(16);
+  var world = new Float32Array(16);
+  var worldInverse = new Float32Array(16);
+  var worldInverseTranspose = new Float32Array(16);
+  var viewProjection = new Float32Array(16);
+  var worldViewProjection = new Float32Array(16);
+  var viewInverse = new Float32Array(16);
+  var viewProjectionInverse = new Float32Array(16);
+  var eyePosition = new Float32Array(3);
+  var target = new Float32Array(3);
+  var up = new Float32Array([0,1,0]);
+  var lightWorldPos = new Float32Array(3);
+  var v3t0 = new Float32Array(3);
+  var v3t1 = new Float32Array(3);
+  var v3t2 = new Float32Array(3);
+  var v3t3 = new Float32Array(3);
+  var m4t0 = new Float32Array(16);
+  var m4t1 = new Float32Array(16);
+  var m4t2 = new Float32Array(16);
+  var m4t3 = new Float32Array(16);
+  var zero4 = new Float32Array(4);
+  var one4 = new Float32Array([1,1,1,1]);
+
+  // Sphere uniforms.
+  var sphereConst = {
+    viewInverse: viewInverse,
+    lightWorldPos: lightWorldPos,
+    specular: one4,
+    shininess: 50,
+    specularFactor: 0.2};
+  var spherePer = {
+    lightColor: new Float32Array([0,0,0,1]),
+    world: world,
+    worldViewProjection: worldViewProjection,
+    worldInverse: worldInverse,
+    worldInverseTranspose: worldInverseTranspose,
+    triMod: 10,
+    triToHide: 5,
+  };
+
+  function updateVizTexture(ctx, frameCount, clock) {
+    var w = ctx.canvas.width;
+    var h = ctx.canvas.height;
+    ctx.clearRect(0, 0, w, h);
+    ctx.save();
+      ctx.translate(w * 0.5 + Math.sin(clock) * w * 0.5, 0);
+      ctx.fillStyle = "#fff";
+      ctx.fillRect(-3, 0, 6, h);
+    ctx.restore();
+    ctx.save();
+      ctx.translate(0, h * 0.5 + Math.sin(clock * 1.37) * h * 0.5);
+      ctx.fillStyle = "rgba(0,0,255,0.5)";
+      ctx.fillRect(0, -3, w, 6);
+    ctx.restore();
+    ctx.save();
+      ctx.translate(w * 0.5, h * 0.5);
+      ctx.rotate(clock * 0.831);
+      ctx.fillStyle = "rgba(0,255,25,0.5)";
+      ctx.fillRect(-w, -3, w * 2, 6);
+    ctx.restore();
+    g_visTexture.setTexture(ctx.canvas);
+  }
+
+  document.getElementById("tex").appendChild(g_visCanvas);
+  g_visCanvas.style.border = "1px solid red";
+  g_visCanvas.style.backgroundImage = 'url("assets/checker.png")';
+
+  var frameCount = 0;
+  function render() {
+    updateVizTexture(g_visCanvasCtx, frameCount, clock);
+
+    ++frameCount;
+    var now = (new Date()).getTime() * 0.001;
+    var elapsedTime;
+    if(then == 0.0) {
+      elapsedTime = 0.0;
+    } else {
+      elapsedTime = now - then;
+    }
+    then = now;
+
+    clock += elapsedTime;
+    eyePosition[0] = Math.sin(clock * g_eyeSpeed) * g_eyeRadius;
+    eyePosition[1] = g_eyeHeight;
+    eyePosition[2] = Math.cos(clock * g_eyeSpeed) * g_eyeRadius;
+
+    gl.clearColor(0,0,0,0);
+    gl.clearDepth(1);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT | gl.STENCIL_BUFFER_BIT);
+
+    gl.enable(gl.CULL_FACE);
+    gl.enable(gl.DEPTH_TEST);
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+
+    fast.matrix4.perspective(
+        projection,
+        math.degToRad(60),
+        canvas.clientWidth / canvas.clientHeight,
+        1,
+        5000);
+    fast.matrix4.lookAt(
+        view,
+        eyePosition,
+        target,
+        up);
+    fast.matrix4.mul(viewProjection, view, projection);
+    fast.matrix4.inverse(viewInverse, view);
+    fast.matrix4.inverse(viewProjectionInverse, viewProjection);
+
+    fast.matrix4.getAxis(v3t0, viewInverse, 0); // x
+    fast.matrix4.getAxis(v3t1, viewInverse, 1); // y;
+    fast.matrix4.getAxis(v3t2, viewInverse, 2); // z;
+    fast.mulScalarVector(v3t0, 10, v3t0);
+    fast.mulScalarVector(v3t1, 10, v3t1);
+    fast.mulScalarVector(v3t2, 10, v3t2);
+    fast.addVector(lightWorldPos, eyePosition, v3t0);
+    fast.addVector(lightWorldPos, lightWorldPos, v3t1);
+    fast.addVector(lightWorldPos, lightWorldPos, v3t2);
+
+//      view: view,
+//      projection: projection,
+//      viewProjection: viewProjection,
+
+    var lightColor = spherePer.lightColor;
+    lightColor[0] = 1;
+    lightColor[1] = 1;
+    lightColor[2] = 1;
+    var scale = 1;
+    fast.matrix4.scaling(m4t0, [scale, scale, scale]);
+    fast.matrix4.translation(m4t1, [0, 0, 0]);
+    fast.matrix4.mul(world, m4t0, m4t1);
+    fast.matrix4.mul(worldViewProjection, world, viewProjection);
+    fast.matrix4.inverse(worldInverse, world);
+    fast.matrix4.transpose(worldInverseTranspose, worldInverse);
+
+    cube.drawPrep(sphereConst);
+    cube.draw(spherePer);
+
+    sphere.drawPrep(sphereConst);
+    sphere.draw(spherePer);
+
+    tdl.webgl.requestAnimationFrame(render, canvas);
+  }
+  render();
+  return true;
+}
+</script>
+</head>
+<body>
+<div id="info"><a href="http://threedlibrary.googlecode.com" target="_blank">tdl.js</a> - triangles mapped to texels example</div>
+<div class="fpsContainer">
+  <div id="tex"></div>
+</div>
+<div id="viewContainer">
+<canvas id="canvas" width="1024" height="1024" style="width: 100%; height: 100%;"></canvas>
+</div>
+</body>
+<script id="sphereVertexShader" type="text/something-not-javascript">
+uniform mat4 worldViewProjection;
+uniform vec3 lightWorldPos;
+uniform mat4 world;
+uniform mat4 viewInverse;
+uniform mat4 worldInverseTranspose;
+uniform sampler2D visTexture;
+
+attribute vec4 position;
+attribute vec3 normal;
+attribute vec2 texCoord;
+attribute vec2 extraUV;
+varying vec4 v_position;
+varying vec2 v_texCoord;
+varying vec3 v_normal;
+varying vec3 v_surfaceToLight;
+varying vec3 v_surfaceToView;
+varying vec4 v_extraColor;
+void main() {
+  v_texCoord = texCoord;
+  v_position = (worldViewProjection * position);
+  v_normal = (worldInverseTranspose * vec4(normal, 0)).xyz;
+  v_surfaceToLight = lightWorldPos - (world * position).xyz;
+  v_surfaceToView = (viewInverse[3] - (world * position)).xyz;
+  gl_Position = v_position;
+
+  vec4 vis = texture2D(visTexture, extraUV);
+  // lets not draw at all if alph is low
+  if (vis.a < 0.1) {
+    gl_Position = vec4(0, 0, 2, 1);  // put the vertex behind the camera
+  }
+  v_extraColor = vis;
+}
+
+</script>
+<script id="sphereFragmentShader" type="text/something-not-javascript">
+precision mediump float;
+uniform vec4 lightColor;
+varying vec4 v_position;
+varying vec2 v_texCoord;
+varying vec3 v_normal;
+varying vec3 v_surfaceToLight;
+varying vec3 v_surfaceToView;
+varying vec4 v_extraColor;
+
+uniform vec4 specular;
+uniform sampler2D bumpSampler;
+uniform float shininess;
+uniform float specularFactor;
+
+vec4 lit(float l ,float h, float m) {
+  return vec4(1.0,
+              max(l, 0.0),
+              (l > 0.0) ? pow(max(0.0, h), m) : 0.0,
+              1.0);
+}
+void main() {
+  vec3 normal = normalize(v_normal);
+  vec3 surfaceToLight = normalize(v_surfaceToLight);
+  vec3 surfaceToView = normalize(v_surfaceToView);
+  vec3 halfVector = normalize(surfaceToLight + surfaceToView);
+  vec4 litR = lit(dot(normal, surfaceToLight),
+                    dot(normal, halfVector), shininess);
+  gl_FragColor = vec4((
+  lightColor * (litR.y
+                        + specular * litR.z * specularFactor)).rgb,
+      1) * v_extraColor;
+}
+</script>
+<script id="cubeVertexShader" type="text/something-not-javascript">
+uniform mat4 worldViewProjection;
+uniform vec3 lightWorldPos;
+uniform mat4 world;
+uniform mat4 viewInverse;
+uniform mat4 worldInverseTranspose;
+attribute vec4 position;
+attribute vec3 normal;
+attribute vec2 texCoord;
+varying vec4 v_position;
+varying vec2 v_texCoord;
+varying vec3 v_normal;
+varying vec3 v_surfaceToLight;
+varying vec3 v_surfaceToView;
+void main() {
+  v_texCoord = texCoord;
+  v_position = (worldViewProjection * position);
+  v_normal = (worldInverseTranspose * vec4(normal, 0)).xyz;
+  v_surfaceToLight = lightWorldPos - (world * position).xyz;
+  v_surfaceToView = (viewInverse[3] - (world * position)).xyz;
+  gl_Position = v_position;
+}
+
+</script>
+<script id="cubeFragmentShader" type="text/something-not-javascript">
+precision mediump float;
+uniform vec4 lightColor;
+varying vec4 v_position;
+varying vec2 v_texCoord;
+varying vec3 v_normal;
+varying vec3 v_surfaceToLight;
+varying vec3 v_surfaceToView;
+
+uniform vec4 specular;
+uniform sampler2D bumpSampler;
+uniform float shininess;
+uniform float specularFactor;
+
+vec4 lit(float l ,float h, float m) {
+  return vec4(1.0,
+              max(l, 0.0),
+              (l > 0.0) ? pow(max(0.0, h), m) : 0.0,
+              1.0);
+}
+void main() {
+  vec3 normal = normalize(v_normal);
+  vec3 surfaceToLight = normalize(v_surfaceToLight);
+  vec3 surfaceToView = normalize(v_surfaceToView);
+  vec3 halfVector = normalize(surfaceToLight + surfaceToView);
+  vec4 litR = lit(dot(normal, surfaceToLight),
+                    dot(normal, halfVector), shininess);
+  gl_FragColor = vec4((
+  lightColor * (litR.y
+                        + specular * litR.z * specularFactor)).rgb,
+      1);
+}
+</script>
+</html>

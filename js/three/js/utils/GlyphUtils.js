@@ -8,10 +8,6 @@
 
 	}
 
-
-	if ( !de ) {
-	}
-
 	var copyArray = function( defaults, array ) {
 
 		var src = array || defaults;
@@ -458,7 +454,41 @@
 
 			}
 
+			// add all the glyphs to a kd tree
+			var kdPoints = glyphs.map( function ( glyph ) {
+
+				var kdPoint = glyph.brightness.slice();
+				kdPoint.glyph = glyph;
+				return kdPoint;
+
+			});
+
+			function kdDistance( a, b ) {
+
+				var d0 = a[ 0 ] - b[ 0 ];
+				var d1 = a[ 1 ] - b[ 1 ];
+				var d2 = a[ 2 ] - b[ 2 ];
+				var d3 = a[ 3 ] - b[ 3 ];
+
+				return d0 * d0 + d1 * d1 + d2 * d2 + d3 * d3;
+
+			}
+
+			var tree = new kdTree( kdPoints, kdDistance, [0, 1, 2, 3]);
+
 			function getClosestMatches( quadBrightness ) {
+
+				var nearest = tree.nearest( quadBrightness, 1 );
+				var nearestGlyphs = nearest.map( function ( kdPoint ) {
+
+					return kdPoint[0].glyph;
+
+				} );
+
+				return nearestGlyphs;
+
+				var nearest = nearestList[0];
+				return nearest.glyph;
 
 				var matches =  [];
 				var closestDistSq = 10000000;
