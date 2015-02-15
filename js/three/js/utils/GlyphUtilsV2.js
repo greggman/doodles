@@ -577,7 +577,7 @@
 
 				var numGlyphs        = usedGlyphs.length;
 				var maxTextureSize   = 2048;     // look up from GL?
-				var glyphsAcross     = maxTextureSize / glyphWidth | 0;
+				var glyphsAcross     = Math.sqrt(numGlyphs) | 0 + 1;
 				var glyphsDown       = (numGlyphs + glyphsAcross - 1) / glyphsAcross | 0;
 				var textureWidth     = glyphsAcross * glyphWidth;
 				var textureHeight    = glyphsDown   * glyphHeight;

@@ -23,7 +23,6 @@ THREE.GlyphPass = function ( options ) {
 	this.uniforms = THREE.UniformsUtils.clone( glyphShader.uniforms );
 
 	this.uniforms[ "tGlyphs" ].value   = this.glyphTexture;
-	this.uniforms[ "tGlyphMap" ].value = this.glyphMapTexture;
 
 	var data = new Uint8Array( [
 	    0, 128, 0,
@@ -55,7 +54,7 @@ THREE.GlyphPass = function ( options ) {
 
 	this.quad = new THREE.Mesh( new THREE.PlaneBufferGeometry( 2, 2 ), this.materialGlyph );
 	this.scene.add( this.quad );
-window.ggg = this;
+
 };
 
 THREE.GlyphPass.prototype = {
@@ -74,67 +73,19 @@ THREE.GlyphPass.prototype = {
 			glyphs.glyphCanvas.style.left = "20px";
 			glyphs.glyphCanvas.style.bottom = "20px";
 
-			glyphs.glyphMapCanvas.style.zIndex = 10;
-			glyphs.glyphMapCanvas.style.position = "absolute";
-			glyphs.glyphMapCanvas.style.left = "20px";
-			glyphs.glyphMapCanvas.style.bottom = "20px";
-			glyphs.glyphMapCanvas.style.border = "1px solid blue";
-
 //			document.body.appendChild( glyphs.glyphCanvas );
-//			document.body.appendChild( glyphs.glyphMapCanvas );
 
 		}
 
 		this.glyphTexture.needsUpdate = true;
 		this.glyphTexture.flipY = false;
 
-		this.glyphMapTexture.needsUpdate = true;
-		this.glyphMapTexture.flipY = false;
-
 		this.glyphTextureWidth     = glyphs.glyphCanvas.width;
 		this.glyphTextureHeight    = glyphs.glyphCanvas.height;
-		this.glyphMapTextureWidth  = glyphs.glyphMapCanvas.width;
-		this.glyphMapTextureHeight = glyphs.glyphMapCanvas.height;
 
-  //document.body.insertBefore(glyphs.canvas, document.body.firstChild);
-  ////var ctx = glyphs.canvas.getContext("2d");
-  ////ctx.fillStyle = "green";
-  ////ctx.fillRect(7 * glyphs.glyphWidth + 7 * glyphs.segmentWidth,
-  ////             7 * glyphs.glyphHeight + 7 * glyphs.segmentHeight,
-  ////			glyphs.glyphWidth,
-  ////			glyphs.glyphHeight
-  ////             );
-  ////ctx.globalCompositeOperation = "destination-over";
-  ////		  var glyphsPerSegment = 8;
-  ////          for (var ll = 0; ll < glyphsPerSegment; ++ll) {
-  ////            for (var lr = 0; lr < glyphsPerSegment; ++lr) {
-  ////              for (var rl = 0; rl < glyphsPerSegment; ++rl) {
-  ////                for (var rr = 0; rr < glyphsPerSegment; ++rr) {
-  ////				  ctx.fillStyle = "rgb(" + 256 * ll / glyphsPerSegment + "," +
-  ////					256 * lr / glyphsPerSegment + "," +
-  ////					256 * rl / glyphsPerSegment + ")";
-  ////ctx.fillRect(ll * glyphs.glyphWidth + lr * glyphs.segmentWidth,
-  ////             rl * glyphs.glyphHeight + rr * glyphs.segmentHeight,
-  ////			glyphs.glyphWidth / 2,
-  ////			glyphs.glyphHeight
-  ////             );
-  ////				  ctx.fillStyle = "rgb(" + 256 * rr / glyphsPerSegment + "," +
-  ////					256 * rr / glyphsPerSegment + "," +
-  ////					256 * rr / glyphsPerSegment + ")";
-  ////ctx.fillRect(ll * glyphs.glyphWidth + lr * glyphs.segmentWidth + glyphs.glyphWidth * 0.5,
-  ////             rl * glyphs.glyphHeight + rr * glyphs.segmentHeight,
-  ////			glyphs.glyphWidth / 2,
-  ////			glyphs.glyphHeight
-  ////             );
-  ////
-  ////				}
-  ////			  }
-  ////			}
-  ////		  }
 		this.glyphs = glyphs;
 
 //  console.log(this.glyphs);
-
 
 	},
 
@@ -150,7 +101,7 @@ THREE.GlyphPass.prototype = {
 
 		}
 
-		this.uniforms[ "numLevels" ].value = 8;
+		this.uniforms[ "numGlyphs" ].value = this.glyphs.numGlyphs;
 		this.uniforms[ "color" ].value = this.color;
 		this.uniforms[ "tDiffuse" ].value = readBuffer;
 		this.uniforms[ "diffuseDimensions" ].value.set( readBuffer.width, readBuffer.height );

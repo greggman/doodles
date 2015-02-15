@@ -46,7 +46,7 @@ canvas {
 </style>
 <script src="js/three.min.js"></script>
 <script src="js/three/js/libs/kd-tree.js"></script>
-<script src="js/three/js/utils/GlyphUtilsV2.js"></script>
+<script src="js/three/js/utils/GlyphUtils.js"></script>
 <script src="js/three/js/libs/dat.gui.min.js"></script>
 </head>
 <body>
@@ -105,7 +105,6 @@ function main() {
 	};
 	var glyphOptions = {
 
-		numLevels: 8,
 		checker: false,
 		weighNeighbors: false,
 		glyphSets: [ "ascii" ],
@@ -146,7 +145,6 @@ function main() {
 
 		} );
 	} );
-	gui.add( settings.glyphOptions, 'numLevels', [ 256 ] ).onFinishChange( updateGlyphSets );
 	gui.add( settings.glyphOptions, 'weighNeighbors' ).onChange( updateGlyphSets );
 	gui.add( settings.glyphOptions, 'checker' ).onChange( updateGlyphSets );
 	gui.add( settings.fontOptions, 'font', Object.keys( fontFamilies )).onFinishChange( updateGlyphSets );
@@ -154,7 +152,6 @@ function main() {
 
 	updateGlyphSets();
 	document.body.appendChild(glyphs.glyphCanvas);
-	document.body.appendChild(glyphs.glyphMapCanvas);
 
 	function updateGlyphSets() {
 

@@ -2,12 +2,6 @@
 
 ( function() {
 
-	if ( kdTree === undefined ) {
-
-		console.error( "THREE.GlyphUtils relies on kd-tree.js" );
-
-	}
-
 	var copyArray = function( defaults, array ) {
 
 		var src = array || defaults;
@@ -115,7 +109,6 @@
 				maxHeight: 32,
 				baseLine: 20,
 				pack: 0,
-				numLevels: 8,
 				checker: false,
 				weighNeighbors: false,
 
@@ -177,6 +170,27 @@
 				return generate( setName );
 
 			} ).join( "" );
+
+
+			function removeDuplicates( glyphs ) {
+
+				var unique = [];
+
+				Array.prototype.forEach.call(glyphs, function( glyph ) {
+
+					if ( unique.indexOf( glyph ) < 0 ) {
+
+						unique.push( glyph );
+
+					}
+
+				} );
+
+				return unique;
+
+			}
+
+			settings.glyphs = removeDuplicates( settings.glyphs );
 
 			var canvas = glyphsInfo.glyphCanvas || document.createElement( "canvas" );
 			canvas.width  = settings.maxWidth;
@@ -390,31 +404,7 @@
 					ctx.clearRect( 0, 0, ctx.canvas.width, ctx.canvas.height );
 					ctx.fillText( glyph.glyph, offsetX, offsetY );
 					var imageData = ctx.getImageData( 0, 0, glyphWidth, glyphHeight );
-					var brightness =  [];
-					for ( var yy = 0; yy < 2; ++yy ) {
-
-						for ( var xx = 0; xx < 2; ++xx ) {
-
-							var width  = glyphWidth  / 2 | 0;
-							var height = glyphHeight / 2 | 0;
-							var x      = xx * width;
-							var y      = yy * height;
-							if ( glyphWidth % 2 == 1 ) {
-
-								width += 1;
-
-							}
-							if ( glyphHeight % 2 == 1 ) {
-
-								height += 1;
-
-							}
-							brightness.push( getBrightness( imageData, x, y, width, height ));
-
-						}
-					}
-					glyph.brightness = brightness;
-					glyph.totalBrightness = brightness.reduce( function( a, b ) { return a + b; } ) / 4;
+					glyph.brightness = getBrightness( imageData, 0, 0, glyphWidth, glyphHeight );
 
 				} );
 
@@ -424,20 +414,21 @@
 
 			var maxBrightness = glyphs.reduce( function( prev, curr ) {
 
-				return prev.map( function( a, ndx ) {
+				return Math.max( prev, curr.brightness );
 
-					return Math.max( a, curr.brightness[ ndx ] );
+			}, 0 );
 
-				} );
-
-			}, [ 0, 0, 0, 0 ] );
 			glyphs.forEach( function( glyph ) {
 
-				glyph.brightness = glyph.brightness.map( function( value, ndx ) {
+				glyph.brightness /= maxBrightness;
 
-					return value / maxBrightness[ ndx ];
+			} );
 
-				} );
+			// sort by brightness
+
+			glyphs.sort( function( a, b ) {
+
+				return a.brightness - b.brightness
 
 			} );
 
@@ -454,130 +445,11 @@
 
 			}
 
-			// add all the glyphs to a kd tree
-			var kdPoints = glyphs.map( function ( glyph ) {
-
-				var kdPoint = glyph.brightness.slice();
-				kdPoint.glyph = glyph;
-				return kdPoint;
-
-			});
-
-			function kdDistance( a, b ) {
-
-				var d0 = a[ 0 ] - b[ 0 ];
-				var d1 = a[ 1 ] - b[ 1 ];
-				var d2 = a[ 2 ] - b[ 2 ];
-				var d3 = a[ 3 ] - b[ 3 ];
-
-				return d0 * d0 + d1 * d1 + d2 * d2 + d3 * d3;
-
-			}
-
-			var tree = new kdTree( kdPoints, kdDistance, [0, 1, 2, 3]);
-
-			function getClosestMatches( quadBrightness ) {
-
-				var nearest = tree.nearest( quadBrightness, 1 );
-				var nearestGlyphs = nearest.map( function ( kdPoint ) {
-
-					return kdPoint[0].glyph;
-
-				} );
-
-				return nearestGlyphs;
-
-				var nearest = nearestList[0];
-				return nearest.glyph;
-
-				var matches =  [];
-				var closestDistSq = 10000000;
-				glyphs.forEach( function( glyph ) {
-
-					var distSq = getDistanceSq( quadBrightness, glyph );
-					if ( distSq < closestDistSq ) {
-
-						closestDistSq = distSq;
-						matches = [ glyph ];
-
-					} else if ( distSq === closestDistSq ) {
-
-						matches.push( glyph );
-
-					}
-				} );
-
-				return matches;
-
-			}
-
-			function selectBestMatchingGlyphs( numLevels ) {
-
-				var glyphMap  = [];
-				var numGlyphs = settings.glyphs.length;
-				var maxLevel  = numLevels - 1;
-
-				function selectClosestGlyph( spot ) {
-
-					var ll = spot[ 0 ];
-					var lr = spot[ 1 ];
-					var rl = spot[ 2 ];
-					var rr = spot[ 3 ];
-					var matches = getClosestMatches( [ ll / maxLevel, lr / maxLevel, rl / maxLevel, rr / maxLevel ] );
-
-					return matches[0];
-
-				}
-
-				// console.log( glyphs.map( JSON.stringify ).join( "\n" ));
-				for ( var ll = 0; ll < numLevels; ++ll ) {
-
-					for ( var lr = 0; lr < numLevels; ++lr ) {
-
-						for ( var rl = 0; rl < numLevels; ++rl ) {
-
-							for ( var rr = 0; rr < numLevels; ++rr ) {
-
-								glyphMap.push( selectClosestGlyph( [ ll, lr, rl, rr ] ) );
-
-							}
-						}
-
-					}
-				}
-
-				return glyphMap;
-
-			}
-
-			var glyphMap = selectBestMatchingGlyphs( settings.numLevels );
-
-			function collectUsedGlyphs( glyphMap ) {
-
-				var usedGlyphs = [];
-
-				glyphMap.forEach( function( glyph ) {
-
-					if ( glyph.id === undefined ) {
-
-						glyph.id = usedGlyphs.length;
-						usedGlyphs.push( glyph );
-
-					}
-
-				} );
-
-				return usedGlyphs;
-
-			}
-
-			var usedGlyphs = collectUsedGlyphs( glyphMap );
-
 			function createGlyphCanvas() {
 
-				var numGlyphs        = usedGlyphs.length;
+				var numGlyphs        = glyphs.length;
 				var maxTextureSize   = 2048;     // look up from GL?
-				var glyphsAcross     = maxTextureSize / glyphWidth | 0;
+				var glyphsAcross     = Math.sqrt( numGlyphs ) | 0 + 1;
 				var glyphsDown       = (numGlyphs + glyphsAcross - 1) / glyphsAcross | 0;
 				var textureWidth     = glyphsAcross * glyphWidth;
 				var textureHeight    = glyphsDown   * glyphHeight;
@@ -593,7 +465,7 @@
 				setFontSettings();
 				ctx.clearRect( 0, 0, ctx.canvas.width, ctx.canvas.height );
 
-				usedGlyphs.forEach( function( glyph, ndx ) {
+				glyphs.forEach( function( glyph, ndx ) {
 
 					var xOff = (ndx % glyphsAcross    ) * glyphWidth;
 					var yOff = (ndx / glyphsAcross | 0) * glyphHeight;
@@ -617,50 +489,10 @@
 
 			var glyphCanvas = createGlyphCanvas();
 
-			function createGlyphMapCanvas( numLevels, glyphsAcross ) {
-
-				var size = numLevels * numLevels;
-				var canvas = glyphsInfo.glyphMapCanvas || document.createElement("canvas");
-				canvas.width = size;
-				canvas.height = size;
-				var ctx = canvas.getContext("2d");
-				var imageData = ctx.createImageData(size, size);
-
-				glyphMap.forEach( function( glyph, ndx ) {
-
-					var xx = ndx % size;
-					var yy = ndx / size | 0;
-
-					var ll = xx % numLevels;
-					var lr = xx / numLevels | 0;
-
-					var rl = yy % numLevels;
-					var rr = yy / numLevels | 0;
-
-					var offset = (yy * size + xx) * 4;
-
-					var u = glyph.id % glyphsAcross;
-					var v = glyph.id / glyphsAcross | 0;
-
-					imageData.data[ offset + 0 ] = u;
-					imageData.data[ offset + 1 ] = v;
-					imageData.data[ offset + 3 ] = 255;  // we have to set alpha to 255 because canvas is pre-multiplied! :(
-
-				} );
-
-				ctx.putImageData(imageData, 0, 0);
-
-				return canvas;
-			}
-
-			var glyphsAcross = glyphCanvas.width / glyphWidth;
-			var glyphMapCanvas = createGlyphMapCanvas( settings.numLevels, glyphsAcross );
-
-			glyphsInfo.glyphWidth = glyphWidth;
+			glyphsInfo.numGlyphs   = glyphs.length;
+			glyphsInfo.glyphWidth  = glyphWidth;
 			glyphsInfo.glyphHeight = glyphHeight;
-			glyphsInfo.numLevels = settings.numLevels;
 			glyphsInfo.glyphCanvas = glyphCanvas;
-			glyphsInfo.glyphMapCanvas = glyphMapCanvas;
 
 			return glyphsInfo;
 
