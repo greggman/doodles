@@ -75,36 +75,72 @@ being displayed into text.</p>
 <p><a href="textme06.html">textme06</a>: Sixth step, render with it</p>
 <p><a href="textme07.html">textme07</a>: Seventh step, try just brightness, no corners.</p>
 <p><a href="textme08.html">textme08</a>: Eighth step, render with it</p>
+<p><a href="textme09.html">textme09</a>: Ninth step, add useReverse and expose pack.</p>
+<p><a href="textme10.html">textme10</a>: Tenth step, render with it</p>
 <p>Note: under <b>glyphs</b> de-select <b>ascii</b> and select <b>boxElements</b> and <b>geometricShapes</b>. Also
 under <b>debug</b> select <b>dosColors</b>. Try changing the scene as well.
 <p>---</p>
-<p><a href="textme03.html">Originally</a> I thought I'd take 2x2 pixels from the original picture and try to map that do a glyph. So,
+<p>
+<a href="textme03.html">Originally</a> I thought I'd take 2x2 pixels from the original picture and try to map that do a glyph. So,
 I look at the 4 corners of each glyph rectangle and compute a brightness. Then for 8 levels of brightness of each
 corner I try to find the best matching glyph. With 8 levels of brightness there are 4096 possible combinations.
 For each of those I try to find the best glyph. That's effectively 64x64 glyphs across a texture. If each glyph
-is 32x32 pixels that means that's already a giant 2048x2048 texture so I couldn't do more than 8 levels.</p>
-<p><a href="textme04.html">It works and sometimes you can even tell it's matching shapes on the edges</a>.
+is 32x32 pixels that means that's already a giant 2048x2048 texture so I couldn't do more than 8 levels.
+</p>
+<p>
+<a href="textme04.html">It works and sometimes you can even tell it's matching shapes on the edges</a>.
 I wasn't totally happy with the results. It seemed like the system was quite often picking the same glyph
-as the closests match for some combination of colors. For example if you <a href="http://localhost:8080/textme03.html#%7B%22glyphOptions%22:%7B%22checker%22:false,%22shade%22:true,%22weighNeighbors%22:false,%22glyphSets%22:%5B%22ascii%22%5D,%22fontOptions%22:%7B%22font%22:%2220px%20monospace%22%7D%7D,%22fontOptions%22:%7B%22font%22:%22monospace%22,%22fontSize%22:20%7D%7D">
+as the closests match for some combination of colors. For example if you <a href="textme03.html#%7B%22glyphOptions%22:%7B%22checker%22:false,%22shade%22:true,%22weighNeighbors%22:false,%22glyphSets%22:%5B%22ascii%22%5D,%22fontOptions%22:%7B%22font%22:%2220px%20monospace%22%7D%7D,%22fontOptions%22:%7B%22font%22:%22monospace%22,%22fontSize%22:20%7D%7D">
 check this example</a> where it shows each glpyh over the 2x2 brightness levels it most closely matches you'll see
-'[', 't', 'F', and 'T' repeat as the best match in a ton of places.</p>
-<p>I thought maybe I should say a glyph is brighter if 2 pixels next to each other are on. In other words
+'[', 't', 'F', and 'T' repeat as the best match in a ton of places.
+</p>
+<p>
+I thought maybe I should say a glyph is brighter if 2 pixels next to each other are on. In other words
 <code>**..**</code> is considered brighter than <code>*.*.</code>. That's the weightNeighbors option. But, it
-wasn't enough of a help.</p>
-<p>So... <a href="textme05.html">step05</a>, I tried adding a level of indirection. Instead of making the glyph
+wasn't enough of a help.
+</p>
+<p>
+So... <a href="textme05.html">step05</a>, I tried adding a level of indirection. Instead of making the glyph
 texture be 8x8x8x8 make a texture with just each glyph once and then a mapping texture that maps from a 2x2 brightness
-to a glyph. In that case I can do 64 levels of brightness because the map will be 64x64x64x64 which is 4096x4096 texture.</p>
-<p>Unfortunately <a href="textme06.html">it doesn't look much better</a> and it takes way too long to find the
+to a glyph. In that case I can do 64 levels of brightness because the map will be 64x64x64x64 which is 4096x4096 texture.
+</p>
+<p>
+Unfortunately <a href="textme06.html">it doesn't look much better</a> and it takes way too long to find the
 closest match for each 2x2 level of brightness. At 32 levels that's 32*32*32*32 or 1 million 2x2 brighness combinations
 for which it needs to find the best matching glyph. It takes 3 to 4 minutes! That's including using a kd-tree to make it faster to search. I never tried 64 levels which is 16 million combinations so that
 should take 16 times longer or about 1 hour to compute! Of course I could pre-compute but I wanted
 to be able to pick the font at runtime. I also wanted to use the user's fonts which are different on each
-browser and OS rather than ship a glyph texture.</p>
-<p>So...I said to heck with the 4 corners, I'll just do 1 brightness level. I'll just <a href="textme07.html">sort the glyphs by brightness</a>,
+browser and OS rather than ship a glyph texture.
+</p>
+<p>
+So...I said to heck with the 4 corners, I'll just do 1 brightness level. I'll just <a href="textme07.html">sort the glyphs by brightness</a>,
 put all them in a texture and then map to brightness directly. I still pull out 4 pixels from the original image and
 average them to get the brightness when mapping to glyphs. The hope is that gives me 10 bits of brightness instead of just 8.
-<a href="textme08.html">It's different but definitely not better</a>.</p>
-<p>Also under debug is the <code>dosColors</code> option which I really haven't given much thought on how to do it better.</p>
+<a href="textme08.html">It's different but definitely not better</a>.
+</p>
+<p>
+<a href="https://twitter.com/thespite">Jaume Sanchez Elias</a> pointed me to <a href="http://spite.github.io/wagner/assets//ascii/8x16_ascii_font_sorted.gif">this well known? sorted glyph texture</a>.
+I noticed it includes all of the characters inversed (black on white instead of white on black). So, I added that, which made me notice the padding around my glpyhs
+was really affecting the glyph choices. If there is a border around the glyph then when its inverse is used it will have a white border making it bright.
+I had put an option to trim the border call <code>pack</code> so I exposed that. Trimming 2 pixels off each glyph gets
+<a href="textme10.html">something similar</a> to <a href="http://spite.github.io/wagner/examples/ascii.html">Jaume's demo</a>.
+At least if you look at the sphere you'll see it's fairly evenly shaded with characters.
+</p>
+<p>
+This points out a problem, I have no way to know what size the glyphs are in HTML5. I figure out the
+glyph extents by drawing each glyph one at a time to the middle of a canvas and then scan the pixels of
+the canvas to compute the extents. You'd think if you ask for a <code>monospace</code> font that all
+the glyphs would be the same size or at least no larger that say a `W` or an `M` but as you add in characters
+higher up the unicode chart that rule doesn't hold. So, as you add in characters you have to manually bump
+the <code>pack</code> value.
+</p>
+<p>
+Anyway, I tried applying the pack and inverse options to the 2x2 version of the glyph postprocessing but
+so far it doesn't look any better so I haven't pushed that version.
+</p>
+<p>
+Also under debug is the <code>dosColors</code> option which I really haven't given much thought on how to do it better.
+</p>
 </div>
 
 

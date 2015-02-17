@@ -27,7 +27,7 @@
 
 			} else {
 
-				settings[ key ] = options[ key ] || value;
+				settings[ key ] = options[ key ] === undefined ? value : options[ key ];
 
 			}
 
@@ -36,6 +36,29 @@
 		return settings;
 
 	};
+
+	function copyObject( src, dst ) {
+
+		Object.keys( src ).forEach( function( key ) {
+
+			var value = src[ key ];
+			if ( value instanceof Array ) {
+
+				value = value.slice();
+
+			} else if ( typeof value === "object" ) {
+
+				value = copyObject( value, {} );
+
+			}
+
+			dst[ key ] = value;
+
+		} );
+
+		return dst;
+
+	}
 
 	THREE.GlyphUtils = {
 
@@ -111,6 +134,7 @@
 				pack: 0,
 				checker: false,
 				weighNeighbors: false,
+				useReverse: true,
 
 			};
 
@@ -388,7 +412,7 @@
 
 					}
 				}
-				var maxBrightness = width * height * 255 + ( width - 1 ) * ( height - 1 ) * 255;
+				var maxBrightness = width * height * 255 + ( settings.weightNeighbors ? (( width - 1 ) * ( height - 1 ) * 255) : 0 );
 				return total / maxBrightness;
 
 			}
@@ -411,6 +435,24 @@
 			}
 
 			computeBrightnessOfGlyphs();
+
+			if ( settings.useReverse ) {
+
+				// make reverse version of glyphs
+				var reverseGlyphs = glyphs.map(function( glyph ) {
+
+					var copy = copyObject( glyph, {} );
+
+					copy.brightness = 1 - copy.brightness;
+					copy.reverse = true;
+
+					return copy;
+
+				} );
+
+				glyphs = glyphs.concat( reverseGlyphs );
+
+			}
 
 			var maxBrightness = glyphs.reduce( function( prev, curr ) {
 
@@ -480,7 +522,20 @@
 
 					}
 
-					ctx.fillText( glyph.glyph, offsetX + xOff, offsetY + yOff );
+					if ( glyph.reverse ) {
+
+						ctx.save();
+						ctx.fillRect( xOff, yOff, glyphWidth, glyphHeight );
+						ctx.fillStyle = "rgb(0,0,0,1)";
+						ctx.globalCompositeOperation = "destination-out";
+						ctx.fillText( glyph.glyph, offsetX + xOff, offsetY + yOff );
+						ctx.restore();
+
+					} else {
+
+						ctx.fillText( glyph.glyph, offsetX + xOff, offsetY + yOff );
+
+					}
 
 				} );
 

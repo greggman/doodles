@@ -118,9 +118,9 @@ THREE.GlyphShader = {
 			//"gl_FragColor = vec4(diffuseUv, 0, 1); return;",
 			//"gl_FragColor = vec4(glyphUv, 0, 1); return;",
 			//"gl_FragColor = vec4(brightness, 0, 0, 1); return;",
-            "float glyphId = min(floor(brightness * numGlyphs), numGlyphs - 1.0);",
-            "vec2 uv = vec2(mod(glyphId, glyphDimensions.x) / glyphDimensions.x, ",
-            "               floor(glyphId / glyphDimensions.x) / glyphDimensions.y);",
+			"float glyphId = min(floor(brightness * numGlyphs), numGlyphs - 1.0);",
+			"vec2 uv = vec2(mod(glyphId, glyphDimensions.x) / glyphDimensions.x, ",
+			"               floor(glyphId / glyphDimensions.x) / glyphDimensions.y);",
 			" uv = uv +",
 			"               vec2(glyphUv.x, 1.0 - glyphUv.y) / glyphDimensions.xy;",
 
