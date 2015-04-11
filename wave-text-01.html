@@ -1,0 +1,257 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf8">
+    <title>twgl.js - wave text</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html, body {
+        margin: 0px;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: monospace;
+      }
+      canvas {
+        width: 100%;
+        height: 100%;
+      }
+      #b {
+        position: absolute;
+        top: 10px;
+        width: 100%;
+        text-align: center;
+        z-index: 2;
+        color: white;
+      }
+      a:visited, a:link, a:active {
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <div id="b"><a href="http://twgljs.org">twgl.js - wave text</a></div>
+  </body>
+  <script id="vs" type="notjs">
+uniform mat4 u_viewProjection;
+uniform mat4 u_world;
+
+attribute vec4 a_position;
+
+void main() {
+  gl_Position = u_viewProjection * u_world * a_position;
+}
+  </script>
+  <script id="fs" type="notjs">
+precision mediump float;
+
+uniform vec4 u_color;
+
+void main() {
+    gl_FragColor = u_color;
+}
+  </script>
+  <script src="js/twgl-full.min.js"></script>
+  <script src="js/chroma.min.js"></script>
+  <script>
+    "use strict";
+    var m4 = twgl.m4;
+    twgl.setAttributePrefix("a_");
+    var gl = twgl.getWebGLContext(document.getElementById("c"));
+    var programInfo = twgl.createProgramInfo(gl, ["vs", "fs"]);
+
+    function deg2Rad(d) {
+      return d * Math.PI / 180;
+    }
+
+    function rad2Deg(r) {
+      return r * 180 / Math.PI;
+    }
+
+    var radius = 50;
+
+    /**
+     *   0-6-1
+     *   |   |
+     *   2-7-3
+     *   |   |
+     *   4-8-5
+     */
+    var charPositions = [
+      -1,  1,  1,  1,
+      -1,  0,  1,  0,
+      -1, -1,  1, -1,
+       0,  1,  0,  0,
+       0, -1,
+    ];
+
+    var charIndices = [
+      { c: '0', indices: [ 0, 1, 1, 5, 5, 4, 4, 0, 0, 5 ],       },
+      { c: '1', indices: [ 6, 8 ],                         },
+      { c: '2', indices: [ 0, 1, 1, 3, 3, 2, 2, 4, 4, 5 ], },
+      { c: '3', indices: [ 0, 1, 1, 5, 5, 4, 2, 3 ],       },
+      { c: '4', indices: [ 0, 2, 2, 3, 1, 5 ],             },
+      { c: '5', indices: [ 1, 0, 0, 2, 2, 3, 3, 5, 5, 4 ], },
+      { c: '6', indices: [ 1, 0, 0, 4, 4, 5, 5, 3, 3, 2 ], },
+      { c: '7', indices: [ 0, 1, 1, 5 ],                   },
+      { c: '8', indices: [ 0, 1, 1, 5, 5, 4, 4, 0, 2, 3 ], },
+      { c: '9', indices: [ 3, 2, 2, 0, 0, 1, 1, 5 ],       },
+      { c: 'a', indices: [ 4, 0, 0, 1, 1, 5, 2, 3 ], },
+      { c: 'b', indices: [ 0, 4, 4, 5, 5, 3, 3, 2 ], },
+      { c: 'c', indices: [ 3, 2, 2, 4, 4, 5 ], },
+      { c: 'd', indices: [ 1, 5, 5, 4, 4, 2, 2, 3 ], },
+      { c: 'e', indices: [ 1, 0, 0, 4, 4, 5, 2, 3 ], },
+      { c: 'f', indices: [ 1, 0, 0, 4, 2, 3 ], },
+      { c: 'g', indices: [ 3, 2, 2, 0, 0, 1, 1, 5, 5, 4 ], },
+      { c: 'h', indices: [ 0, 4, 2, 3, 3, 5 ], },
+      { c: 'i', indices: [ 0, 1, 6, 8, 4, 5 ], },
+      { c: 'j', indices: [ 2, 4, 4, 5, 5, 1 ], },
+      { c: 'k', indices: [ 0, 4, 1, 2, 2, 5 ], },
+      { c: 'l', indices: [ 0, 4, 4, 5 ], },
+      { c: 'm', indices: [ 4, 0, 0, 7, 7, 1, 1, 5 ], },
+      { c: 'n', indices: [ 4, 0, 0, 6, 6, 3, 3, 5 ], },
+      { c: 'o', indices: [ 0, 1, 1, 5, 5, 4, 4, 0 ], },
+      { c: 'p', indices: [ 2, 3, 3, 1, 1, 0, 0, 4 ], },
+      { c: 'q', indices: [ 0, 4, 4, 8, 8, 3, 3, 1, 1, 0, 7, 5 ], },
+      { c: 'r', indices: [ 4, 0, 0, 1, 1, 3, 3, 2, 2, 5 ], },
+      { c: 's', indices: [ 1, 6, 6, 2, 2, 3, 3, 8, 8, 4 ], },
+      { c: 't', indices: [ 0, 1, 6, 8 ], },
+      { c: 'u', indices: [ 0, 4, 4, 5, 5, 1 ], },
+      { c: 'v', indices: [ 0, 8, 8, 1 ], },
+      { c: 'w', indices: [ 0, 4, 4, 7, 7, 5, 5, 1 ], },
+      { c: 'x', indices: [ 0, 5, 1, 4 ], },
+      { c: 'y', indices: [ 0, 7, 7, 1, 7, 8 ], },
+      { c: 'z', indices: [ 0, 1, 1, 4, 4, 5 ], },
+      { c: '.', indices: [ 2, 7, 7, 8, 8, 4, 4, 2 ], },
+    ];
+
+    var total = 0;
+    var charInfos = {};
+    var indices = charIndices.map(function(char) {
+      var indices = char.indices;
+      var offset = total;
+      var count  = indices.length;
+      total += count;
+      charInfos[char.c] = {
+        offset: offset * 2,
+        count: count,
+      };
+      return indices;
+    });
+
+    var charBufferInfo = twgl.createBufferInfoFromArrays(gl, {
+      position: { numComponents: 2, data: charPositions },
+      indices:  { numComponents: 2, data: Array.prototype.concat.apply([], indices) },
+    });
+
+    var fieldOfViewY = deg2Rad(30);
+    var viewProjection = m4.identity();
+
+    var drawObjects = [
+    ];
+
+    function addString(str, world, color) {
+      var str = str.toString();
+      var length = str.length;
+      var letterSize = 2.0;
+      var padding = 0.6;
+      var spacing = letterSize + padding;
+      var xOffset = (length - 1) * (spacing) * -0.5;
+      return Array.prototype.map.call(str, function(char, ndx) {
+        var mat = m4.copy(world);
+        m4.translate(mat, [xOffset + ndx * spacing, 0, 0], mat);
+        var charInfo = charInfos[char];
+        var drawObject;
+        if (charInfo) {
+          drawObject = {
+            programInfo: programInfo,
+            bufferInfo: charBufferInfo,
+            type: gl.LINES,
+            offset: charInfo.offset,
+            count: charInfo.count,
+            uniforms: {
+              u_world: mat,
+              u_viewProjection: viewProjection,
+              u_color: color || [1, 1, 1, 1],
+            },
+          };
+          drawObjects.push(drawObject);
+        }
+        return drawObject;
+      });
+    }
+
+    var letterSets = [];
+    function addStuff(color, zOff) {
+      var world = m4.identity();
+      m4.rotateX(world, deg2Rad(0), world);
+      m4.translate(world, [0, 0, -radius - zOff], world);
+      letterSets.push(addString("webglfundamentals.org", world, color));
+    }
+
+    var zSpacing = 0.5;
+    addStuff([0, 0, 0.2, 1], 6 * zSpacing);
+    addStuff([0, 0, 0.4, 1], 5 * zSpacing);
+    addStuff([0, 0, 0.5, 1], 4 * zSpacing);
+    addStuff([0, 0, 0.6, 1], 3 * zSpacing);
+    addStuff([0, 0, 0.7, 1], 2 * zSpacing);
+    addStuff([0, 0, 0.8, 1], 1 * zSpacing);
+    addStuff([0.3, 0.5, 1.0, 1], 0 * zSpacing);
+
+
+    var frameCount = 0
+    function render(time) {
+      time *= 0.001;
+      ++frameCount;
+
+      twgl.resizeCanvasToDisplaySize(gl.canvas);
+      gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+      gl.clearColor(0, 0, 0, 1);
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+      gl.lineWidth(2);
+
+      var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
+      var zNear  = 0.1;
+      var zFar   = radius + 10;
+
+      var fieldOfViewX = deg2Rad(70);
+      var fieldOfViewY = 2 * Math.atan(Math.tan(fieldOfViewX * 0.5) * (1 / aspect));
+      m4.perspective(fieldOfViewY, aspect, zNear, zFar, viewProjection);
+      //m4.multiply(m4.translation([0, 0, -40]), matrix, matrix);
+
+      letterSets.forEach(function(set, setNdx) {
+        if (setNdx === letterSets.length - 1) {
+          var color = set[0].uniforms.u_color;
+          color[0] = (frameCount / 1.5 % 2) * 0.8;
+          color[1] = (frameCount / 1.7 % 2) * 0.8;
+        }
+
+        set.forEach(function(letter, letterNdx) {
+          if (letter) {
+            var uni = letter.uniforms;
+            letter.translation = letter.translation || m4.getTranslation(uni.u_world);
+            letter.translation[1] = 0 + Math.sin(setNdx * 0.15 + letterNdx * 0.5 + time * 2) * 4;
+            m4.translation(letter.translation, uni.u_world);
+
+          }
+        });
+      });
+
+      twgl.drawObjectList(gl, drawObjects);
+      requestAnimationFrame(render, gl.canvas);
+    }
+
+    requestAnimationFrame(render);
+
+  </script>
+</html>
+
+
+
+
+
