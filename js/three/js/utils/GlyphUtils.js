@@ -111,6 +111,19 @@
 			miscShapes:         [ { start: 0x2600, end: 0x26FF } ],
 			dingbats:           [ { start: 0x2700, end: 0x27BF } ],
 			cjk:                [ { start: 0x4E00, end: 0x5200 } ], // really 0x9FCC!
+			yijingHex:          [ { start: 0x4DC0, end: 0x4DFF } ],
+			handPicked:         [ { codePoints: [
+									  0x5DDB, 0x5DDC, 0x5DDD, 0x5DDE, 0x51f8, 0x51f9, 0x56DE, 0x5188, 0x5182,
+									  0x5183, 0x5184, 0x5185, 0x5186, 0x4e32, 0x4e30, 0x53e3, 0x54c1, 0x56db,
+									  0x56F0, 0x56F2, 0x571b, 0x5929,
+			                        ]
+			                      }
+			                    ],
+			rightTriangles:     [ { codePoints: [
+			                          0x25E2, 0x25E3, 0x25E4, 0x25E5, 0x25F8, 0x25F9, 0x25FA, 0x25FF,
+			                        ]
+							      }
+							    ],
 		},
 
 		makeGlyphShadingCanvas: ( function( options, glyphsInfo ) {
