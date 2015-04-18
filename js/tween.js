@@ -20,6 +20,8 @@ requirejs([
   var discBI = twgl.primitives.createCylinderBufferInfo(gl, 1, 2, 24, 1);
 
   var then = 0;
+  //var bc = [1, 1, 1, 1];
+  var bc = [0, 0, 0, 1];
 
   function rand(min, max) {
     if (max === undefined) {
@@ -161,6 +163,13 @@ requirejs([
   function toRainbowByNdx(delay, ndxMult, ease) {
     return function(obj, ndx) {
       var color = chroma.hsv(Math.abs(ndx * ndxMult) % 360, 1, 1).gl();
+      tmgr.to(obj, 1, { delay: ndx * delay, color: color, ease: ease });
+    };
+  }
+
+  function toGradient(hue, delay, ease) {
+    return function(obj, ndx) {
+      var color = chroma.hsv(hue, ndx / 100, 1).gl();
       tmgr.to(obj, 1, { delay: ndx * delay, color: color, ease: ease });
     };
   }
@@ -373,8 +382,8 @@ requirejs([
       return toColor(chroma.hsv(rand(360), 1, 0.4).gl(), 0.01, selectEase());
     }
 
-    function selectWhite() {
-      return toColor([1, 1, 1, 1], 0.01, selectEase());
+    function selectBlackOrWhite() {
+      return toColor(bc[0] ? [0, 0, 0, 1] : [1, 1, 1, 1], 0.01, selectEase());
     }
 
     function selectRainbowByNdx() {
@@ -385,13 +394,19 @@ requirejs([
       return toRainbow(0.01, selectEase());
     }
 
+    function selectGradient() {
+      var h = rand(360);
+      return toGradient(h, 0.01, selectEase());
+    }
+
     var colorFuncs = [
       selectSaturated,
       selectPastel,
       selectDark,
-      selectWhite,
+      selectBlackOrWhite,
       selectRainbowByNdx,
       selectRainbow,
+      selectGradient,
     ];
 
     function selectTween() {
@@ -426,8 +441,7 @@ requirejs([
     twgl.resizeCanvasToDisplaySize(gl.canvas);
     gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
-    var fc = [0, 0, 0, 1];
-    gl.clearColor(fc[0], fc[1], fc[2], fc[3]);
+    gl.clearColor(bc[0], bc[1], bc[2], bc[3]);
     gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
 
     var dist = 56;
