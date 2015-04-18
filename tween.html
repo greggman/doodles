@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf8">
+  <style>
+  html, body {
+      padding: 0px;
+      margin: 0px;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+  }
+  canvas {
+      width: 100%;
+      height: 100%;
+  }
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+</body>
+  <script id="color-vs" type="notjs">
+    attribute vec4 a_position;
+    uniform mat4 u_world;
+    uniform mat4 u_viewProjection;
+    void main() {
+      gl_Position = u_viewProjection * u_world * a_position;
+//      gl_Position = u_world * u_viewProjection * a_position;
+    }
+  </script>
+  <script id="color-fs" type="notjs">
+    precision mediump float;
+
+    uniform vec4 u_color;
+    void main() {
+      gl_FragColor = u_color;
+    }
+  </script>
+  <script data-main="js/tween.js" src="js/require.js"></script>
+</html>
+
