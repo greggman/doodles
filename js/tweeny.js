@@ -245,6 +245,21 @@ define([], function() {
     return pos;
   }
 
+  // goes from 0->1->0 again
+  function boomerang(pos) {
+    return Math.sin(pos * Math.PI);
+  }
+
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
+
+  // goes from 0->1->0 again
+  function boomerangSmooth(pos) {
+    pos = Math.sin(lerp(-Math.PI * 0.5, Math.PI * 0.5, pos)) * 0.5 + 0.5;
+    return Math.sin(pos * Math.PI);
+  }
+
   var easeFunctions = {
     easeInQuad: easeInQuad,
     easeOutQuad: easeOutQuad,
@@ -281,6 +296,8 @@ define([], function() {
     easeFrom: easeFrom,
     easeTo: easeTo,
     linear: linear,
+    boomerang: boomerang,
+    boomerangSmooth: boomerangSmooth,
   };
 
   var Tweener = function(target, duration, from, to) {

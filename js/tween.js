@@ -33,36 +33,6 @@ requirejs([
     return Math.random() < 0.5 ? -v : v;
   }
 
-  function makeNewTweener() {
-    var ease = easeFuncs[rand(easeFuncs.length) | 0];
-    this.dstX = rand(ctx.canvas.width);
-    this.dstY = rand(ctx.canvas.height);
-    var tweener = tmgr.to(this, rand(1, 4), {
-      delay: rand(1), x: this.dstX, y: this.dstY, ease: tweeny.fn[ease],
-      onFinish: this.makeNewTweener,
-    });
-  }
-
-  function makeObject(x, y) {
-    var obj = {
-      tx: 0,
-      ty: 0,
-      tz: 0,
-      xScale: 1,
-      yScale: 1,
-      zScale: 1,
-      dstX: 0,
-      dstY: 0,
-      dstZ: 0,
-    };
-//    obj.makeNewTweener = makeNewTweener.bind(obj);
-//    obj.makeNewTweener();
-    var delay = (10 - yy) * 0.1;
-//    tmgr.to(obj, 1, { delay: delay, y: y + 500, ease: tweeny.fn.bounce });
-//    tmgr.from(obj, 3, { delay: delay + 0.4, xScale: 5, yScale: 0.1, /*rot: 10,*/ ease: tweeny.fn.easeOutBounce });
-    return obj;
-  }
-
   var sharedUniforms = {
     u_viewProjection: m4.identity(),
   };
@@ -134,6 +104,8 @@ requirejs([
     tweeny.fn.easeInOutQuint,
     tweeny.fn.easeInOutSine,
     tweeny.fn.easyInOutCirc,
+    tweeny.fn.boomerang,
+    tweeny.fn.boomerangSmooth,
   ];
   function selectEase() {
     return tweenFuncs[rand(tweenFuncs.length) | 0];
@@ -442,12 +414,6 @@ requirejs([
 
   objects.forEach(moveToOrigin);
 
-//  function pulseObj() {
-//    var obj = objects[rand(objects.length) | 0];
-//    tmgr.from(obj, 1, { xScale: 5, yScale: 5, ease: tweeny.fn.elastic} );
-//  }
-//
-//  setInterval(pulseObj, 1000);
   var ts = v3.create();
   var tr = v3.create();
   var tt = v3.create();
@@ -467,7 +433,6 @@ requirejs([
     var dist = 56;
     var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
     var orthoSize = 15;
-//    var projection = m4.perspective(30 * Math.PI / 180, aspect, 0.5, dist + 10);
     var projection = m4.ortho(-orthoSize * aspect, orthoSize * aspect, orthoSize, -orthoSize, 0.5, dist + 10);
     var eye    = [0, dist, 0];
     var target = [0, 0, 0];
@@ -492,10 +457,6 @@ requirejs([
 
     twgl.drawObjectList(gl, drawObjects);
 
-//    if (!tmgr.haveTweens()) {
-//      tasks[taskNdx++]();
-//      taskNdx = taskNdx % tasks.length;
-//    }
     moveMgr.process(deltaTime);
     rotMgr.process(deltaTime);
     scaleMgr.process(deltaTime);
