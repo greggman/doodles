@@ -44,6 +44,11 @@ code {
     background-color: #303030;
     color: #CCC;
 }
+pre {
+    background-color: #333;
+    margin-left: 3em;
+    margin-right: 3em;
+}
 
 h2:before {
     content: "$ ";
@@ -63,6 +68,41 @@ a:focus {
 <body>
 <h1>Various Random Doodles by <a href="http://games.greggman.com">Greggman</a></h1>
 
+
+<div class="doodle">
+<h2>tween</h2>
+<p>Tweening probably has many defintions. I heard one guy call it mapping as in mapping one
+range to another range. I've always called that lerping.  The simplest lerp is something like</p>
+<pre>
+     value = start + (end - start) * lerp
+</pre>
+<p>Then given <b>lerp</b> goes from 0 to 1 <b>value</b> will go from <b>start</b> to <b>end</b>.</p>
+<p>People have come up with easing functions so instead of linearally going from 0 to 1 you get
+some kind of ease in or ease out or both.<p>
+<pre>
+     value = start + (end - start) * easingFunc(lerp)
+</pre>
+<p>Where easingFunc might be something like</p>
+<pre>
+     function easingFunc(lerp) {
+        return (-0.5 * (Math.cos(Math.PI * lerp) - 1));
+     }
+</pre>
+<p>This gives you a nice ease in and ease out.</p>
+<p>I'd been doing that for years but I'd always hand coded it meaning I'd just put in code calls directly to
+the easing functions where I needed them.</p>
+<p>Recently I saw this <a href="https://www.youtube.com/watch?v=Fy0aCDmgnxg">pretty cool presention about making your game "juicy"</a>
+and I decided to look into the code a little to see what ideas to learn from and the big one I came away with from
+<a href="https://github.com/grapefrukt/juicy-breakout">looking at their code</a> was using a tweening library.</p>
+<p>
+Basically a tweening library lets you create tiny mini tasks that lerp some value over time for you. What makes
+them useful is you can just fire and forget. Much easier than hand writing each case.
+</p>
+<p>
+So anyway I wrote my own tweening library and have been playing around with it.
+</p>
+<p><a href="tween.html">tween</a></p>
+</div>
 
 <div class="doodle">
 <h2>wave-text</h2>
