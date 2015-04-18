@@ -283,8 +283,8 @@ define([], function() {
     linear: linear,
   };
 
-  var Tweener = function(target, from, to) {
-     this.setup(target, from, to);
+  var Tweener = function(target, duration, from, to) {
+     this.setup(target, duration, from, to);
   };
 
   var isSpecial = function() {
@@ -306,40 +306,19 @@ define([], function() {
     };
   }();
 
-  var arraysByType = {};
-
-  function getArray(type, length) {
-    var arraysByLength = arraysByType[type];
-    if (arraysByLength === undefined) {
-      arraysByLength = {};
-      arraysByType[type] = arraysByLength;
-    }
-    var arrays = arraysByLength[length];
-    if (arrays === undefined || arrays.num === 0) {
-      return new Array(length);
-    }
-    return arrays.arrays[--arrays.num];
-  }
-
-  function putArray(array) {
-    var arraysByLength = arraysByType[type];
-    if (arraysByLength === undefined) {
-      arraysByLength = {};
-      arraysByType[type] = arraysByLength;
-    }
-    var arrays = arraysByLength[length];
-    if (!arrays) {
-      arrays = {
-        arrays: [],
-        num: 0,
-      };
-      arraysByLength[length] = arrays;
-    }
-    arrays.arrays[arrays.num++] = array;
-  }
-
-
   var emptyObj = {};
+
+  function numberLerp(dst, start, end, lerp) {
+    return start + (end - start) * lerp;
+  }
+
+  function arrayLerp(dst, start, end, lerp) {
+    var len = start.length;
+    for (var ii = 0; ii < len; ++ii) {
+      dst[ii] = start[ii] + (end[ii] - start[ii]) * lerp;
+    }
+    return dst;
+  }
 
   Tweener.prototype.setup = function(target, duration, from, to) {
      if (!to) {
@@ -364,17 +343,25 @@ define([], function() {
      var numProps = props.length;
      var starts = [];
      var ends = [];
+     var lerpFns = [];
 
      for (var ii = 0; ii < numProps; ++ii) {
        var prop = props[ii];
-       starts[ii] = from[prop] !== undefined ? from[prop] : target[prop];
-       ends[ii]   = to[prop]   !== undefined ? to[prop]   : target[prop];
+       starts[ii]  = from[prop] !== undefined ? from[prop] : target[prop];
+       ends[ii]    = to[prop]   !== undefined ? to[prop]   : target[prop];
+       var v = starts[ii];
+       var lerpFn = numberLerp;
+       if (Array.isArray(v)) {
+         lerpFn = arrayLerp;
+       }
+       lerpFns[ii] = lerpFn;
      }
 
      this.target   = target;
      this.props    = props;
      this.starts   = starts;
      this.ends     = ends;
+     this.lerpFns  = lerpFns;
      this.running  = !specials.paused;
      this.duration = duration || 1;
      this.delay    = specials.delay || 0;
@@ -397,45 +384,62 @@ define([], function() {
      // let timer overflow so we can tell
      // how much into next tween to start
      var oldTime = this.timer - this.delay;
-     var actualSpeed = this.speed * this.direction;
-     this.timer += deltaTime * actualSpeed;
+     var actualSpeed = this.speed * this.direction * deltaTime;
+     this.timer += actualSpeed;
      var time = this.timer - this.delay;
 
      // Need to handle last/first frames
+     var starting = false;
+     var finishing = false;
+
+     if (actualSpeed > 0) {
+       if (oldTime <= 0 && time > 0) {
+         starting = true;
+       }
+       if (oldTime < this.duration && time >= this.duration) {
+         finishing = true;
+       }
+     } else {
+       if (oldTime >= this.duration && time < this.duration) {
+         starting = true;
+       }
+       if (oldTime > 0 && time <= 0) {
+         finishing = true;
+       }
+     }
 
      if (time >= 0) {
-       if (this.onUpdate) {
-         this.onUpdate(this);
-       }
-
        var target   = this.target;
        var props    = this.props;
        var starts   = this.starts;
        var ends     = this.ends;
+       var lerpFns  = this.lerpFns;
        var easeFn   = this.easeFn;
        // clamp because we let it overflow. See above
-       var pos      = Math.min(time / this.duration, 1);
+       var pos      = Math.max(0, Math.min(time / this.duration, 1));
        var numProps = props.length;
        for (var ii = 0; ii < numProps; ++ii) {
          var prop  = props[ii];
-         var start = starts[ii];
-         var end   = ends[ii];
-         target[prop] = start + easeFn(pos) * (end - start);
+         target[prop] = lerpFns[ii](target[prop], starts[ii], ends[ii], easeFn(pos));
+       }
+
+       if (this.onUpdate) {
+         this.onUpdate(this);
        }
      }
 
      if (actualSpeed > 0) {
-       if (this.onStart && oldTime <= 0 && time > 0) {
+       if (starting && this.onStart) {
          this.onStart(this);
        }
-       if (this.onFinish && oldTime < this.duration && time >= this.duration) {
+       if (finishing && this.onFinish) {
          this.onFinish(this);
        }
      } else {
-       if (this.onReverseStart && oldTime >= this.duration && time < this.duration) {
+       if (starting && this.onReverseStart) {
          this.onReverseStart(this);
        }
-       if (this.onReverseFinish && oldTime > 0 && time <= 0) {
+       if (finishing && this.onReverseFinish) {
          this.onReverseFinish(this);
        }
      }
@@ -450,6 +454,10 @@ define([], function() {
   var TweenManager = function() {
      this.tweeners = [];
      this.newTweeners = [];
+  };
+
+  TweenManager.prototype.haveTweens = function() {
+    return this.tweeners.length + this.newTweeners.length;
   };
 
   TweenManager.prototype.update = function(deltaTime) {
