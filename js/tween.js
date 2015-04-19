@@ -13,11 +13,17 @@ requirejs([
   var v3 = twgl.v3;
   var easeFuncs = Object.keys(tweeny.fn);
   var gl = twgl.getWebGLContext(document.getElementById("c"));
-  twgl.resizeCanvasToDisplaySize(gl.canvas);
   twgl.setAttributePrefix("a_");
 
-  var colorPI = twgl.createProgramInfo(gl, ["color-vs", "color-fs"]);
+  var dirColorPI = twgl.createProgramInfo(gl, ["dir-color-vs", "dir-color-fs"]);
   var discBI = twgl.primitives.createCylinderBufferInfo(gl, 1, 2, 24, 1);
+
+  var projectionSwitchDuration = 20;
+  var projectionSwitchTimer = projectionSwitchDuration;
+  var usePerspective = false;
+  var globals = {
+    perspMix: 0,
+  };
 
   var then = 0;
   //var bc = [1, 1, 1, 1];
@@ -37,6 +43,8 @@ requirejs([
 
   var sharedUniforms = {
     u_viewProjection: m4.identity(),
+    u_lightDir: v3.normalize([1, 0.5, 0.7]),
+    u_lightMix: 0,
   };
 
   var tmgr = new tweeny.TweenManager();
@@ -54,6 +62,7 @@ requirejs([
       var u = s * 2 - 1;
       var v = t * 2 - 1;
       var world = m4.identity();
+      var worldInverseTranspose = m4.identity();
       var color = [1, 0, 0, 1];
 
       var x;
@@ -80,13 +89,15 @@ requirejs([
         scale: [1, 1, 1],
         color: color,
         world: world,
+        worldInverseTranspose: worldInverseTranspose,
       });
       drawObjects.push({
-        programInfo: colorPI,
+        programInfo: dirColorPI,
         bufferInfo: discBI,
         uniforms: [sharedUniforms, {
           u_color: color,
           u_world: world,
+          u_worldInverseTranspose: worldInverseTranspose,
         }],
       });
     }
@@ -395,9 +406,25 @@ requirejs([
 
   objects.forEach(moveToOrigin);
 
+  function switchProjection() {
+    usePerspective = !usePerspective;
+    projectionSwitchTimer = projectionSwitchDuration;
+    tmgr.to(globals, 5, { perspMix: usePerspective ? 1 : 0, ease: tweeny.fn.easeInOutSine });
+  }
+  window.addEventListener('click', switchProjection, false);
+  window.addEventListener('keypress', switchProjection, false);
+  window.addEventListener('touchstart', switchProjection, false);
+
   var ts = v3.create();
   var tr = v3.create();
   var tt = v3.create();
+  var projection = m4.identity();
+  var perspective = m4.identity();
+  var ortho = m4.identity();
+
+  function lerp(a, b, t) {
+    return a + (b - a) * t;
+  }
 
   function render(time) {
     time *= 0.001;
@@ -405,19 +432,39 @@ requirejs([
     then = time;
 
     twgl.resizeCanvasToDisplaySize(gl.canvas);
-    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
-    gl.clearColor(bc[0], bc[1], bc[2], bc[3]);
-    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
     var dist = 56;
     var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
     var orthoSize = 15;
-    var projection = m4.ortho(-orthoSize * aspect, orthoSize * aspect, orthoSize, -orthoSize, 0.5, dist + 10);
-    var eye    = [0, dist, 0];
-    var target = [0, 0, 0];
-    //var up     = [0, 0, 1];
-    var up     = [Math.sin(time * 0.1), 0, Math.cos(time * 0.1)];
+
+    projectionSwitchTimer -= deltaTime;
+    if (projectionSwitchTimer <= 0) {
+      switchProjection();
+    }
+
+    m4.perspective(30 * Math.PI / 180, aspect, 0.5, dist * 10, perspective);
+    var perspEye = [Math.sin(time * 0.1) * across * 2, across * 0.5, Math.cos(time * 0.1) * across * 2];
+    var perspTarget = [0, across * -0.2, 0];
+    var perspUp  = [0, 1, 0];
+
+    m4.ortho(-orthoSize * aspect, orthoSize * aspect, -orthoSize, orthoSize, 0.5, dist + 10, ortho);
+    var orthoEye    = [0, dist, 0];
+    var orthoTarget = [0, 0, 0];
+    var orthoUp     = [Math.sin(time * 0.1), 0, -Math.cos(time * 0.1)];
+
+    sharedUniforms.u_lightMix = globals.perspMix;
+    var eye    = v3.lerp(orthoEye, perspEye, globals.perspMix);
+    var target = v3.lerp(orthoTarget, perspTarget, globals.perspMix);
+    var up     = v3.normalize(v3.lerp(orthoUp, perspUp, globals.perspMix));
+    for (var ii = 0; ii < 16; ++ii) {
+      projection[ii] = lerp(ortho[ii], perspective[ii], globals.perspMix);
+    }
+
+    gl.clearColor(bc[0], bc[1], bc[2], bc[3]);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.enable(gl.DEPTH_TEST);
 
     var camera = m4.lookAt(eye, target, up);
     var view = m4.inverse(camera);
@@ -427,11 +474,15 @@ requirejs([
 
     objects.forEach(function(o) {
       var world = o.world;
+      var s = o.scale;
+      ts[0] = Math.abs(s[0]); ts[1] = Math.abs(s[1]); ts[2] = Math.abs(s[2]);
       m4.translation(o.trans, world);
       m4.rotateX(world, o.rx, world);
       m4.rotateY(world, o.ry, world);
       m4.rotateZ(world, o.rz, world);
-      m4.scale(world, o.scale, world);
+      m4.scale(world, ts, world);
+      m4.inverse(world, o.worldInverseTranspose);
+      m4.transpose(o.worldInverseTranspose, o.worldInverseTranspose);
     });
 
     twgl.drawObjectList(gl, drawObjects);

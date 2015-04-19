@@ -19,21 +19,28 @@
 <body>
   <canvas id="c"></canvas>
 </body>
-  <script id="color-vs" type="notjs">
+  <script id="dir-color-vs" type="notjs">
     attribute vec4 a_position;
+    attribute vec3 a_normal;
     uniform mat4 u_world;
+    uniform mat4 u_worldInverseTranspose;
     uniform mat4 u_viewProjection;
+    varying vec3 v_normal;
     void main() {
+      v_normal = (u_worldInverseTranspose * vec4(a_normal, 0)).xyz;
       gl_Position = u_viewProjection * u_world * a_position;
-//      gl_Position = u_world * u_viewProjection * a_position;
     }
   </script>
-  <script id="color-fs" type="notjs">
+  <script id="dir-color-fs" type="notjs">
     precision mediump float;
 
+    varying vec3 v_normal;
+    uniform vec3 u_lightDir;
     uniform vec4 u_color;
+    uniform float u_lightMix;
     void main() {
-      gl_FragColor = u_color;
+      float light = abs(dot(normalize(v_normal), u_lightDir));
+      gl_FragColor = vec4(u_color.xyz * mix(1.0, light, u_lightMix), 1);
     }
   </script>
   <script data-main="js/tween.js" src="js/require.js"></script>
