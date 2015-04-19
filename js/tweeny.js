@@ -337,6 +337,10 @@ define([], function() {
     return dst;
   }
 
+  function copyValue(v) {
+    return Array.isArray(v) ? v.slice() : v;
+  }
+
   Tweener.prototype.setup = function(target, duration, from, to) {
      if (!to) {
        to = from;
@@ -364,8 +368,8 @@ define([], function() {
 
      for (var ii = 0; ii < numProps; ++ii) {
        var prop = props[ii];
-       starts[ii]  = from[prop] !== undefined ? from[prop] : target[prop];
-       ends[ii]    = to[prop]   !== undefined ? to[prop]   : target[prop];
+       starts[ii]  = copyValue(from[prop] !== undefined ? from[prop] : target[prop]);
+       ends[ii]    = copyValue(to[prop]   !== undefined ? to[prop]   : target[prop]);
        var v = starts[ii];
        var lerpFn = numberLerp;
        if (Array.isArray(v)) {

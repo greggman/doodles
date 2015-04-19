@@ -70,9 +70,7 @@ requirejs([
         zz: zz,
         u: u,
         v: v,
-        tx: x,
-        ty: 0,
-        tz: z,
+        trans: [x, 0, z],
         rx: 0,
         ry: 0,
         rz: 0,
@@ -114,7 +112,7 @@ requirejs([
   }
 
   function moveToOrigin(obj, ndx) {
-    tmgr.to(obj, 1, { tx: obj.origX, tz: obj.origZ, ease: tweeny.fn.bounce });
+    tmgr.to(obj, 1, { trans: [obj.origX, 0, obj.origZ], ease: tweeny.fn.bounce });
   }
 
   function toColor(color, delay, ease) {
@@ -125,7 +123,7 @@ requirejs([
 
   function moveOffset(x, z, delay, ease) {
     return function(obj, ndx) {
-      tmgr.to(obj, 1, { delay: ndx * delay, tx: obj.origX + x, tz: obj.origZ + z, ease: ease });
+      tmgr.to(obj, 1, { delay: ndx * delay, trans: [obj.origX + x, 0,  obj.origZ + z], ease: ease });
     };
   }
 
@@ -460,9 +458,8 @@ requirejs([
 
     objects.forEach(function(o) {
       var world = o.world;
-      tt[0] = o.tx;     tt[1] = o.ty;     tt[2] = o.tz;
       ts[0] = o.xScale; ts[1] = o.yScale; ts[2] = o.zScale;
-      m4.translation(tt, world);
+      m4.translation(o.trans, world);
       m4.rotateX(world, o.rx, world);
       m4.rotateY(world, o.ry, world);
       m4.rotateZ(world, o.rz, world);
