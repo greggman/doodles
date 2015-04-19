@@ -42,8 +42,8 @@ requirejs([
   var tmgr = new tweeny.TweenManager();
   var objects = [];
   var drawObjects = [];
-  var across = 30;
-  var down = 30;
+  var across = 20;
+  var down = 20;
   var delay = 4;
   var spreadX = across * 1.1;
   var spreadZ = down * 1.1;
