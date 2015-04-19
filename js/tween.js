@@ -74,9 +74,7 @@ requirejs([
         rx: 0,
         ry: 0,
         rz: 0,
-        xScale: 1,
-        yScale: 1,
-        zScale: 1,
+        scale: [1, 1, 1],
         dstX: 0,
         dstY: 0,
         dstZ: 0,
@@ -106,6 +104,7 @@ requirejs([
     tweeny.fn.easyInOutCirc,
     tweeny.fn.boomerang,
     tweeny.fn.boomerangSmooth,
+    tweeny.fn.bounceBack,
   ];
   function selectEase() {
     return tweenFuncs[rand(tweenFuncs.length) | 0];
@@ -127,9 +126,9 @@ requirejs([
     };
   }
 
-  function moveScale(sx, sz, delay, ease) {
+  function moveScale(scale, delay, ease) {
     return function(obj, ndx) {
-      tmgr.to(obj, 1, { delay: ndx * delay, xScale: sx, zScale: sz, ease: ease });
+      tmgr.to(obj, 1, { delay: ndx * delay, scale: scale, ease: ease });
     };
   }
 
@@ -137,16 +136,10 @@ requirejs([
     return function(obj, ndx) {
       var tw = {
         delay: ndx * delay,
-        easy: ease,
+        ease: ease,
       };
       tw[axis] = rot;
       tmgr.to(obj, 1, tw);
-    };
-  }
-
-  function toRotY(rx, delay, ease) {
-    return function(obj, ndx) {
-      tmgr.to(obj, 1, { delay: ndx * delay, rx: rx, easy: ease });
     };
   }
 
@@ -249,34 +242,6 @@ requirejs([
     });
   }
 
-  var taskNdx = 0;
-  var tasks = [
-    function() { fromCircleOut(toRainbowByNdx(0.01, 2)); },
-    function() { fromTopLeft(toRot("rx", Math.PI * 0.5, 0.01)); },
-    function() { fromRight(toColor( [0.2, 0.2, 0.2, 1], 0.01)); },
-    function() { fromBottom(toRot("rz", Math.PI * 0.25, 0.01)); },
-    function() { fromRight(toRainbow(0.01)); },
-    function() { fromBottom(toRot("rx", Math.PI * 0, 0.01)); },
-    function() { fromRight(toColor( [0,1,0,1], 0.01)); },
-    function() { fromCircleIn(toColor( [1,1,1,1], 0.01)); },
-    function() { fromTop(toRot("rz", Math.PI * 0, 0.01)); },
-    function() { fromRight(toColor( [0,1,1,1], 0.01)); },
-    function() { fromRight(toColor( [1,0,0,1], 0.01)); },
-    function() { fromRight(moveScale( 1, -1, 0.01)); },
-    function() { fromCircleIn(moveScale( 1, -1, 0.01)); },
-    function() { fromLeft(moveScale( 1, 1, 0.01)); },
-    function() { fromTop(moveScale( 1, -1, 0.01)); },
-    function() { fromBottom(moveScale( 1, 1, 0.01)); },
-    function() { fromCenterOut(moveScale( -1, -1, 0.01)); },
-    function() { fromCircleOut(moveScale( 1, 1, 0.01)); },
-    function() { newToOld(moveOffset( 10, 0, 0.01)); },
-    function() { oldToNew(moveOffset(-10, 0, 0.01)); },
-    function() { fromTopLeft(moveScale( 1, -1, 0.01));  },
-    function() { fromBottomRight(moveScale(-1, -1, 0.01));  },
-    function() { fromTopRight(moveScale(-1,  1, 0.01));  },
-    function() { fromBottomLeft(moveScale( 1,  1, 0.01));  },
-  ];
-
   var orderFuncs = [
     oldToNew,
     newToOld,
@@ -345,13 +310,13 @@ requirejs([
   });
 
   var scaleMgr = new (function() {
-    var scale = [1, 1];
+    var scale = [1, 1, 1];
     var timer = 4;
 
     function selectTween() {
-      var axis = rand(2) | 0;
+      var axis = rand(2) < 1 ? 0 :  2;
       scale[axis] = -scale[axis];
-      addTween(moveScale(scale[0], scale[1], 0.01, selectEase()));
+      addTween(moveScale(scale, 0.01, selectEase()));
     }
 
     this.process = function(deltaTime) {
@@ -458,12 +423,11 @@ requirejs([
 
     objects.forEach(function(o) {
       var world = o.world;
-      ts[0] = o.xScale; ts[1] = o.yScale; ts[2] = o.zScale;
       m4.translation(o.trans, world);
       m4.rotateX(world, o.rx, world);
       m4.rotateY(world, o.ry, world);
       m4.rotateZ(world, o.rz, world);
-      m4.scale(world, ts, world);
+      m4.scale(world, o.scale, world);
     });
 
     twgl.drawObjectList(gl, drawObjects);

@@ -260,6 +260,12 @@ define([], function() {
     return Math.sin(pos * Math.PI);
   }
 
+  // goes from 0->1->0 again
+  function bounceBack(pos) {
+    var level = 1 + (pos * 4 | 0) % 4;
+    return Math.sin(pos * Math.PI * 4) / (level * level);
+  }
+
   var easeFunctions = {
     easeInQuad: easeInQuad,
     easeOutQuad: easeOutQuad,
@@ -296,6 +302,7 @@ define([], function() {
     easeFrom: easeFrom,
     easeTo: easeTo,
     linear: linear,
+    bounceBack: bounceBack,
     boomerang: boomerang,
     boomerangSmooth: boomerangSmooth,
   };
