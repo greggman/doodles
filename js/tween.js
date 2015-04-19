@@ -42,14 +42,17 @@ requirejs([
   var tmgr = new tweeny.TweenManager();
   var objects = [];
   var drawObjects = [];
-  var across = 10;
-  var down = 10;
-  var spreadX = across;
-  var spreadZ = down;
+  var across = 50;
+  var down = 40;
+  var delay = 4;
+  var spreadX = across * 1.1;
+  var spreadZ = down * 1.1;
   for (var zz = 0; zz < down; ++zz) {
     for (var xx = 0; xx < across; ++xx) {
-      var u = (xx / (across - 1)) * 2 - 1;
-      var v = (zz / (down   - 1)) * 2 - 1;
+      var s = xx / (across - 1);
+      var t = zz / (down - 1)
+      var u = s * 2 - 1;
+      var v = t * 2 - 1;
       var world = m4.identity();
       var color = [1, 0, 0, 1];
 
@@ -63,11 +66,11 @@ requirejs([
         z = rand(-spreadZ, spreadZ) * 4;
       }
       objects.push({
-        origX: u * spreadX,
-        origY: 0,
-        origZ: v * spreadZ,
+        origTrans: [u * spreadX, 0, v * spreadZ],
         xx: xx,
         zz: zz,
+        s: s,
+        t: t,
         u: u,
         v: v,
         trans: [x, 0, z],
@@ -75,9 +78,6 @@ requirejs([
         ry: 0,
         rz: 0,
         scale: [1, 1, 1],
-        dstX: 0,
-        dstY: 0,
-        dstZ: 0,
         color: color,
         world: world,
       });
@@ -110,32 +110,32 @@ requirejs([
     return tweenFuncs[rand(tweenFuncs.length) | 0];
   }
 
-  function moveToOrigin(obj, ndx) {
-    tmgr.to(obj, 1, { trans: [obj.origX, 0, obj.origZ], ease: tweeny.fn.bounce });
+  function moveToOrigin(obj, order) {
+    tmgr.to(obj, 1, { trans: obj.origTrans, ease: tweeny.fn.bounce });
   }
 
   function toColor(color, delay, ease) {
-    return function(obj, ndx) {
-      tmgr.to(obj, 1, { delay: ndx * delay, color: color, ease: ease });
+    return function(obj, order) {
+      tmgr.to(obj, 1, { delay: order * delay, color: color, ease: ease });
     };
   }
 
   function moveOffset(x, z, delay, ease) {
-    return function(obj, ndx) {
-      tmgr.to(obj, 1, { delay: ndx * delay, trans: [obj.origX + x, 0,  obj.origZ + z], ease: ease });
+    return function(obj, order) {
+      tmgr.to(obj, 1, { delay: order * delay, trans: [obj.origTrans[0] + x, 0,  obj.origTrans[2] + z], ease: ease });
     };
   }
 
   function moveScale(scale, delay, ease) {
-    return function(obj, ndx) {
-      tmgr.to(obj, 1, { delay: ndx * delay, scale: scale, ease: ease });
+    return function(obj, order) {
+      tmgr.to(obj, 1, { delay: order * delay, scale: scale, ease: ease });
     };
   }
 
   function toRot(axis, rot, delay, ease) {
-    return function(obj, ndx) {
+    return function(obj, order) {
       var tw = {
-        delay: ndx * delay,
+        delay: order * delay,
         ease: ease,
       };
       tw[axis] = rot;
@@ -144,101 +144,104 @@ requirejs([
   }
 
   function toRainbow(delay, ease) {
-    return function(obj, ndx) {
-      var r = obj.u * 0.5 + 0.5;
-      var g = obj.v * 0.5 + 0.5;
-      tmgr.to(obj, 1, { delay: ndx * delay, color: [ r, g, 1 - (r + g) / 2, 1], ease: ease });
+    return function(obj, order) {
+      var r = obj.s;
+      var g = obj.t;
+      tmgr.to(obj, 1, { delay: order * delay, color: [ r, g, 1 - (r + g) / 2, 1], ease: ease });
     };
   }
 
-  function toRainbowByNdx(delay, ndxMult, ease) {
-    return function(obj, ndx) {
-      var color = chroma.hsv(Math.abs(ndx * ndxMult) % 360, 1, 1).gl();
-      tmgr.to(obj, 1, { delay: ndx * delay, color: color, ease: ease });
+  function toRainbowByNdx(delay, ease) {
+    return function(obj, order) {
+      var color = chroma.hsv(Math.abs(order * 360) % 360, 1, 1).gl();
+      tmgr.to(obj, 1, { delay: order * delay, color: color, ease: ease });
     };
   }
 
   function toGradient(hue, delay, ease) {
-    return function(obj, ndx) {
-      var color = chroma.hsv(hue, ndx / 100, 1).gl();
-      tmgr.to(obj, 1, { delay: ndx * delay, color: color, ease: ease });
+    return function(obj, order) {
+      var color = chroma.hsv(hue, order, 1).gl();
+      tmgr.to(obj, 1, { delay: order * delay, color: color, ease: ease });
     };
   }
 
   function oldToNew(fn) {
-    objects.forEach(fn);
+    var lastNdx = objects.length - 1;
+    objects.forEach(function(o, ndx) {
+      fn(o, ndx / lastNdx);
+    });
   }
 
   function newToOld(fn) {
     var lastNdx = objects.length - 1;
     objects.forEach(function(obj, ndx) {
-      fn(obj, lastNdx - ndx);
+      fn(obj, 1 - (ndx / lastNdx));
     });
   }
 
   function fromRight(fn) {
-    objects.forEach(function(obj, ndx) {
-     fn(obj, (obj.xx) * 10);
+    objects.forEach(function(obj) {
+     fn(obj, 1 - obj.s);
     });
   }
 
   function fromLeft(fn) {
-    objects.forEach(function(obj, ndx) {
-     fn(obj, (across - obj.xx) * 10);
+    objects.forEach(function(obj) {
+     fn(obj, obj.s);
     });
   }
 
   function fromBottom(fn) {
-    objects.forEach(function(obj, ndx) {
-     fn(obj, (obj.zz) * 10);
+    objects.forEach(function(obj) {
+     fn(obj, obj.t);
     });
   }
 
   function fromTop(fn) {
-    objects.forEach(function(obj, ndx) {
-     fn(obj, (down - obj.zz) * 10);
+    objects.forEach(function(obj) {
+     fn(obj, 1 - obj.t);
     });
   }
 
   function fromBottomRight(fn) {
-    objects.forEach(function(obj, ndx) {
-     fn(obj, (obj.xx + obj.zz) * 10);
+    objects.forEach(function(obj) {
+     fn(obj, (obj.s + obj.t) / 2);
     });
   }
 
   function fromBottomLeft(fn) {
-    objects.forEach(function(obj, ndx) {
-     fn(obj, ((across - obj.xx) +  obj.zz) * 10);
+    objects.forEach(function(obj) {
+     fn(obj, ((1 - obj.s) + obj.t) / 2);
     });
   }
 
   function fromTopLeft(fn) {
-    objects.forEach(function(obj, ndx) {
-     fn(obj, ((across - obj.xx) + (down - obj.zz)) * 10);
+    objects.forEach(function(obj) {
+     fn(obj, ((1 - obj.s) + (1 - obj.t)) / 2);
     });
   }
 
   function fromTopRight(fn) {
-    objects.forEach(function(obj, ndx) {
-     fn(obj, ((obj.xx) + (down - obj.zz)) * 10);
+    objects.forEach(function(obj) {
+     fn(obj, (obj.s + (1 - obj.t)) / 2);
     });
   }
 
   function fromCenterOut(fn) {
-    objects.forEach(function(obj, ndx) {
-     fn(obj, Math.abs(obj.u * obj.v * 100));
+    objects.forEach(function(obj) {
+     fn(obj, Math.abs(obj.u * obj.v));
     });
   }
 
   function fromCircleOut(fn) {
-    objects.forEach(function(obj, ndx) {
-     fn(obj, Math.sqrt(obj.u * obj.u + obj.v * obj.v) * 100);
+    objects.forEach(function(obj) {
+     fn(obj, Math.sqrt(obj.u * obj.u + obj.v * obj.v));
     });
   }
 
   function fromCircleIn(fn) {
-    objects.forEach(function(obj, ndx) {
-     fn(obj, (1 - Math.sqrt(obj.u * obj.u + obj.v * obj.v)) * 100);
+    objects.forEach(function(obj) {
+     fn(obj, 1 - Math.sqrt(obj.u * obj.u + obj.v * obj.v));
     });
   }
 
@@ -276,13 +279,13 @@ requirejs([
         value = 0;
       }
       offset[axis] = value;
-      addTween(moveOffset(offset[0], offset[1], 0.01, selectEase()));
+      addTween(moveOffset(offset[0], offset[1], delay, selectEase()));
     }
 
     this.process = function(deltaTime) {
       timer -= deltaTime;
       if (timer <= 0) {
-        timer = rand(3) + 2;
+        timer = rand(3) + delay * 1.1 + 1;
         selectTween();
       }
     }
@@ -297,13 +300,13 @@ requirejs([
     function selectTween() {
       var axis = rand(2) | 0;
       rot[axis] += randPlusMinus(Math.PI * mult[axis]);
-      addTween(toRot(name[axis], rot[axis], 0.01, selectEase()));
+      addTween(toRot(name[axis], rot[axis], delay, selectEase()));
     }
 
     this.process = function(deltaTime) {
       timer -= deltaTime;
       if (timer <= 0) {
-        timer = rand(5) + 3;
+        timer = rand(5) + delay * 1.1 + 1;
         selectTween();
       }
     }
@@ -316,13 +319,13 @@ requirejs([
     function selectTween() {
       var axis = rand(2) < 1 ? 0 :  2;
       scale[axis] = -scale[axis];
-      addTween(moveScale(scale, 0.01, selectEase()));
+      addTween(moveScale(scale, delay, selectEase()));
     }
 
     this.process = function(deltaTime) {
       timer -= deltaTime;
       if (timer <= 0) {
-        timer = rand(5) + 3;
+        timer = rand(5) + delay * 1.1 + 1;
         selectTween();
       }
     }
@@ -334,32 +337,32 @@ requirejs([
     var lastSelectionNdx = -1;
 
     function selectSaturated() {
-      return toColor(chroma.hsv(rand(360), 1, 1).gl(), 0.01, selectEase());
+      return toColor(chroma.hsv(rand(360), 1, 1).gl(), delay, selectEase());
     }
 
     function selectPastel() {
-      return toColor(chroma.hsv(rand(360), 0.5, 1).gl(), 0.01, selectEase());
+      return toColor(chroma.hsv(rand(360), 0.5, 1).gl(), delay, selectEase());
     }
 
     function selectDark() {
-      return toColor(chroma.hsv(rand(360), 1, 0.4).gl(), 0.01, selectEase());
+      return toColor(chroma.hsv(rand(360), 1, 0.4).gl(), delay, selectEase());
     }
 
     function selectBlackOrWhite() {
-      return toColor(bc[0] ? [0, 0, 0, 1] : [1, 1, 1, 1], 0.01, selectEase());
+      return toColor(bc[0] ? [0, 0, 0, 1] : [1, 1, 1, 1], delay, selectEase());
     }
 
     function selectRainbowByNdx() {
-      return toRainbowByNdx(0.01, 2, selectEase());
+      return toRainbowByNdx(delay, selectEase());
     }
 
     function selectRainbow() {
-      return toRainbow(0.01, selectEase());
+      return toRainbow(delay, selectEase());
     }
 
     function selectGradient() {
       var h = rand(360);
-      return toGradient(h, 0.01, selectEase());
+      return toGradient(h, delay, selectEase());
     }
 
     var colorFuncs = [
@@ -384,7 +387,7 @@ requirejs([
     this.process = function(deltaTime) {
       timer -= deltaTime;
       if (timer <= 0) {
-        timer = rand(5) + 3;
+        timer = rand(5) + delay + 1;
         selectTween();
       }
     }
@@ -413,7 +416,8 @@ requirejs([
     var projection = m4.ortho(-orthoSize * aspect, orthoSize * aspect, orthoSize, -orthoSize, 0.5, dist + 10);
     var eye    = [0, dist, 0];
     var target = [0, 0, 0];
-    var up     = [0, 0, 1];
+    //var up     = [0, 0, 1];
+    var up     = [Math.sin(time * 0.1), 0, Math.cos(time * 0.1)];
 
     var camera = m4.lookAt(eye, target, up);
     var view = m4.inverse(camera);
