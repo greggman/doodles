@@ -44,7 +44,7 @@ requirejs([
   var drawObjects = [];
   var across = 20;
   var down = 20;
-  var delay = 4;
+  var delay = 2;
   var spreadX = across * 1.1;
   var spreadZ = down * 1.1;
   for (var zz = 0; zz < down; ++zz) {
