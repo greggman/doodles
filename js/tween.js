@@ -387,9 +387,9 @@ requirejs([
     ];
 
     function selectTween() {
-      var ndx = rand(colorFuncs.length - 1) | 0;
+      var ndx = rand(colorFuncs.length) | 0;
       if (ndx == lastSelectionNdx) {
-        ndx += 1;
+        ndx = (ndx + 1) % colorFuncs.length;
       }
       lastSelectionNdx = ndx;
       addTween(colorFuncs[ndx]());
