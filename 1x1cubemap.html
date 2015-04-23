@@ -67,27 +67,21 @@ void main() {
     var view = m4.identity();
     var viewProjection = m4.identity();
 
-    function rand(min, max) {
-      if (min === undefined) {
-        max = min;
-        min = 0;
-      }
-      return min + Math.random() * (max - min);
-    }
-
-    var ctx = document.createElement("canvas").getContext("2d");
-    ctx.canvas.width  = 6;
-    ctx.canvas.height = 1;
-    ["#F00", "#FF0", "#0F0", "#0FF", "#00F", "#F0F"].forEach(function(color, x) {
-      ctx.fillStyle = color;
-      ctx.fillRect(x, 0, 1, 1);
-    });
-
-    var textures = twgl.createTextures(gl, {
-      fromCanvas: { target: gl.TEXTURE_CUBE_MAP, src: ctx.canvas },
+    var texture = twgl.createTexture(gl, {
+      target: gl.TEXTURE_CUBE_MAP,
+      format: gl.RGB,
+      src: [
+        0xFF, 0x00, 0x00,
+        0xFF, 0xFF, 0x00,
+        0x00, 0xFF, 0x00,
+        0x00, 0xFF, 0xFF,
+        0x00, 0x00, 0xFF,
+        0xFF, 0x00, 0xFF,
+      ],
     });
 
     var uniforms = {
+      u_texture: texture,
       u_world: m4.identity(),
       u_worldInverseTranspose: m4.identity(),
       u_worldViewProjection: m4.identity(),
