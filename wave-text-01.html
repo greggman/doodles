@@ -234,7 +234,7 @@ void main() {
       time *= 0.001;
       ++frameCount;
 
-      twgl.resizeCanvasToDisplaySize(gl.canvas, window.devicePixelRatio || 1);
+      twgl.resizeCanvasToDisplaySize(gl.canvas);//, window.devicePixelRatio || 1);
       gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
 
       gl.clearColor(bc[0], bc[1], bc[2], 1);
