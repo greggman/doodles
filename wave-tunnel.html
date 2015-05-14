@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <title>twgl.js - wave tunnel</title>
+    <style>
+      * {
+        box-sizing: border-box;
+      }
+      html, body {
+        margin: 0px;
+        width: 100%;
+        height: 100%;
+        overflow: hidden;
+        font-family: monospace;
+      }
+      canvas {
+        width: 100%;
+        height: 100%;
+      }
+      #b {
+        position: absolute;
+        top: 10px;
+        width: 100%;
+        text-align: center;
+        z-index: 2;
+        color: white;
+      }
+      a:visited, a:link, a:active {
+        color: white;
+      }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+    <div id="b"><a href="http://twgljs.org">twgl.js - wave tunnel</a></div>
+  </body>
+  <script id="vs" type="notjs">
+uniform mat4 u_matrix;
+
+attribute vec4 a_position;
+attribute vec2 a_texcoord;
+
+varying vec2 v_texcoord;
+
+void main() {
+  gl_Position = u_matrix * a_position;
+  v_texcoord = a_texcoord;
+}
+  </script>
+  <script id="fs" type="notjs">
+precision mediump float;
+
+varying vec2 v_texcoord;
+uniform sampler2D u_texture;
+uniform vec2 u_offset;
+
+void main() {
+    gl_FragColor = texture2D(u_texture, v_texcoord + u_offset);
+}
+  </script>
+  <script src="js/twgl-full.min.js"></script>
+  <script>
+    "use strict";
+
+    var m4 = twgl.m4;
+    twgl.setAttributePrefix("a_");
+    var gl = twgl.getWebGLContext(document.getElementById("c"));
+    var programInfo = twgl.createProgramInfo(gl, ["vs", "fs"]);
+
+
+    var radius = 8;
+    var tubeRadius = 0.5;
+    var divisionsAroundTorus = 128;
+    var divisionsAroundTube  = 64;
+    var vertices = twgl.primitives.createTorusVertices(radius, tubeRadius, divisionsAroundTorus, divisionsAroundTube);
+    // mult the UV coords to repeat the texture
+    // we could do this in the shader but it's faster
+    // do it at init time (though less flexible)
+    for (var ii = 0; ii < vertices.texcoord.length; ii += 2) {
+      vertices.texcoord[ii + 0] *= 150;
+      vertices.texcoord[ii + 1] *= 50;
+    }
+    var torus = twgl.createBufferInfoFromArrays(gl, vertices);
+
+    // Make a wavey texture
+    var ctx = document.createElement("canvas").getContext("2d");
+    var size = 256;
+    ctx.canvas.width = size;
+    ctx.canvas.height = size;
+    //ctx.canvas.style.width = size + "px";
+    //ctx.canvas.style.height = size + "px";
+    //document.body.insertBefore(ctx.canvas, gl.canvas);
+    ctx.fillStyle = "white";
+    ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    ctx.fillStyle = "black";
+    for (var x = 0; x < size; ++x) {
+      var u = x / size * Math.PI * 2;
+      var t = Math.sin(u) * size / 16 + size * 0.25;
+      var b = Math.sin(u) * size / 16 + size * 0.75;
+      ctx.fillRect(t, x, b - t, 1);
+    }
+
+    var texture = twgl.createTexture(gl, {
+        src: ctx.canvas,
+        min: gl.LINEAR_MIPMAP_LINEAR,
+    });
+
+    var fieldOfViewY = deg2Rad(30);
+    var camera = m4.identity();
+    var view = m4.identity();
+    var projection = m4.identity();
+    var viewProjection = m4.identity();
+    var worldViewProjection = m4.identity();
+
+    var uniforms = {
+      u_matrix: worldViewProjection,
+      u_texture: texture,
+      u_offset: [0, 0],
+    };
+
+    function deg2Rad(v) {
+      return v * Math.PI / 180;
+    }
+
+    function render(time) {
+      time *= 0.001;
+
+      twgl.resizeCanvasToDisplaySize(gl.canvas);//, window.devicePixelRatio || 1);
+      gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+      gl.enable(gl.DEPTH_TEST);
+
+      gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+      var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
+      var zNear  = 0.1;
+      var zFar   = 10;
+      var fieldOfViewY = deg2Rad(30);
+      m4.perspective(fieldOfViewY, aspect, zNear, zFar, projection);
+
+      var eye    = [radius * 1, 0, -radius * 0.25];     // puts the eye inside the torus
+      var target = [radius, 0, 1]; //[2, 0, 1];  // points the eye down the inside of the torus
+      var up     = [1, 0, 0]; // [1, 0, 0];      // tilts sideways since the torus is in the xy plane
+
+      m4.lookAt(eye, target, up, camera);
+      m4.inverse(camera, view);
+      m4.multiply(view, projection, viewProjection);
+
+      // putting the torus at the center so no more math needed.
+      m4.copy(viewProjection, worldViewProjection);
+
+      uniforms.u_offset[1] = 1 - (time * 4) % 1;
+
+      gl.useProgram(programInfo.program);
+      twgl.setBuffersAndAttributes(gl, programInfo, torus);
+      twgl.setUniforms(programInfo, uniforms);
+      twgl.drawBufferInfo(gl, gl.TRIANGLES, torus);
+
+      requestAnimationFrame(render, gl.canvas);
+    }
+
+    requestAnimationFrame(render);
+
+  </script>
+</html>
+
+
+
+
+
