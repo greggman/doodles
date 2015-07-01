@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf8">
+  <style>
+    body {
+        font-family: monospace;
+    }
+    h1 {
+        margin: 5px;
+    }
+    .func {
+        display: inline-block;
+        margin: 5px;
+
+    }
+    .graph {
+        background-color: #EEE;
+    }
+    img {
+        width: 150px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Tweeny Easing Functions</h1>
+</body>
+  <script id="template" type="template">
+    <div class="func">
+      <div class="name">%(name)s</div>
+      <div class="graph">
+        <img src="%(img)s" />
+      </div>
+    </div>
+  </script>
+  <script data-main="js/tweeny-graph.js" src="js/require.js"></script>
+</html>
+
+
