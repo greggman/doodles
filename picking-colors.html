@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf8">
+  <meta name="viewport" content="width=device-width, minimum-scale=1.0, maximum-scale=1.0">
+  <style>
+    * {
+        box-sizing: border-box;
+        -moz-box-sizing: border-box;
+    }
+    body {
+        font-family: monospace;
+        background-color: black;
+        color: white;
+    }
+    h1 {
+        margin: 5px;
+    }
+    .swatch {
+        display: inline-block;
+        margin: 0.5em 0.125em 0.5em 0.125em; /* TRoBLe */
+        width: 6em;
+        height: 6em;
+    }
+    .center {
+        width: 100%;
+        height: 100%;
+
+        display: -webkit-box;
+        display: -webkit-flex;
+        display: flex;
+
+        -webkit-box-orient: vertical;
+        -webkit-flex-flow: column;
+        flex-flow: column;
+
+        -webkit-box-align: center;
+        -webkit-box-pack: center;
+        -webkit-justify-content: center;
+        -webkit-align-content: center;
+        -webkit-align-items: center;
+
+        justify-content: center;
+        align-content: center;
+        align-items: center;
+
+    }
+    .color {
+        width: 80%;
+        height: 80%;
+    }
+  </style>
+</head>
+<body>
+  <h1>Picking Distinct Colors</h1>
+</body>
+  <script id="label" type="template">
+    <h2>%(label)s</h2>
+  </script>
+  <script id="template" type="template">
+    <div class="swatch" style="background-color: %(color)s;">
+      <div class="center">
+        <div class="color" style="color: %(textColor)s;">%(index)s</div>
+      </div>
+    </div>
+  </script>
+  <script data-main="js/picking-colors.js" src="js/require.js"></script>
+</html>
+
+
