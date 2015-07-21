@@ -75,6 +75,20 @@ requirejs([
     };
   }
 
+  function hftGamepadAPI(ndx) {
+    var majorHue = ndx % 4;
+    var minorHue = ndx / 4 | 0;
+    var tinyHue  = (ndx & 0x10) ? 0 : 1;
+    var hue = (majorHue * 90 + minorHue * 22.5 + tinyHue * 12.5) % 360;
+    var saturation = (ndx & 0x10) ? 1 : 0.4;
+    var value = (ndx & 0x20) ? 0.5 : 1;
+    return {
+      color: chroma.hsv(hue, saturation, value),
+      label: "#" + ndx + "<br/>h: " + (hue).toFixed(0) + "<br/>s: " + saturation.toFixed(1) + "<br/>v: " + value.toFixed(1),
+    }
+  }
+
   makeSwatch(hsvColor, "HSV Based");
   makeSwatch(hslColor, "HSL Based");
+  makeSwatch(hftGamepadAPI, "HFT-Gamepad-API");
 });
