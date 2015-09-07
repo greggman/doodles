@@ -128,6 +128,19 @@
 			init();
 			animate();
 
+            function rand(min, max) {
+
+              if (max === undefined) {
+
+                max = min;
+                min = 0;
+
+              }
+
+              return Math.random() * (max - min) + min;
+
+            }
+
 			function init() {
 
 				container = document.body;
@@ -143,7 +156,8 @@
 				scenes.spheres = createSphereScene();
 				scenes.cubes = createCubeScene( false );
 				scenes[ "wireframe cubes" ] = createCubeScene( true );
-				scene = scenes.spheres;
+                scenes.matrix = createMatrixScene();
+				scene = scenes.matrix;
 
 				// RENDERER
 
@@ -189,6 +203,104 @@
 				window.addEventListener( 'resize', onWindowResize, false );
 				onWindowResize();
 			}
+
+            function createMatrixScene() {
+
+              var scene = new THREE.Scene();
+
+              var geometry = new THREE.BoxGeometry(1, 1, 1, 1, 2, 1);
+              var material = new THREE.MeshBasicMaterial( {
+				color: 0xffffff,
+				shading: THREE.FlatShading,
+				vertexColors: THREE.VertexColors,
+			  } );
+
+			  var faceIndices = [ 'a', 'b', 'c' ];
+
+              for ( var i = 0; i < geometry.faces.length; ++i) {
+
+                var f = geometry.faces[ i ];
+
+                for ( var j = 0; j < 3; ++j ) {
+                  var vertexIndex = f[ faceIndices[ j ] ];
+     	          var p = geometry.vertices[ vertexIndex ];
+
+                  var lerp = p.y + 0.5;
+                  var light = lerp < 0.5 ?
+                      0.5 + lerp :
+                      1 - ((lerp - 0.5) * 2);
+
+                  var color = new THREE.Color( 0xFFFFFF );
+
+                  color.setHSL( 0.33, 1 - lerp, light);
+                  f.vertexColors[ j ] = color;
+
+                }
+
+              }
+
+              var meshInfos = [];
+              var num = 800;
+              var top = 800;
+              var bottom = -400;
+              var speed = 2;
+              var left = -200;
+              var right = 200;
+              var size = 200;
+
+			  for (var ii = 0; ii < num; ++ii) {
+                var mesh = new THREE.Mesh( geometry, material );
+                scene.add(mesh);
+                mesh.position.x = rand(left, right);
+                mesh.position.y = rand(top, bottom);
+                mesh.scale.y = size;
+                mesh.scale.x = 1;
+                mesh.scale.z = 1;
+                meshInfos.push({
+                  mesh: mesh,
+                  speed: rand(1.5, 2.5) * 1,
+                });
+              }
+
+              var camera = new THREE.OrthographicCamera(left, right, top, bottom, 1, 1500 );
+
+              return {
+
+                update: function() {
+
+                    meshInfos.forEach( function( meshInfo ) {
+
+                        var mesh = meshInfo.mesh;
+
+                        mesh.position.y -= meshInfo.speed;
+
+                        if (mesh.position.y < bottom) {
+
+                          mesh.position.y = top;
+
+                        }
+
+
+                    });
+
+                },
+
+                getScene: function() {
+
+                     return scene;
+
+                },
+
+                getCamera: function( renderer ) {
+
+                    camera.updateProjectionMatrix();
+                    return camera;
+
+                },
+
+              };
+
+            }
 
 			function createSphereScene() {
 				// SCENE
@@ -247,7 +359,18 @@
 
 						return scene;
 
-					}
+					},
+
+                    getCamera: function( renderer ) {
+
+        				camera.aspect = renderer.domElement.clientWidth / renderer.domElement.clientHeight;
+        				camera.updateProjectionMatrix();
+        				camera.lookAt( cameraTarget );
+                        return camera;
+
+                    },
+
+
 				};
 			}
 
@@ -319,8 +442,18 @@
 
 						return scene;
 
-					}
-				};
+					},
+
+                    getCamera: function( renderer ) {
+
+        				camera.aspect = renderer.domElement.clientWidth / renderer.domElement.clientHeight;
+        				camera.updateProjectionMatrix();
+        				camera.lookAt( cameraTarget );
+                        return camera;
+
+                    },
+
+                };
 			}
 
 			function isMobile() {
@@ -501,11 +634,14 @@
 				scene.update();
 				var renderScene = scene.getScene();
 				renderModel.scene = renderScene;
-				renderer.setClearColor( renderScene.fog.color );
 
-				camera.aspect = renderer.domElement.clientWidth / renderer.domElement.clientHeight;
-				camera.updateProjectionMatrix();
-				camera.lookAt( cameraTarget );
+                if ( renderScene.fog ) {
+
+                  renderer.setClearColor( renderScene.fog.color );
+
+                }
+
+                var cam = scene.getCamera( renderer )
 
 				renderer.clear();
 
@@ -515,7 +651,7 @@
 
 				} else {
 
-					renderer.render( renderScene, camera );
+					renderer.render( renderScene, cam );
 
 				}
 
