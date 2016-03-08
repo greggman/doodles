@@ -1,0 +1,91 @@
+/*
+    virtualhallucinogen - a program causing hallucinations
+    Copyright (C) 2007 Jonas Wagner
+
+    This program is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+
+    This program is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+
+    You should have received a copy of the GNU General Public License
+    along with this program.  If not, see <http://www.gnu.org/licenses/>.
+*/
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf8">
+  <style>
+  html, body {
+      padding: 0px;
+      margin: 0px;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+  }
+  canvas {
+      width: 100%;
+      height: 100%;
+  }
+  </style>
+</head>
+<body>
+</body>
+  <script>
+
+var lineWidth = 5;
+var frames = 14;
+var currentFrame = 0;
+var ctx = document.createElement("canvas").getContext("2d");
+var imageData;
+var pixels;
+var images = [];
+
+document.body.appendChild(ctx.canvas);
+
+function halluc(width, height, frame) {
+  var images = [];
+  var innerCircle = height / 5;
+
+  if (ctx.canvas.width !== width || ctx.canvas.height !== height || !imageData) {
+    ctx.canvas.width = width;
+    ctx.canvas.height = height;
+    imageData = ctx.getImageData(0, 0, width, height);
+    pixels = new Uint32Array(imageData.data.buffer);
+  }
+
+  for (var iy = 0; iy < height; ++iy) {
+    for (var ix = 0; ix < width; ++ix) {
+      var off = iy * width + ix;
+      var x = Math.abs(ix - (width  / 2 | 0));
+      var y = Math.abs(iy - (height / 2 | 0));
+      var dist = (x + y) / 2;
+      if (Math.sqrt(x * x + y * y) > innerCircle) {
+        dist -= frame;
+      } else {
+        dist += frame;
+      }
+      if ((dist / lineWidth | 0) % 3) {
+        pixels[off] = 0xFFFFFFFF;
+      } else {
+        pixels[off] = 0xFF000000;
+      }
+    }
+  }
+  ctx.putImageData(imageData, 0, 0);
+}
+
+function flip() {
+  halluc(ctx.canvas.clientWidth, ctx.canvas.clientHeight, currentFrame);
+  currentFrame = (currentFrame + 1) % frames;
+  requestAnimationFrame(flip);
+}
+flip();
+  </script>
+</html>
+
+
