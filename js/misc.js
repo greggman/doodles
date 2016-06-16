@@ -88,6 +88,30 @@ define(function() {
     }
   };
 
+  /**
+   * Gets a function checking for prefixed versions
+   *
+   * example:
+   *
+   *     var lockOrientation = misc.getFunctionByPrefix(window.screen, "lockOrientation");
+   *
+   * @param {object} obj object that has function
+   * @param {string} funcName name of function
+   * @return {function?} or undefined if it doesn't exist
+   */
+  var prefixes = ["", "moz", "webkit", "ms"];
+  function getFunctionByPrefix(obj, funcName) {
+    var capitalName = funcName.substr(0, 1).toUpperCase() + funcName.substr(1);
+    for (var ii = 0; ii < prefixes.length; ++ii) {
+      var prefix = prefixes[ii];
+      var name = prefix + prefix ? capitalName : funcName;
+      var func = obj[name];
+      if (func) {
+        return func.bind(obj);
+      }
+    }
+  }
+
   var randInt = function(value) {
     return Math.floor(Math.random() * value);
   };
@@ -204,6 +228,7 @@ define(function() {
     degToRad: degToRad,
     findCSSStyleRule: findCSSStyleRule,
     getAbsolutePosition: getAbsolutePosition,
+    getFunctionByPrefix: getFunctionByPrefix,
     radToDeg: radToDeg,
     randInt: randInt,
     rand: rand,
