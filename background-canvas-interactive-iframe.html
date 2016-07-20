@@ -12,14 +12,119 @@
         top: 0;
         left: 0;
         z-index: -9999;
+        pointer-events: auto;
       }
     </style>
   </head>
   <body>
     <iframe src="background-canvas-interactive-iframe-background.html"></iframe>
-    <div>
-      some content that is in front of the canvas
-    </div>
+<pre id="content">
+scroll down see background doesn't move
+
+Note that input to the iframe is problematic because the mouse events are eaten
+by this content's element. You can fix that with
+
+    pointer-events: none;
+
+but then you get the issue that you can no longer click links nor select text.
+You could mark &lt;a&gt; tags as
+
+    pointer-events: auto;
+
+Which would fix links but still no text selection
+
+----
+
+Let's
+
+try
+
+to
+
+make
+
+sure
+
+it's
+
+long
+
+enough
+
+that
+
+we
+
+can
+
+scroll
+
+down
+
+the
+
+page
+
+so
+
+we
+
+can
+
+see
+
+that
+
+position: fixed;
+
+is
+
+a
+
+better
+
+choice
+
+than
+
+position: absolute;
+
+For
+
+a
+
+tall
+
+screen
+
+this
+
+might
+
+take
+
+quite
+
+a
+
+few
+
+lines
+
+of
+
+text
+
+let's
+
+hope
+
+this
+
+is
+
+enough
+</pre>
   </body>
 </html>
 

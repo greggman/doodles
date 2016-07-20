@@ -49,3 +49,34 @@ ctx.canvas.addEventListener('click', function(e) {
   colors = colorSets[colorSetNdx];
 });
 
+function draw(time) {
+  ctx.save();
+  var w = ctx.canvas.width;
+  var h = ctx.canvas.height;
+  var hw = w / 2;
+  var hh = h / 2;
+  ctx.translate(hw, hh);
+  ctx.rotate(time * 0.1);
+  for (var ii = 0; ii < 100; ++ii) {
+    ctx.rotate(Math.sin(time * 0.1) * 0.2);
+    ctx.strokeRect(-hw, -hh, w, h);
+    ctx.scale(0.9, 0.9);
+  }
+  ctx.restore();
+}
+
+var oldTime = 0;
+function render(time) {
+  time *= 0.001;
+  resize(ctx.canvas);
+
+  ctx.strokeStyle = "white";
+  draw(oldTime);
+  ctx.strokeStyle = "red";
+  draw(time);
+  oldTime = time;
+
+  requestAnimationFrame(render);
+}
+requestAnimationFrame(render);
+
