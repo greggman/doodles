@@ -13,35 +13,19 @@
 #include <imgui.h>
 #include "imgui_impl_glfw_gl3.h"
 
-#define IM_ARRAYSIZE(_ARR)  ((int)(sizeof(_ARR)/sizeof(*_ARR)))
+#define ARRAYSIZE(_ARR)  ((int)(sizeof(_ARR)/sizeof(*_ARR)))
 
 // Function prototypes
 void key_callback(GLFWwindow* window, int key, int scancode, int action, int mode);
 
 static void error_callback(int error, const char* description)
 {
-//OUT    fprintf(stderr, "Error %d: %s\n", error, description);
+    fprintf(stderr, "Error %d: %s\n", error, description);
 }
 
 
 // Window dimensions
 const GLuint WIDTH = 800, HEIGHT = 600;
-
-// Shaders
-//const GLchar* vertexShaderSource = R"(#version 330
-//layout (location = 0) in vec3 position;
-//void main()
-//{
-//   gl_Position = vec4(position.x, position.y, position.z, 1.0);
-//}
-//)";
-//const GLchar* fragmentShaderSource = R"(#version 330
-//out vec4 color;
-//void main()
-//{
-//   color = vec4(1.0f, 0.5f, 0.2f, 1.0f);
-//}
-//)";
 
 const GLchar* vertexShaderSource = R"(#version 330
 
@@ -187,22 +171,6 @@ float inv(float v) {
   return 1. - v;
 }
 
-void getCirclePoint(const float numEdgePointsPerCircle, const float id, const float inner, const float start, const float end, out vec3 pos) {
-  float outId = id - floor(id / 3.) * 2. - 1.;   // 0 1 2 3 4 5 6 7 8 .. 0 1 2, 1 2 3, 2 3 4
-  float ux = floor(id / 6.) + mod(id, 2.);
-  float vy = mod(floor(id / 2.) + floor(id / 3.), 2.); // change that 3. for cool fx
-  float u = ux / numEdgePointsPerCircle;
-  float v = mix(inner, 1., vy);
-  float a = mix(start, end, u) * PI * 2. + PI * 0.0;
-  float s = sin(a);
-  float c = cos(a);
-  float x = c * v;
-  float y = s * v;
-  float z = 0.;
-  pos = vec3(x, y, z);
-}
-
-
 #define CUBE_POINTS_PER_FACE 6.
 #define FACES_PER_CUBE 6.
 #define POINTS_PER_CUBE (CUBE_POINTS_PER_FACE * FACES_PER_CUBE)
@@ -296,10 +264,19 @@ void cleanup() {
     //OUT std::cout << "exit main" << std::endl;
 }
 
+void Refresh(GLFWwindow* window)
+{
+    glfwMarkWindowForRefresh(window);
+}
 
 static bool show_test_window = true;
 static bool show_another_window = false;
 static ImVec4 clear_color = ImColor(114, 144, 154);
+static bool constant_render = true;
+static bool render_when_mouse_up = false;
+static int mouse_buttons_down = 0;
+
+static bool mouse_buttons[GLFW_MOUSE_BUTTON_LAST + 1] = { false, };
 
 void mainLoop(GLFWwindow* window) {
     // Game loop
@@ -325,9 +302,11 @@ void mainLoop(GLFWwindow* window) {
         if (ImGui::Button("Test Window")) show_test_window ^= 1;
         if (ImGui::Button("Another Window")) show_another_window ^= 1;
         memcpy(&frameTimes[0], &frameTimes[1], sizeof(frameTimes) - sizeof(frameTimes[0]));
-        frameTimes[IM_ARRAYSIZE(frameTimes) - 1] = ImGui::GetIO().Framerate;
+        frameTimes[ARRAYSIZE(frameTimes) - 1] = ImGui::GetIO().Framerate;
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
-        ImGui::PlotLines("Frame History", frameTimes, IM_ARRAYSIZE(frameTimes), 0, "", 0.0f, 100.0f, ImVec2(0, 50));
+        ImGui::PlotLines("Frame History", frameTimes, ARRAYSIZE(frameTimes), 0, "", 0.0f, 100.0f, ImVec2(0, 50));
+        ImGui::Checkbox("Constantly Render", &constant_render);
+        ImGui::Checkbox("Render When Mouse Up", &render_when_mouse_up);
     }
 
     // 2. Show another simple window, this time using an explicit Begin/End pair
@@ -369,15 +348,76 @@ void mainLoop(GLFWwindow* window) {
     ImGui::Render();
 
     glfwSwapBuffers(window);
-    glfwMarkWindowForRefresh(window);
+
+    if (constant_render)
+    {
+        Refresh(window);
+    }
+}
+
+void MouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
+{
+    if (button < 0 || button > GLFW_MOUSE_BUTTON_LAST)
+    {
+        return;
+    }
+
+    if (mouse_buttons[button] != action) {
+      mouse_buttons[button] = action;
+      mouse_buttons_down += action == GLFW_PRESS ? 1 : -1;
+    }
+
+    ImGui_ImplGlfwGL3_MouseButtonCallback(window, button, action, mods);
+    Refresh(window);
+}
+
+void ScrollCallback(GLFWwindow* window, double xoffset, double yoffset)
+{
+    ImGui_ImplGlfwGL3_ScrollCallback(window, xoffset, yoffset);
+    Refresh(window);
+}
+
+void KeyCallback(GLFWwindow* window, int key, int scancode, int action, int mods)
+{
+    ImGui_ImplGlfwGL3_KeyCallback(window, key, scancode, action, mods);
+    Refresh(window);
+}
+
+void CharCallback(GLFWwindow* window, unsigned int c)
+{
+    ImGui_ImplGlfwGL3_CharCallback(window, c);
+    Refresh(window);
+}
+
+void FramebufferSizeCallback(GLFWwindow* window, int /* width */, int /* height */)
+{
+    Refresh(window);
+}
+
+void WindowFocusCallback(GLFWwindow* window, int focused)
+{
+    if (focused)
+    {
+        Refresh(window);
+    }
+}
+
+void CursorPosCallback(GLFWwindow* window, double /* xpos */, double /* ypos */)
+{
+    if (render_when_mouse_up || mouse_buttons_down)
+    {
+        Refresh(window);
+    }
+}
+
+void CursorEnterCallback(GLFWwindow* window, int /* entered */)
+{
+    Refresh(window);
 }
 
 // The MAIN function, from here we start the application and run the game loop
 int main()
 {
-  printf("main\n");
-    //OUT std::cout << "Starting GLFW context, OpenGL 3.3" << std::endl;
-
     glfwSetErrorCallback(error_callback);
 
     // Init GLFW
@@ -401,7 +441,17 @@ int main()
     glewInit();
 
     // Setup ImGui binding
-    ImGui_ImplGlfwGL3_Init(window, true);
+    bool install_callbacks = false;
+    ImGui_ImplGlfwGL3_Init(window, install_callbacks);
+
+    glfwSetMouseButtonCallback(window, MouseButtonCallback);
+    glfwSetScrollCallback(window, ScrollCallback);
+    glfwSetKeyCallback(window, KeyCallback);
+    glfwSetCharCallback(window, CharCallback);
+    glfwSetWindowFocusCallback(window, WindowFocusCallback);
+    glfwSetFramebufferSizeCallback(window, FramebufferSizeCallback);
+    glfwSetCursorPosCallback(window, CursorPosCallback);
+    glfwSetCursorEnterCallback(window, CursorEnterCallback);
 
     // Define the viewport dimensions
     static int width, height;
@@ -495,12 +545,8 @@ int main()
 
     glBindVertexArray(0); // Unbind VAO (it's always a good thing to unbind any buffer/array to prevent strange bugs), remember: do NOT unbind the EBO, keep it bound to this VAO
 
-
-    printf("setref\n");
     glfwSetWindowRefreshCallback(window, mainLoop);
-    printf("reg ref\n");
-    glfwMarkWindowForRefresh(window);
-    printf("end main\n");
+    Refresh(window);
     return 0;
 }
 
