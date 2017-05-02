@@ -272,7 +272,7 @@ void Refresh(GLFWwindow* window)
 static bool show_test_window = true;
 static bool show_another_window = false;
 static ImVec4 clear_color = ImColor(114, 144, 154);
-static bool constant_render = true;
+static bool paused = false;
 static bool render_when_mouse_up = false;
 static int mouse_buttons_down = 0;
 
@@ -305,7 +305,7 @@ void mainLoop(GLFWwindow* window) {
         frameTimes[ARRAYSIZE(frameTimes) - 1] = ImGui::GetIO().Framerate;
         ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
         ImGui::PlotLines("Frame History", frameTimes, ARRAYSIZE(frameTimes), 0, "", 0.0f, 100.0f, ImVec2(0, 50));
-        ImGui::Checkbox("Constantly Render", &constant_render);
+        ImGui::Checkbox("Pause", &paused);
         ImGui::Checkbox("Render When Mouse Up", &render_when_mouse_up);
     }
 
@@ -333,7 +333,10 @@ void mainLoop(GLFWwindow* window) {
     glClear(GL_COLOR_BUFFER_BIT);
 
     static float time = 0.f;
-    time += ImGui::GetIO().DeltaTime;
+    if (!paused)
+    {
+        time += ImGui::GetIO().DeltaTime;
+    }
 
     glEnable(GL_DEPTH_TEST);
     glUseProgram(shaderProgram);
@@ -349,7 +352,7 @@ void mainLoop(GLFWwindow* window) {
 
     glfwSwapBuffers(window);
 
-    if (constant_render)
+    if (!paused)
     {
         Refresh(window);
     }
