@@ -1,0 +1,58 @@
+<style>
+body {
+    margin: 0;
+}
+
+#outer {
+    width: 100vw;
+    height: 100vh;
+}
+
+#inner {
+    position: absolute;
+    left: 1em;
+    top: 1em;
+    color: white;
+    font-family: sans-serif;
+    font-size: xx-large;
+    font-weight: bold;
+}
+
+video {
+ /* Make video to at least 100% wide and tall */
+  min-width: 100vw;
+  min-height: 100vh;
+
+  /* Setting width & height to auto prevents the browser from stretching or squishing the video */
+  width: auto;
+  height: auto;
+
+  /* Center the video */
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%,-50%);
+}
+</style>
+<body>
+  <div id="outer">
+    <video id="video" autoplay></video>
+    <div id="inner">
+    HTML5 Video
+    </div>
+  </div>
+</body>
+
+<script>
+// Grab elements, create settings, etc.
+var video = document.getElementById('video');
+
+// Get access to the camera!
+if(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) {
+    // Not adding `{ audio: true }` since we only want video now
+    navigator.mediaDevices.getUserMedia({ video: true }).then(function(stream) {
+        video.src = window.URL.createObjectURL(stream);
+        video.play();
+    });
+}
+</script>
