@@ -1,0 +1,52 @@
+<style>
+* {
+    box-sizing: border-box;
+}
+body {
+    margin: 0;
+    font-family: monospace;
+    color: white;
+    background: #444;
+}
+#outer {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    justify-items: stretch;
+    width: 100vw;
+    height: 100vh;
+}
+#outer>* {
+    position: relative;
+}
+#top {
+    padding: 10px;
+    flex: 0 0 auto;
+}
+#bot {
+    flex: 1 1 auto;
+    background: #222;
+}
+
+iframe {
+    width: 100%;
+    height: 100%;
+    position: absolute;
+
+    border: 0;
+}
+</style>
+<div id="outer">
+    <div id="top">
+        <h1>HTML5 Camera Iframe Cross Domain</h1>
+        <p>
+        The iframe below is in other domain. If you give it permission to access
+        the camera or the mic it has that permisison forever without having to ask again
+        even when used from another domain. At least in Chrome as of Chrome 59
+        </p>
+    </div>
+    <div id="bot">
+        <iframe src="https://twgljs.org/examples/camera.html"</iframe>
+    </div>
+</div>
+
