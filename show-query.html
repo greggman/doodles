@@ -1,6 +1,6 @@
 <head>
 <meta charset="utf8">
-<link type="text/css" href="resources/webgl-tutorials.css" rel="stylesheet" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
 <style>
 pre {
     margin: 0;
@@ -11,21 +11,41 @@ pre {
 
 </body>
 <script>
+if (Object.defineProperty
+  && Object.getOwnPropertyDescriptor
+  && Object.getOwnPropertyDescriptor(Element.prototype, "textContent")
+  && !Object.getOwnPropertyDescriptor(Element.prototype, "textContent").get) {
+  (function() {
+    var innerText = Object.getOwnPropertyDescriptor(Element.prototype, "innerText");
+    Object.defineProperty(Element.prototype, "textContent",
+     {
+       get: function() {
+         return innerText.get.call(this);
+       },
+       set: function(s) {
+         return innerText.set.call(this, s);
+       }
+     }
+   );
+  })();
+}
+
 if (window.location.search) {
-  window.location.search.substring(1).split("&").forEach(function(pair) {
-    var keyValue = pair.split("=").map(function (kv) {
-      return decodeURIComponent(kv);
-    });
-    log(keyValue[0], '=', keyValue[1]);
-  });
+  var pairs = window.location.search.substring(1).split("&");
+  for (var p = 0; p < pairs.length; ++p) {
+    var pair = pairs[p];
+    var keyValue = pair.split("=");
+    log(p, ':', decodeURIComponent(keyValue[0]), '=', decodeURIComponent(keyValue[1]));
+  }
   log("--end--");
 } else {
   log("no query string")
 }
 
-function log(...args) {
-  const elem = document.createElement("pre");
-  elem.textContent = [...args].join(' ');
+function log() {
+  var elem = document.createElement("pre");
+  elem.textContent = Array.prototype.join.call(arguments, ' ');
+  elem.innerText = elem.textContent;
   document.body.appendChild(elem);
 }
 
