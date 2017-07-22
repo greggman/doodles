@@ -1,0 +1,32 @@
+<head>
+<meta charset="utf8">
+<link type="text/css" href="resources/webgl-tutorials.css" rel="stylesheet" />
+<style>
+pre {
+    margin: 0;
+}
+</style>
+</head>
+<body>
+
+</body>
+<script>
+if (window.location.search) {
+  window.location.search.substring(1).split("&").forEach(function(pair) {
+    var keyValue = pair.split("=").map(function (kv) {
+      return decodeURIComponent(kv);
+    });
+    log(keyValue[0], '=', keyValue[1]);
+  });
+  log("--end--");
+} else {
+  log("no query string")
+}
+
+function log(...args) {
+  const elem = document.createElement("pre");
+  elem.textContent = [...args].join(' ');
+  document.body.appendChild(elem);
+}
+
+</script>
