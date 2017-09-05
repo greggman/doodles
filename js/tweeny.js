@@ -266,6 +266,30 @@ define([], function() {
     return Math.sin(pos * Math.PI * 4) / (level * level);
   }
 
+  function springInOutQuad(pos) {
+    if (pos < .5) {
+      return (1 - Math.pow(1 - pos * 2, 2)) * .5;
+    }
+    return Math.pow((pos - .5) * 2, 2) * .5 + .5;
+  }
+
+  function springInOutCubic(pos) {
+    if (pos < .5) {
+      return (Math.pow((pos * 2 - 1), 3) + 1) * .5;
+    }
+    const p = .5 - (pos - .5);
+    return 1- (Math.pow((p * 2 - 1), 3) + 1) * .5;
+  }
+
+  function sprintInOutExpo(pos) {
+    if (pos < .5) {
+      const p = pos * 2;
+      return ((p === 1) ? 1 : -Math.pow(2, -10 * p) + 1) * .5;
+    }
+    const p = (.5 - (pos - .5)) * 2;
+    return 1. - ((p === 1) ? 1 : -Math.pow(2, -10 * p) + 1) * .5;
+  }
+
   var easeFunctions = {
     easeInQuad: easeInQuad,
     easeOutQuad: easeOutQuad,
@@ -305,6 +329,9 @@ define([], function() {
     bounceBack: bounceBack,
     boomerang: boomerang,
     boomerangSmooth: boomerangSmooth,
+    springInOutQuad: springInOutQuad,
+    springInOutCubic: springInOutCubic,
+    sprintInOutExpo: sprintInOutExpo,
   };
 
   var Tweener = function(target, duration, from, to) {
