@@ -13,13 +13,19 @@
     .func {
         display: inline-block;
         margin: 5px;
-
+        position: relative;
     }
     .graph {
         background-color: #EEE;
     }
     img {
         width: 150px;
+    }
+    .dot {
+        position: absolute;
+        top: 15px;
+        color: red;
+        z-index: 2;
     }
   </style>
 </head>
@@ -32,6 +38,7 @@
       <div class="graph">
         <img src="%(img)s" />
       </div>
+      <div class="dot">●</div>
     </div>
   </script>
   <script data-main="js/tweeny-graph.js" src="js/require.js"></script>

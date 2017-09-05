@@ -6,14 +6,13 @@ requirejs([
     strings
   ) {
 
-  var $ = document.getElementById.bind(document);
-  var ctx = document.createElement("canvas").getContext("2d");
+  const $ = document.getElementById.bind(document);
+  const ctx = document.createElement("canvas").getContext("2d");
 
-  var template = $("template").text;
-  Object.keys(tweeny.fn).forEach(function(name) {
-
-    var width  = ctx.canvas.width;
-    var height = ctx.canvas.height;
+  const template = $("template").text;
+  const dots = Object.keys(tweeny.fn).map(function(name) {
+    const width  = ctx.canvas.width;
+    const height = ctx.canvas.height;
     ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
 
     var ease = tweeny.fn[name];
@@ -46,12 +45,33 @@ requirejs([
       name: name,
       img: ctx.canvas.toDataURL(),
     });
-    var div = document.createElement("div");
+    const div = document.createElement("div");
     div.innerHTML = html;
+    const dot = div.querySelector(".dot");
     while (div.firstChild) {
       var element = div.firstChild;
       div.removeChild(element);
       document.body.appendChild(element);
     }
+
+    return {
+      dot: dot,
+      ease: ease,
+    };
   });
+
+  function px(v) {
+    return `${v.toFixed(0)}px`;
+  }
+  function move(time) {
+    time *= 0.001;
+    time  = time % 1;
+    dots.forEach((dot) => {
+      const elem = dot.dot;
+      const pos = dot.ease(time);
+      elem.style.left = px(pos * (elem.parentElement.clientWidth - elem.clientWidth));
+    });
+    requestAnimationFrame(move);
+  }
+  requestAnimationFrame(move);
 });
