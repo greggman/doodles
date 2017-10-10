@@ -195,6 +195,43 @@ var quickSort3 = function(array, sv) {
 
 // --------------------------------------------
 
+var mergeSort = function(array, sv) {
+  var n = array.length;
+  var scratch = array.slice();
+  var merge = function(l, r, m) {
+    var i = l;
+    var j = m + 1;
+    if (l == r) {
+      return;
+    }
+    while (i <= m && j <= r) {
+      if (sv.lt(array, i, array[j])) {
+        sv.set(scratch, i + j - m - 1, array[i]);
+        ++i;
+      } else {
+        sv.set(scratch, i + j - m - 1, array[j]);
+        ++j;
+      }
+    }
+    for (; i <= m; ++i) {
+      sv.set(scratch, i + j - m - 1, array[i]);
+    }
+    for (; j <= r; ++j) {
+      sv.set(scratch, i + j - m - 1, array[j]);
+    }
+    for (var k = l; k <= r; ++k) {
+      sv.set(array, k, scratch[k]);
+    }
+  }
+  for (var run = 1; run < n; run *= 2) {
+    for (var i = 0; i < n; i += 2*run) {
+      merge(i, Math.min(i + 2*run - 1, n - 1), Math.min(i + run - 1, n - 1));
+    }
+  }
+};
+
+// --------------------------------------------
+
 var bubbleSort = function(array, sv) {
   var n = array.length;
   for (var i = 0; i < n; ++i) {
@@ -243,6 +280,29 @@ var insertionSort = function(array, sv) {
     }
     sv.set(array, j, v);
   }
+};
+
+// --------------------------------------------
+
+var shellSort = function(array, sv) {
+  var n = array.length;
+
+  // https://oeis.org/A102549
+  [701, 301, 132, 57, 23, 10, 4, 1].forEach(function(gap) {
+    for (var i = gap; i < n; ++i) {
+      var v = array[i];
+      var j = i;
+      for (; j >= gap; j -= gap) {
+        if (sv.le(array, j - gap, v)) {
+          break;
+        }
+      }
+      for (var k = i; k > j; k -= gap) {
+        sv.copy(array, k - gap, k);
+      }
+      sv.set(array, j, v);
+    }
+  });
 };
 
 // --------------------------------------------
@@ -306,9 +366,11 @@ $(function() {
     { name: "quicksort",   sortFn: quickSort,     },
     { name: "quicksortLR", sortFn: quickSortLR,   },
     { name: "quicksort3",  sortFn: quickSort3,    },
+    { name: "merge",       sortFn: mergeSort,     },
     { name: "bubblesort",  sortFn: bubbleSort,    },
     { name: "selection",   sortFn: selectionSort, },
     { name: "insertion",   sortFn: insertionSort, },
+    { name: "Shell",       sortFn: shellSort,     },
   ];
 
   var stats = [
