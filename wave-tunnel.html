@@ -156,7 +156,7 @@ void main() {
       gl.useProgram(programInfo.program);
       twgl.setBuffersAndAttributes(gl, programInfo, torus);
       twgl.setUniforms(programInfo, uniforms);
-      twgl.drawBufferInfo(gl, gl.TRIANGLES, torus);
+      twgl.drawBufferInfo(gl, torus);
 
       requestAnimationFrame(render, gl.canvas);
     }
