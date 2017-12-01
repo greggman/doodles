@@ -146,7 +146,7 @@ void main() {
 
       m4.lookAt(eye, target, up, camera);
       m4.inverse(camera, view);
-      m4.multiply(view, projection, viewProjection);
+      m4.multiply(projection, view, viewProjection);
 
       // putting the torus at the center so no more math needed.
       m4.copy(viewProjection, worldViewProjection);

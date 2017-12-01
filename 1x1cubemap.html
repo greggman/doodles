@@ -106,7 +106,7 @@ void main() {
 
       m4.lookAt(eye, target, up, camera);
       m4.inverse(camera, view);
-      m4.multiply(view, projection, viewProjection);
+      m4.multiply(projection, view, viewProjection);
 
       m4.copy(viewProjection, uniforms.u_worldViewProjection);
       m4.copy(camera, uniforms.u_viewInverse);
@@ -114,7 +114,7 @@ void main() {
       gl.useProgram(programInfo.program);
       twgl.setBuffersAndAttributes(gl, programInfo, shape);
       twgl.setUniforms(programInfo, uniforms);
-      twgl.drawBufferInfo(gl, gl.TRIANGLES, shape);
+      twgl.drawBufferInfo(gl, shape);
 
       requestAnimationFrame(render);
     }

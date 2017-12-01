@@ -468,7 +468,7 @@ requirejs([
 
     var camera = m4.lookAt(eye, target, up);
     var view = m4.inverse(camera);
-    m4.multiply(view, projection, sharedUniforms.u_viewProjection);
+    m4.multiply(projection, view, sharedUniforms.u_viewProjection);
 
     tmgr.update(deltaTime);
 
