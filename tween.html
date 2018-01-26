@@ -39,7 +39,7 @@
     uniform vec4 u_color;
     uniform float u_lightMix;
     void main() {
-      float light = abs(dot(normalize(v_normal), u_lightDir));
+      float light = dot(normalize(v_normal), u_lightDir) * .5 + .5;
       gl_FragColor = vec4(u_color.xyz * mix(1.0, light, u_lightMix), 1);
     }
   </script>
