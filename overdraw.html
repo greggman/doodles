@@ -1,0 +1,212 @@
+<html lang="en">
+  <title>GPU Overdraw</title>
+  <style>
+    html {
+        box-sizing: border-box;
+    }
+    *, *:before, *:after {
+        box-sizing: inherit;
+    }
+    body {
+      margin: 0;
+      font-family: monospace;
+      color: white;
+      background: black;
+    }
+    canvas {
+      width: 100vw;
+      height: 100vh;
+      display: block;
+    }
+    input[type=number],
+    input[type=checkbox] {
+        background: black;
+        color: white;
+        border: 1px solid gray;
+    }
+    input[type=range] {
+        width: 50%;
+    }
+    #ui {
+      position: absolute;
+      left: 0;
+      top: 0;
+      width: 100vw;
+      height: 100vh;
+      padding: 2em;
+      background: rgba(0, 0, 0, .5);
+    }
+    #ui>div {
+      white-space: pre;
+    }
+  </style>
+  <body>
+    <canvas></canvas>
+    <div id="ui">
+      <div>
+Overdraw test
+      </div>
+      <div><span>plane count:</span><input type="number" id="countInput" min="0" max="1000" /><input type="range" id="count" min="0" max="1000" /></div>
+      <div>&nbsp;</div>
+      <div><input type="checkbox" id="sort" /><label for="sort">sort front to back</label></div>
+      <div><input type="checkbox" id="blend" /><label for="blend">enable blending</label></div>
+      <div>&nbsp;</div>
+      <div>         fps: <span id="fps"></span></div>
+      <div> average fps: <span id="avgfps"></span></div>
+      <div> canvas size: <span id="size"></span></div>
+      <div>pixels drawn: <span id="numpixels"></span></div>
+    </div>
+  </body>
+  <script src="js/twgl-full.min.js"></script>
+  <script>
+  const m4 = twgl.m4;
+  const $ = document.querySelector.bind(document);
+  const gl = $('canvas').getContext('webgl');
+
+  const vs = `
+  attribute vec4 position;
+  uniform mat4 matrix;
+  void main() {
+    gl_Position = matrix * position;
+  }
+  `;
+
+  const fs = `
+  precision mediump float;
+  uniform vec4 color;
+  void main() {
+    gl_FragColor = color;
+  }
+  `;
+
+  const numObjects = 1000;
+  const objects = [];
+  for (let i = 0; i < numObjects; ++i) {
+    const z = Math.random();
+    const matrix = m4.translation([0, 0, z]);
+    const color = [Math.random(), Math.random(), Math.random(), .1];
+    objects.push({
+      z,
+      uniforms: {
+        matrix,
+        color,
+      },
+    });
+  }
+
+  const programInfo = twgl.createProgramInfo(gl, [vs, fs]);
+  const bufferInfo = twgl.primitives.createXYQuadBufferInfo(gl);
+  let count = 4;
+  let lastSort = -1;
+
+  const fpsElem = $('#fps');
+  const avgfpsElem = $('#avgfps');
+  const numpixelsElem = $('#numpixels');
+  const sizeElem = $('#size');
+  const sortElem = $('#sort');
+  const blendElem = $('#blend');
+  const countElem = $('#count');
+  const countInputElem = $('#countInput');
+
+  updateCount();
+
+  let then = 0;
+
+  const numFrames = 60;
+  const frameTimes = [];
+  let frameCount = 0;
+  let totalFps = 0;
+
+  function render(now) {
+    now *= 0.001;
+    const deltaTime = now - then;
+    then = now;
+    const fps = 1 / deltaTime;
+
+    const frameNdx = frameCount++ % numFrames;
+    totalFps += -(frameTimes[frameNdx] || 0) + fps;
+    frameTimes[frameNdx] = fps;
+
+    avgfpsElem.textContent = (totalFps / frameTimes.length).toFixed(1);
+    fpsElem.textContent = fps.toFixed(1);
+    fpsElem.style.color = fps < 59.5 ? 'red' : '';
+
+    if (twgl.resizeCanvasToDisplaySize(gl.canvas, window.devicePixelRatio)) {
+      updateInfo();
+    }
+
+    if (lastSort !== sortElem.checked) {
+      lastSort = sortElem.checked;
+      objects.sort(lastSort ? frontToBack : backToFront);
+    }
+
+    gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+    gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+    gl.enable(gl.DEPTH_TEST);
+
+    if (blendElem.checked) {
+      gl.enable(gl.BLEND);
+    } else {
+      gl.disable(gl.BLEND);
+    }
+
+    gl.useProgram(programInfo.program);
+    twgl.setBuffersAndAttributes(gl, programInfo, bufferInfo);
+    for(let i = 0; i < count; ++i) {
+      const object = objects[i];
+      twgl.setUniforms(programInfo, object.uniforms);
+      twgl.drawBufferInfo(gl, bufferInfo);
+    }
+
+    requestAnimationFrame(render);
+  }
+  requestAnimationFrame(render);
+
+  countElem.addEventListener('input', (e) => {
+    count = e.target.value;
+    updateCount();
+    updateInfo();
+  });
+
+  countInputElem.addEventListener('input', (e) => {
+    count = e.target.value;
+    updateCount();
+    updateInfo();
+  });
+
+  function updateCount() {
+    countElem.value = count;
+    countInputElem.value = count;
+  }
+
+  function updateInfo() {
+    numpixelsElem.textContent = units(gl.drawingBufferWidth * gl.drawingBufferHeight * count);
+    sizeElem.textContent = `${gl.drawingBufferWidth} x ${gl.drawingBufferHeight}`;
+  }
+
+  const unitTable = [
+    { unit: 1000000000, suffix: 'g', fixed: 1 },
+    { unit: 1000000   , suffix: 'm', fixed: 1 },
+    { unit: 1000      , suffix: 'k', fixed: 1 },
+  ];
+
+  function units(value) {
+    for (let i = 0; i < unitTable.length; ++i) {
+      const info = unitTable[i];
+      if (value >= info.unit) {
+        return `${(value / info.unit).toFixed(info.fixed)}${info.suffix}`;
+      }
+    }
+    return value.toFixed(0);
+  }
+
+  function frontToBack(a, b) {
+    return Math.sign(a.z - b.z);
+  }
+
+  function backToFront(a, b) {
+    return Math.sign(b.z - a.z);
+  }
+  </script>
+</html>
+
