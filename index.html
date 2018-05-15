@@ -69,6 +69,123 @@ a:focus {
 <h1>Various Random Doodles by <a href="http://games.greggman.com">Greggman</a></h1>
 
 <div class="doodle">
+<h2>gridzoom</h2>
+<p>For a stackoverflow question: How to draw a grid that adds / removes detail as you zoom in and out.</p>
+<p>Basically it just draws 2 grids. One for the "current" zoom level and one at 10x that zoom level
+and fades them out as a transition. The important code is probably the part that decides what the current
+zoom level is. <code>zoom</code> is the distance from the origin that goes from 0.0001 to 10000 in this example.</p>
+<pre>
+const gridLevel = Math.log10(zoom * zoomAdjust);
+const gridFract = euclideanModulo(gridLevel, 1);
+const gridZoom = Math.pow(10, Math.floor(gridLevel));
+</pre>
+<p><code>gridLevel</code> is then the power we need to raise 10 to for our current zoom level. <code>gridFract</code>
+is a linear interpolation from 0 to 1 between the current 2 levels we can use for deciding how much to fade. <code>gridZoom</code> is
+effectively the scale to draw our grid.</p>
+<p>This code computes the alpha values to use for the 2 grids</p>
+<pre>
+const alpha1 = Math.max((1 - gridFract) * 1);
+const alpha2 = Math.max(gridFract * 10) - 1;
+</pre>
+<p><code>zoomAdjust</code> is 1. but you can change it to decide where the transition between grids happens.</p>
+<p><a href="gridzoom.html">gridzoom</a></p>
+</div>
+
+<div class="doodle">
+<h2>group camera</h2>
+<p>This was some experiments in trying to make a camera that shows a group
+of players. Drag the 3 blue dots and see the camera try to show them.
+Unfortunately I never got it to work. The idea was to try to show them from
+the best angle so I never want them to line up behind each other but, the
+problem is which side to look from ends up swinging wildly which is no good.
+This is probably a solved problem written in some book on game dev but I
+actually don't know a game that has solved this. Most games either let
+the user control the camera, OR, they put the camera behind the player
+and let him drag it as though it's on a rope, OR, the pick a fixed angle
+and at most zoom in and out without changing the direction of the camera.
+If you know of a solution post an <a href="https://github.com/greggman/doodles/issues/">issue</a>.</p>
+<p>
+<a href="group-camera.html">group camera</a><br/>
+<a href="group-camera-02.html">group camera 02</a>
+</p>
+</div>
+
+<div class="doodle">
+<h2>html5 webcam iframe issue</h2>
+<p>This shows an issue in Chrome (at least still as of v66) that is that
+when asked if a webpage can use your camera (or your mic) that permission
+is permament. You can see why you'd might want this. Using Google Hangouts
+or Facebook messenger maybe you just want the camera to work.</p>
+<p>Unfortunately it has a bunch of issues.</p>
+<p>The biggest first and that is that the permission is for the domain and
+works in iframes. So, some site says "Check out this cool circus mirror demo"
+and you click to enable the camera. Now that same domain can embed invisible
+iframes all around the net in ads that turn on your camera/mic and spy on you.</p>
+<p>Another issue related issue is user expectation. When I run Facetime on my
+my phone I expect the camera to come on. When I go to randomsite.com I don't.
+So, before I run the facetime app I'll make sure I'm presentable. Where as
+when I go to randomsite.com I will not. Randomsite.com/old-post.html might have had a camera
+demo I viewed year ago. Randomsite.com/new-post.html might have a site that takes
+a picture immediately and uploads it publically. Maybe it's called "what I'm doing
+now" that takes a pic and immediately uploads to imgur for fun. But I didn't
+know my picture was going to be taken yet randomsite.com has permission to use
+my camera at anytime once I've given it permission once.</p>
+<p>It seems to me browsers should treat the camera just like GPS. They should
+ask for permission EVERY SINGLE TIME. There should maybe be the option to
+give permanent permission but the default should be every time. Firefox
+has those options. Chrome does not.</p>
+<p>
+<a href="html5-webcam.html">html5 webcam</a><br/>
+</p>
+</div>
+
+<div class="doodle">
+<h2>no box skybox</h2>
+<p>I'm surprised people still use skyboxes in 3d. They
+make a 3d cube and map a texture to the inside and then go through
+various contortions to render that without clipping issues etc.</p>
+<p>It seems like a simpler solution is just to render a cubemap
+to a plane with a very simple shader. The plane won't have any clipping
+issues</p>
+<p>I have a feeling the reasons are (1) tradition. It worked before shaders
+so why change. And (2) asset pipeline. If you have a system to import
+models and the textures they use then adding a cube model with textures
+just works where as to use this method you'd need at least some way
+of tagging the model to use a custom shader.</p>
+<p>In any case I wrote this back when I first started doing <a href="https://webglsamples.org">webgl stuff</a>.
+  I put an example on <a href="https://twgljs.org">twgl</a> and then here's a three.js example.</p>
+<p><a href="no-box-skybox.html">no box skybox</a></p>
+</div>
+
+<div class="doodle">
+<h2>Overdraw</h2>
+<p>Someone asked about GPU perf and overdraw. This example shows how
+GPUs are not really that fast. Or rather that we're asking them to
+do a lot of work and that can really add up.</p>
+<p>This sample just draws simple fullscreen quads with very simple shaders.
+Up the count to draw more. You'll see even fast GPUs can't draw that
+many before not being able to reach 60fps. Increase the value slowly
+else your OS might reset your GPU.
+</p>
+<p>
+<a href="overdraw.html">overdraw</a>
+</p>
+</div>
+
+<div class="doodle">
+<h2>x-ray</h2>
+<p>Someone asked how to make an x-ray-ish looking image. You can get that
+by making this brighter when their viewspace normal is perpendicular to
+the view.
+</p>
+<p>
+<a href="x-ray.html">x-ray</a><br/>
+<a href="x-ray-02.html">x-ray 02</a>
+</p>
+</div>
+
+
+<div class="doodle">
 <h2>natural hallucinoen</h2>
 <p>adapted from <a href="https://29a.ch/hallucinogen/">here</a></p>
 <p><a href="natural-hallucinogen.html">natural hallucinoen</a></p>
@@ -415,9 +532,11 @@ I get "free" glowing similar to the color cycling technique from the 80s.
 <p>
 Just wanted to see if canvas supports drawing with emoji.
 Yes on Safari 7+, FF 29+. No on Chrome as of v34.
-</p><p>
-<a href="emoji-draw.html">emoji-draw.html</a>
 </p>
+<p>
+Update: not sure when but Chrome now works.
+</p>
+<p><a href="emoji-draw.html">emoji-draw.html</a></p>
 </div>
 
 
@@ -435,8 +554,6 @@ Inspired by some t-shirt I saw at Design Festa 39
 
 <div class="doodle">
 <h2>Tree-Color</h2>
-
-
 <p>
 Same as tree but each level is a different color.
 </p><p>
@@ -448,8 +565,6 @@ Same as tree but each level is a different color.
 
 <div class="doodle">
 <h2>Tree</h2>
-
-
 <p>
 Generating a simple tree.
 </p><p>
@@ -461,8 +576,6 @@ Generating a simple tree.
 
 <div class="doodle">
 <h2>Fork</h2>
-
-
 <p>
 Playing around with a forking structure.
 </p><p>
@@ -474,8 +587,6 @@ Playing around with a forking structure.
 
 <div class="doodle">
 <h2>Faces</h2>
-
-
 <p>
 Just a few types of eyes, eyebrows and mouths can generate many expressions
 </p><p>
@@ -483,7 +594,11 @@ Just a few types of eyes, eyebrows and mouths can generate many expressions
 </p>
 </div>
 
-
+<div class="doodle">
+<h2>Tests</h2>
+<p>
+<a href="tests.html">tests</a>
+</p></div>
 
 </body>
 </html>

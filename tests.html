@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>GMAN Doodles - Tests</title>
+<meta charset="uft-8" >
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black">
+
+  <meta name="HandheldFriendly" content="True">
+  <meta name="MobileOptimized" content="320">
+  <meta name="viewport" content="width=device-width, target-densitydpi=160dpi, initial-scale=1.0, maximum-scale=1, user-scalable=no, minimal-ui">
+<style>
+html,body {
+    background-color: #191919;
+    font-family: monospace;
+    color: #999;
+    margin: 0px;
+    font-size: large;
+}
+h1 {
+    font-size: inherit;
+    font-weight: bold;
+    margin: 10px;
+    color: #a080f0;
+    text-decoration: underline;
+}
+h2 {
+    color: #acf0e9;
+    font-size: inherit;
+    font-weight: bold;
+}
+b {
+    color: #c0ddd0;
+    font-weight: normal;
+}
+.doodle {
+    padding: 1em;
+    margin-bottom: 10px;
+}
+.doodle:nth-child(odd) {
+    gbackground-color: #202020;
+}
+code {
+    background-color: #303030;
+    color: #CCC;
+}
+pre {
+    background-color: #333;
+    margin-left: 3em;
+    margin-right: 3em;
+}
+
+h2:before {
+    content: "$ ";
+    color: #44e;
+}
+a:visited,
+a:active,
+a:link {
+    color: #82b0fd;
+}
+a:hover,
+a:focus {
+    color: #ffb080;
+}
+</style>
+</head>
+<body>
+<h1>Various Random Tests by <a href="http://games.greggman.com">Greggman</a></h1>
+
+<div class="doodle">
+<h2>1x1 cubemaps</h2>
+<p>I don't remember why I wrote these. I'm guessing it was for a stackoverflow question.</p>
+<p>
+<a href="1x1cubemap.html">1x1cubemap</a><br/>
+<a href="1x1cubemap-no-lib.html">1x1cubemap-no-lib</a><br/>
+<a href="1x1cubemap-no-lib-clamp.html">1x1cubemap-no-lib-clamp</a><br/>
+<a href="1x1cubemap-no-lib-nearest.html">1x1cubemap-no-lib-nearest</a><br/>
+</p>
+</div>
+
+<div class="doodle">
+<h2>audio stream test</h2>
+<p>this is a test to see if analysing audio streams is supported on mobile. As of May 2018
+it's not supported on mobile and is in all browsers todo lists but unlikely to ever happen.</p>
+<p>The issue is that phones have special hardware to decompress audio to save battery and
+browsers use that path for audio streams. But, when a user wants to analyse that music
+the data needs to make it back to the browser after decoding. That would require a custom
+path that no browser feels like implementing which makes sites that wnat to have auto reactive visuals
+to streamed music impossible on mobile. Note that mobile can do non-streammed music. Also note by
+streammed I specifically mean using the &lt;audio&gt; tag. If you want to stream yourself
+via websockets or something that should work.</p>
+<p>that does bring up the idea that since the browser vendors so no interest in fixing this
+it would be nice if someone came up with a standard and both client and server side
+libraries to fix this. Soundcloud does this. They don't use the audio tag, they instead
+do their own streaming. I wonder if it's in their interest to keep that stuff proprietary
+or if they'd benefit from open sourcing it. My impression from a user level is there
+is no real sales advantage. Users are not going to choose soundcloud over random music
+site because of that tech. On the other hand PR wise, leading the way via open source
+sounds like a win?</p>
+<p>In any case you can run this link on your mobile device. If you see a dyanmic
+graph of the audio then the browser finally started supporting this on mobile.</p>
+<p><a href="audio-stream-test.html">audio stream test</a></p>
+</div>
+
+
+<div class="doodle">
+<h2>audio</h2>
+<p>Some sample of a simple audio library</p>
+<p><a href="audio.html">audio</a></p>
+</div>
+
+<div class="doodle">
+<h2>background canvas</h2>
+<p>This was for some stackoverflow question but since the answer uses an iframe
+it needed to be run somewhere else (though you can use a blob on SO).</p>
+<p><a href="background-canvas.html">background canvas</a> draws something in the background.</p>
+<p><a href="background-canvas-interactive.html">background canvas interactive</a> shows that the background doesn't get input since it's covered by content.</p>
+<p><a href="background-canvas-interactive-iframe.html">background canvas interactive iframe</a> shows you can also use an iframe as the background but it also doesn't get input since it's covered by content.</p>
+</div>
+
+<div class="doodle">
+<h2>show query</h2>
+<p>Just parses the url query string and displays it.</p>
+<p><a href="show-query.html">show-query</a></p>
+</div>
+
+</body>
+</html>

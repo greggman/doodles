@@ -166,9 +166,11 @@ void main() {
 
     function startMusic() {
       clickElem.style.display = "none";
-      streamSource.play();
-      streamSource.getSource().connect(analyser);
-      analyser.connect(context.destination);
+      context.resume().then(() => {
+        streamSource.play();
+        streamSource.getSource().connect(analyser);
+        analyser.connect(context.destination);
+      });
     }
 
     streamSource.on('error', function(e) {
@@ -177,11 +179,7 @@ void main() {
 
     streamSource.on('newSource', function(/* source */) {
       loadElem.style.display = "none";
-      if (!isMobile) {
-        startMusic();
-      } else {
-        clickElem.addEventListener('click', startMusic);
-      }
+      clickElem.addEventListener('click', startMusic);
     });
 
     streamSource.setSource(

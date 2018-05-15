@@ -1,0 +1,149 @@
+<html lang="en">
+<meta charset="utf8">
+<title>Grid Zoom</title>
+<style>
+body { margin: 0; }
+canvas { width: 100vw; height: 100vh; display: block; }
+#ui { position: absolute; left: 1em; top: 1em; padding: 1em; color: white; }
+</style>
+<body>
+  <canvas></canvas>
+  <div id="ui">
+    <div>zoom: <span id="zoom"></span></div>
+  </div>
+  <script src="js/twgl-full.min.js"></script>
+</body>
+<script>
+const m4 = twgl.m4;
+const gl = document.querySelector("canvas").getContext("webgl", {alpha: false});
+const zoomElem = document.querySelector("#zoom");
+const zoomAdjust = 1;  // change to adjust when things start/end. Try 5 or .5 for example
+
+let zoom = 1;
+
+const gridVS = `
+attribute vec4 position;
+uniform mat4 matrix;
+void main() {
+  gl_Position = matrix * position;
+}
+`;
+const gridFS = `
+precision mediump float;
+uniform vec4 color;
+void main() {
+  gl_FragColor = color;
+}
+`;
+const gridProgramInfo = twgl.createProgramInfo(gl, [gridVS, gridFS]);
+
+const gridPlaneLines = [];
+const numLines = 100;
+for (let i = 0; i <= 100; ++i) {
+  gridPlaneLines.push(0, i, 100, i);
+  gridPlaneLines.push(i, 0, i, 100);
+}
+const gridPlaneBufferInfo = twgl.createBufferInfoFromArrays(gl, {
+  position: { numComponents: 2, data: gridPlaneLines },
+});
+
+function drawGrid(viewProjection, scale, color) {
+  gl.useProgram(gridProgramInfo.program);
+  twgl.setBuffersAndAttributes(gl, gridProgramInfo, gridPlaneBufferInfo);
+
+  const scaling = [scale, scale, scale];
+  // draw Z plane
+  {
+    let matrix = m4.scale(viewProjection, scaling);
+    matrix = m4.rotateY(matrix, Math.PI);
+    twgl.setUniforms(gridProgramInfo, {
+      matrix,
+      color,
+    });
+    twgl.drawBufferInfo(gl, gridPlaneBufferInfo, gl.LINES);
+  }
+  // draw X plane
+  {
+    let matrix = m4.scale(viewProjection, scaling);
+    matrix = m4.rotateY(matrix, Math.PI * .5);
+    twgl.setUniforms(gridProgramInfo, {
+      matrix,
+      color,
+    });
+    twgl.drawBufferInfo(gl, gridPlaneBufferInfo, gl.LINES);
+  }
+  // draw Y plane
+  {
+    let matrix = m4.scale(viewProjection, scaling);
+    matrix = m4.rotateY(matrix, Math.PI);
+    matrix = m4.rotateX(matrix, Math.PI * .5);
+    twgl.setUniforms(gridProgramInfo, {
+      matrix,
+      color,
+    });
+    twgl.drawBufferInfo(gl, gridPlaneBufferInfo, gl.LINES);
+  }
+}
+
+function render() {
+  twgl.resizeCanvasToDisplaySize(gl.canvas, window.devicePixelRatio);
+  gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+
+  zoomElem.textContent = zoom.toFixed(5);
+
+  const fov = degToRad(60);
+  const aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
+  const zNear = zoom / 100;
+  const zFar = zoom * 100;
+  const projection = m4.perspective(fov, aspect, zNear, zFar);
+
+  const eye = [zoom * -10, zoom * 5, zoom * -10];
+  const target = [0, 0, 0];
+  const up = [0, 1, 0];
+  const camera = m4.lookAt(eye, target, up);
+  const view = m4.inverse(camera);
+
+  const viewProjection = m4.multiply(projection, view);
+
+  const gridLevel = Math.log10(zoom * zoomAdjust);
+  const gridFract = euclideanModulo(gridLevel, 1);
+  const gridZoom = Math.pow(10, Math.floor(gridLevel));
+
+  const alpha1 = Math.max((1 - gridFract) * 1);
+  gl.enable(gl.BLEND);
+  gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
+  drawGrid(viewProjection, gridZoom, [0, alpha1, 0, alpha1]);
+  const alpha2 = Math.max(gridFract * 10) - 1;
+  if (alpha2 > 0) {
+    drawGrid(viewProjection, gridZoom * 10, [0, alpha2, 0, alpha2],);
+  }
+}
+render();
+
+function euclideanModulo(n, m) {
+    return ((n % m) + m) % m;
+};
+
+function degToRad(deg) {
+  return deg * Math.PI / 180;
+}
+
+window.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  const amount = e.deltaY;
+  if (e.deltaY < 0) {
+    zoom *= 1 - clamp(e.deltaY / -500, 0, 1);
+  } else {
+    zoom *= 1 + clamp(e.deltaY / 500, 0, 1);
+  }
+  zoom = clamp(zoom, 0.0001, 10000);
+  render();
+});
+window.addEventListener('resize', render);
+
+function clamp(v, min, max) {
+  return Math.max(min, Math.min(max, v));
+}
+</script>
+</html>
+

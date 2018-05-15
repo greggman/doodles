@@ -57,13 +57,9 @@
       return filename.substring(0, filename.length - 3) + ext;
     };
 
-    this.needUserGesture = (function() {
-      var iOS = ( navigator.userAgent.match(/(iPad|iPhone|iPod)/g) ? true : false );
-      var needUserGesture = iOS;
-      return function() {
-        return needUserGesture;
-      };
-    }());
+    this.needUserGesture = function() {
+      return true;
+    };
 
     var WebAudioBuffer = function() {
     };
@@ -184,13 +180,11 @@
     // to respond to a user gesture.
     var setupGesture = function() {
       if (this.needUserGesture()) {
-        var count = 0;
         var elem = window;
         var that = this;
         var eventNames = ['touchstart', 'mousedown'];
         var playSoundToStartAudio = function() {
-          ++count;
-         if (count < 3) {
+          g_context.resume().then(() => {
             // just playing any sound does not seem to work.
             var source = g_context.createOscillator();
             var gain = g_context.createGain();
@@ -206,15 +200,13 @@
             setTimeout(function() {
               source.disconnect();
             }, 100);
-          }
-          if (count == 3) {
             for (var ii = 0; ii < eventNames.length; ++ii) {
               elem.removeEventListener(eventNames[ii], playSoundToStartAudio, false);
             }
             if (options.startedOnTouchCallback) {
               options.startedOnTouchCallback();
             }
-          }
+          });
         }
         for (var ii = 0; ii < eventNames.length; ++ii) {
           elem.addEventListener(eventNames[ii], playSoundToStartAudio, false);
