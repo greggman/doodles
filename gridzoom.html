@@ -1,9 +1,10 @@
 <html lang="en">
 <meta charset="utf8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, scrolling=no, user-scalable=no">
 <title>Grid Zoom</title>
 <style>
+html, body, canvas { position: fixed; width: 100%; height: 100%; display: block; }
 body { margin: 0; }
-canvas { width: 100vw; height: 100vh; display: block; }
 #ui { position: absolute; left: 1em; top: 1em; padding: 1em; color: white; }
 </style>
 <body>
@@ -128,17 +129,33 @@ function degToRad(deg) {
   return deg * Math.PI / 180;
 }
 
-window.addEventListener('wheel', (e) => {
-  e.preventDefault();
-  const amount = e.deltaY;
-  if (e.deltaY < 0) {
-    zoom *= 1 - clamp(e.deltaY / -500, 0, 1);
+function adjustZoom(delta) {
+  if (delta < 0) {
+    adjust = 1 - clamp(delta / -500, 0, 1);
   } else {
-    zoom *= 1 + clamp(e.deltaY / 500, 0, 1);
+    adjust = 1 + clamp(delta / 500, 0, 1);
   }
-  zoom = clamp(zoom, 0.0001, 10000);
+  zoom = clamp(zoom * adjust, 0.0001, 10000);
   render();
+}
+
+document.body.addEventListener('wheel', (e) => {
+  e.preventDefault();
+  adjustZoom(e.deltaY);
 });
+
+let startY;
+document.body.addEventListener('touchstart', (e) => {
+  e.preventDefault();
+  startY = e.touches[0].pageY;
+}, {passive: false});
+document.body.addEventListener('touchmove', (e) => {
+  e.preventDefault();
+  const currentY = e.touches[0].pageY;
+  const delta = (currentY - startY);
+  startY = currentY;
+  adjustZoom(delta * 2);
+}, {passive: false});
 window.addEventListener('resize', render);
 
 function clamp(v, min, max) {
