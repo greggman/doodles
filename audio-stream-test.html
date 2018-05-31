@@ -116,7 +116,7 @@ void main() {
 "use strict";
 
 function start() {
-  const context = new AudioContext();
+  const context = new (window.AudioContext || window.webkitAudioContext)();
   const analyser = context.createAnalyser();
 
   twgl.setDefaults({attribPrefix: "a_"});
