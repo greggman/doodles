@@ -63,6 +63,7 @@
        <tr><td>    width: </td><td id="width"></td></tr>
        <tr><td>   height: </td><td id="height"></td></tr>
        <tr><td>   aspect: </td><td id="aspect"></td></tr>
+       <tr><td>fov x 2 y: </td><td id="fovyFromFovx"></td></tr>
        </table>
     </div>
   </body>
@@ -392,12 +393,13 @@ void main() {
     }
 
     var rangeElem = document.getElementById("fov");
-    var nodes = makeNodes(["fovy", "fovx", "width", "height", "aspect", "badfovx"]);
+    var nodes = makeNodes(["fovy", "fovx", "width", "height", "aspect", "badfovx", "fovyFromFovx"]);
     rangeElem.value = 30;
 
     function updateNodes() {
       var aspect = gl.canvas.clientWidth / gl.canvas.clientHeight;
       var fieldOfViewX = 2 * Math.atan(Math.tan(fieldOfViewY * 0.5) * aspect);
+      var newFieldOfViewY = 2 * Math.atan(Math.tan(fieldOfViewX * .5) / aspect);
       var badFieldOfViewX = fieldOfViewY * aspect;
 
       nodes.fovy.nodeValue    = rad2Deg(fieldOfViewY).toFixed(2);
@@ -406,6 +408,7 @@ void main() {
       nodes.width.nodeValue   = gl.canvas.clientWidth;
       nodes.height.nodeValue  = gl.canvas.clientHeight;
       nodes.aspect.nodeValue  = aspect.toFixed(3);
+      nodes.fovyFromFovx.nodeValue = rad2Deg(newFieldOfViewY).toFixed(2);
     }
     updateNodes();
 
