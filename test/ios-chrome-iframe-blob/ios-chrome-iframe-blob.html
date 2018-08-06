@@ -1,0 +1,105 @@
+<html>
+<body>
+<h1>Should be a spinning cube below</h1>
+<iframe>
+
+</iframe>
+</body>
+</body>
+<script>
+const html = `
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>test</title>
+    <style>
+    body {
+        margin: 0;
+    }
+    #c {
+        width: 100vw;
+        height: 100vh;
+        display: block;
+    }
+    </style>
+  </head>
+  <body>
+    <canvas id="c"></canvas>
+  </body>
+<gscript src="https://greggman.github.io/doodles/js/three.min.js"></gscript>
+<gscript>
+'use strict';
+
+function main() {
+  const canvas = document.querySelector('#c');
+  const renderer = new THREE.WebGLRenderer({canvas: canvas});
+
+  const fov = 75;
+  const aspect = 2;  // the canvas default
+  const zNear = 0.1;
+  const zFar = 5;
+  const camera = new THREE.PerspectiveCamera(fov, aspect, zNear, zFar);
+  camera.position.z = 2;
+
+  const scene = new THREE.Scene();
+
+  {
+    const color = 0xFFFFFF;
+    const intensity = 1;
+    const light = new THREE.DirectionalLight(color, intensity);
+    light.position.set(-1, 2, 4);
+    scene.add(light);
+  }
+
+  const boxWidth = 1;
+  const boxHeight = 1;
+  const boxDepth = 1;
+  const geometry = new THREE.BoxGeometry(boxWidth, boxHeight, boxDepth);
+  const material = new THREE.MeshPhongMaterial({color: 'hsl(40,50%,50%)'});
+  const cube = new THREE.Mesh(geometry, material);
+  scene.add(cube);
+
+  function resizeRendererToDisplaySize(renderer) {
+    const canvas = renderer.domElement;
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    const needResize = canvas.width !== width || canvas.height !== height;
+    if (needResize) {
+      renderer.setSize(width, height, false);
+    }
+    return needResize;
+  }
+
+  function render(time) {
+    time *= 0.001;
+
+    if (resizeRendererToDisplaySize(renderer)) {
+      const canvas = renderer.domElement;
+      camera.aspect = canvas.clientWidth / canvas.clientHeight;
+      camera.updateProjectionMatrix();
+    }
+
+    cube.rotation.x = time;
+    cube.rotation.y = time;
+
+    renderer.render(scene, camera);
+
+    requestAnimationFrame(render);
+  }
+
+  requestAnimationFrame(render);
+}
+
+main();
+</gscript>
+</html>
+`.replace(/gscript/g, 'script');
+
+const blob = new Blob([html], {type: 'text/html'});
+const url = URL.createObjectURL(blob);
+const iframe = document.querySelector('iframe');
+iframe.src = url;
+</script>
+</html>
