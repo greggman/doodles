@@ -1,0 +1,33 @@
+<style>
+#elem { background: red; padding: 1em; }
+</style>
+<div id="elem">click and drag outside window</div>
+<div id="info"></div>
+<script>
+const elem = document.querySelector('#elem');
+const info = document.querySelector('#info');
+
+elem.addEventListener('mousedown', handleMouseDown, true);
+
+function handleMouseDown(e) {
+  e.preventDefault();
+  e.stopPropagation();
+
+  document.addEventListener('mousemove', handleMouseMove, true);
+  document.addEventListener('mouseup', removeMouseListeners, true);
+
+  info.textContent = `listeners added`;
+}
+
+function handleMouseMove(e) {
+  e.preventDefault();
+  info.textContent = `${e.clientX},${e.clientY}`;
+}
+
+function removeMouseListeners(e) {
+  document.removeEventListener('mousemove', handleMouseMove, true);
+  document.removeEventListener('mouseup', removeMouseListeners, true);
+  info.textContent = 'listeners removed';
+}
+</script>
+
