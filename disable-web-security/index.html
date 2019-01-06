@@ -2,18 +2,18 @@
 pre { margin: 0; }
 </style>
 <body>
-<h1>One example of why <code>--disable-web-securty</code> is a bad idea</h1>
+<h1>One example of why <code>--disable-web-securty</code> and/or <code>--allow-file-access-from-files</code> is a bad idea</h1>
 <p>
 Imagine this is some webpage you want to reference offline.
 </p>
-<p>Right click and pick "Save As.." and save it locally. Now run chrome with <code>--disable-web-security</code> and
+<p>Right click and pick "Save As.." and save it locally. Now run chrome with <code>--disable-web-security</code> or <code>--allow-file-access-from-files</code> and
 then double click the file. You'll likely see it is able to read local files from your hard drive. It could just
 as easily transmit those files to a remote server.
 </p>
 <p>
 You may say you never save HTML files locally. That's not the point. The point is you disabled security. Here's one example
-to show there are issues. There are likely more issues. For example any 3rdparty library you download could be doing this.
-The point is not to enumerate every possible issue. The point is why take the risk? Instead of using <code>--disable-web-security</code>
+to show there are issues. There are likely more issues. For example any 3rdparty library you download could be doing this. You include the library in your project and it starts uploading your files to some remote server.
+The point is not to enumerate every possible issue. The point is why take the risk? Instead of using <code>--disable-web-security</code> or <code>--allow-file-access-from-files</code>
 <a href="https://stackoverflow.com/questions/12905426/what-is-a-faster-alternative-to-pythons-http-server-or-simplehttpserver">run a simple server for your dev</a>.
 </p>
 </body>
@@ -34,6 +34,8 @@ const files = [
   "../../../../../.ssh/id_rsa.pub",
   "../../../../../../.ssh/id_rsa.pub",
   "file:///C:/Windows/system32/drivers/etc/hosts",
+  "/etc/hosts",
+  "/etc/passwd",
 ];
 
 let numFound = 0;
