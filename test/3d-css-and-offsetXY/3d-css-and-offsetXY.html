@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>3D CSS and offsetX</title>
+
+<style>
+.scene {
+  width: 200px;
+  height: 200px;
+  perspective: 600px;
+}
+
+.cube {
+  width: 100%;
+  height: 100%;
+  position: relative;
+  transform-style: preserve-3d;
+  animation-duration: 16s;
+  animation-name: rotate;
+  animation-iteration-count: infinite;
+  animation-timing-function: linear;
+}
+
+@keyframes rotate {
+  from { transform: translateZ(-100px) rotateX(  0deg) rotateY(  0deg); }
+  to   { transform: translateZ(-100px) rotateX(360deg) rotateY(720deg); }
+}
+
+.cube__face {
+  position: absolute;
+  width: 200px;
+  height: 200px;
+  display: block;
+}
+
+.cube__face--front  { background: rgba(255, 0, 0, 0.2); transform: rotateY(  0deg) translateZ(100px); }
+.cube__face--right  { background: rgba(0, 255, 0, 0.2); transform: rotateY( 90deg) translateZ(100px); }
+.cube__face--back   { background: rgba(0, 0, 255, 0.2); transform: rotateY(180deg) translateZ(100px); }
+.cube__face--left   { background: rgba(255, 255, 0, 0.2); transform: rotateY(-90deg) translateZ(100px); }
+.cube__face--top    { background: rgba(0, 255, 255, 0.2); transform: rotateX( 90deg) translateZ(100px); }
+.cube__face--bottom { background: rgba(255, 0, 255, 0.2); transform: rotateX(-90deg) translateZ(100px); }
+</style>
+</head>
+<body>
+<div class="scene">
+  <div class="cube">
+    <canvas class="cube__face cube__face--front"></canvas>
+    <canvas class="cube__face cube__face--back"></canvas>
+    <canvas class="cube__face cube__face--right"></canvas>
+    <canvas class="cube__face cube__face--left"></canvas>
+    <canvas class="cube__face cube__face--top"></canvas>
+    <canvas class="cube__face cube__face--bottom"></canvas>
+  </div>
+</div>
+<pre id="debug"></pre>
+</body>
+</html>
+<script>
+[...document.querySelectorAll('canvas')].forEach((canvas) => {
+  const ctx = canvas.getContext('2d');
+  ctx.canvas.width  = ctx.canvas.clientWidth;
+  ctx.canvas.height = ctx.canvas.clientHeight;
+  let count = 0;
+
+  function draw(e, radius = 1) {
+    const pos = {
+      x: e.offsetX * ctx.canvas.width / ctx.canvas.clientWidth,
+      y: e.offsetY * ctx.canvas.height / ctx.canvas.clientHeight,
+    };
+    document.querySelector('#debug').textContent = count;
+    ctx.beginPath();
+    ctx.arc(pos.x, pos.y, radius, 0, Math.PI * 2);
+    ctx.fillStyle = hsl((count++ % 100) / 100, 1, 0.5);
+    ctx.fill();
+  }
+
+  function preventDefault(e) {
+    e.preventDefault();
+  }
+
+  if (window.PointerEvent) {
+    canvas.addEventListener('pointermove', (e) => {
+      draw(e, Math.max(Math.max(e.width, e.height) / 2, 1));
+    });
+    canvas.addEventListener('touchstart', preventDefault, {passive: false});
+    canvas.addEventListener('touchmove', preventDefault, {passive: false});
+  } else {
+    canvas.addEventListener('mousemove', draw);
+    canvas.addEventListener('mousedown', preventDefault);
+  }
+});
+
+function hsl(h, s, l) {
+  return `hsl(${h * 360 | 0},${s * 100 | 0}%,${l * 100 | 0}%)`;
+}
+</script>
