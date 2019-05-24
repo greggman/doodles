@@ -3,6 +3,8 @@
 
 <head>
     <title>X-ray</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
     <script src="js/three.min.js"></script>
     <script src="js/three/js/loaders/OBJLoader.js"></script>
     <script src="js/three/js/loaders/ColladaLoader.js"></script>
@@ -28,14 +30,14 @@
         }
     </script>
     <style>
-        html, body {
-            height: 100%;
+        body, html {
             margin: 0;
-            overflow: hidden;
+            height: 100%;
         }
         canvas {
             width: 100%;
             height: 100%;
+            display: block;
         }
     </style>
 </head>
@@ -119,6 +121,12 @@ window.addEventListener('load', function () {
     }
     requestAnimationFrame(render);
 
+    window.addEventListener('wheel', (e) => {
+      e.preventDefault();
+    }, {passive: false});
+    window.addEventListener('touchmove', (e) => {
+      e.preventDefault();
+    }, {passive: false});
 });
 </script>
 </body>
