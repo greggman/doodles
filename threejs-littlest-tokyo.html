@@ -59,7 +59,7 @@ function main() {
   controls.update();
 
   const scene = new THREE.Scene();
-  scene.background = new THREE.Color('black');
+  scene.background = new THREE.Color('lightblue');
 
   {
     const skyColor = 0xB1E1FF;  // light blue
@@ -71,7 +71,7 @@ function main() {
 
   {
     const color = 0xFFFFFF;
-    const intensity = 1;
+    const intensity = 1.5;
     const light = new THREE.DirectionalLight(color, intensity);
     light.position.set(5, 10, 2);
     scene.add(light);
@@ -79,7 +79,7 @@ function main() {
   }
 
   function frameArea(sizeToFitOnScreen, boxSize, boxCenter, camera) {
-    const halfSizeToFitOnScreen = sizeToFitOnScreen * 0.5;
+    const halfSizeToFitOnScreen = sizeToFitOnScreen * 1;
     const halfFovY = THREE.Math.degToRad(camera.fov * .5);
     const distance = halfSizeToFitOnScreen / Math.tan(halfFovY);
     // compute a unit vector that points in the direction the camera is now
@@ -104,6 +104,7 @@ function main() {
     camera.lookAt(boxCenter.x, boxCenter.y, boxCenter.z);
   }
 
+  const mixerInfos = [];
   {
     const gltfLoader = new THREE.GLTFLoader();
     gltfLoader.load('models/littlest_tokyo/scene.gltf', (gltf) => {
@@ -124,6 +125,32 @@ function main() {
       controls.maxDistance = boxSize * 10;
       controls.target.copy(boxCenter);
       controls.update();
+
+      const mixer = new THREE.AnimationMixer(root);
+      const actions = Object.values(gltf.animations).map((clip) => {
+        return mixer.clipAction(clip);
+      });
+      const mixerInfo = {
+        mixer,
+        actions,
+        actionNdx: -1,
+      };
+      mixerInfos.push(mixerInfo);
+      playNextAction(mixerInfo);
+
+    });
+  }
+
+  function playNextAction(mixerInfo) {
+    const {actions, actionNdx} = mixerInfo;
+    const nextActionNdx = (actionNdx + 1) % actions.length;
+    mixerInfo.actionNdx = nextActionNdx;
+    actions.forEach((action, ndx) => {
+      const enabled = ndx === nextActionNdx;
+      action.enabled = enabled;
+      if (enabled) {
+        action.play();
+      }
     });
   }
 
@@ -138,11 +165,20 @@ function main() {
     return needResize;
   }
 
-  function render() {
+  let then = 0;
+  function render(now) {
+    now *= 0.001;  // convert to sections
+    const deltaTime = now - then;
+    then = now;
+
     if (resizeRendererToDisplaySize(renderer)) {
       const canvas = renderer.domElement;
       camera.aspect = canvas.clientWidth / canvas.clientHeight;
       camera.updateProjectionMatrix();
+    }
+
+    for (const {mixer} of mixerInfos) {
+      mixer.update(deltaTime);
     }
 
     renderer.render(scene, camera);
