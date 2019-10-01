@@ -38,6 +38,8 @@ function $(id) {
   return document.getElementById(id);
 }
 
+// port of https://github.com/greggman/hft-syncThreeJS
+
 // You can set these from the URL with
 // http://path/syncThreeJS.html?x=500&shared.fieldOfView=60
 // etc...
