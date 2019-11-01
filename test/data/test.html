@@ -1,0 +1,18 @@
+<script>
+async function doTheThing() {
+  const res = await fetch('http://localhost:8080/test/data/films.json');
+  const json = await res.json();
+  const result = await Promise.all(json.results.map(async(item) => {
+       const res = await fetch(item.films[0]);
+       const film = await res.json();
+       return {
+         name: item.name,
+         heihgt: item.height,
+         title: film.title,
+       };
+    })
+  );
+  console.log(result);
+}
+doTheThing();
+</script>

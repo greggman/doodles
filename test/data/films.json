@@ -1,0 +1,18 @@
+{
+  "results": [
+    {
+      "name": "foo",
+      "height": 123,
+      "films": [
+        "http://localhost:8080/test/data/film1.json"
+      ]
+    },
+    {
+      "name": "bar",
+      "height": 456,
+      "films": [
+        "http://localhost:8080/test/data/film2.json"
+      ]
+    }
+  ]
+}
