@@ -4,14 +4,14 @@
       "name": "foo",
       "height": 123,
       "films": [
-        "http://https://greggman.github.io/doodles/test/data/film1.json"
+        "https://greggman.github.io/doodles/test/data/film1.json"
       ]
     },
     {
       "name": "bar",
       "height": 456,
       "films": [
-        "http://https://greggman.github.io/doodles/test/data/film2.json"
+        "https://greggman.github.io/doodles/test/data/film2.json"
       ]
     }
   ]
