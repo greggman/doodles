@@ -975,7 +975,7 @@ var JpegImage = (function jpegImage() {
 
   return constructor;
 })();
-module.exports = decode;
+//module.exports = decode;
 
 function decode(jpegData, opts) {
   var defaultOpts = {
