@@ -166,8 +166,8 @@ var main = function(
     }
   };
 
-  window.addEventListener('blur', stopRendering);
-  window.addEventListener('focus', startRendering);
+  //window.addEventListener('blur', stopRendering);
+  //window.addEventListener('focus', startRendering);
   startRendering();
 };
 
