@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1, user-scalable=no, minimal-ui">
+  <title>3D grid video</title>
+  <style>
+body {
+  margin: 0;
+  font-family: sans-serif;
+  font-weight: bold;
+  font-size: 36px;
+}
+#c {
+  width: 100vw;
+  height: 100vh;
+  display: block;
+}
+#start {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: white;
+  background: red;
+}
+video {
+  display: none;
+}
+  </style>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <video src="videos/jbns-boss-ld.mp4" loop></video>
+  <div id="start">
+    <div>click to play</div>
+  </div>
+</body>
+<script type="module">
+import * as THREE from './js/threejs/r108/build/three.module.js';
+
+const {url} = Object.fromEntries((new URLSearchParams(window.location.search)).entries());
+if (url) {
+  const video = document.querySelector('video');
+  video.src = url;
+  requestCORSIfNotSameOrigin(video, url);
+}
+
+function requestCORSIfNotSameOrigin(img, url) {
+  if ((new URL(url, window.location.href)).origin !== window.location.origin) {
+    img.crossOrigin = "anonymous";
+  }
+}
+
+function main() {
+  const canvas = document.querySelector('#c');
+  const renderer = new THREE.WebGLRenderer({canvas});
+
+  const fov = 75;
+  const aspect = 2;  // the canvas default
+  const near = 0.1;
+  const far = 5;
+  const camera = new THREE.PerspectiveCamera(fov, aspect, near, far);
+  camera.position.z = 2;
+
+  const scene = new THREE.Scene();
+
+  const geometry = new THREE.PlaneBufferGeometry(3, 2, 120, 80);
+  const cubes = [];  // just an array we can use to rotate the cubes
+
+  const video = document.querySelector('video');
+  video.play();
+  const texture = new THREE.VideoTexture(video);
+  texture.minFilter = THREE.LinearFilter;
+  texture.magFilter = THREE.LinearFilter;
+  texture.format = THREE.RGBFormat;
+
+  const fragmentShader = `
+  #include <common>
+
+  varying vec4 vvColor; 
+
+  void main() {
+    gl_FragColor = vvColor;
+  }
+  `;
+  const vertexShader = `
+    varying vec2 vUv;
+    varying vec4 vvColor; 
+    uniform sampler2D iChannel0;
+    void main() {
+      vec4 color = texture2D(iChannel0, uv);
+      float bright = max(max(color.x, color.y), color.z);
+      vUv = uv;
+      gl_Position = projectionMatrix * modelViewMatrix * vec4( position + vec3(0, 0, bright * 0.3), 1.0 );
+       vvColor = color;
+    }
+  `;
+  
+  const uniforms = {
+    iTime: { value: 0 },
+    iResolution:  { value: new THREE.Vector3(1, 1, 1) },
+    iChannel0: { value: texture },
+  };
+  const material = new THREE.ShaderMaterial({
+    vertexShader,
+    fragmentShader,
+    uniforms,
+    wireframe: true,
+  });  
+  
+  
+  const cube = new THREE.Mesh(geometry, material);
+  scene.add(cube);
+  cubes.push(cube);  // add to our list of cubes to rotate
+
+  function resizeRendererToDisplaySize(renderer) {
+    const canvas = renderer.domElement;
+    const width = canvas.clientWidth;
+    const height = canvas.clientHeight;
+    const needResize = canvas.width !== width || canvas.height !== height;
+    if (needResize) {
+      renderer.setSize(width, height, false);
+    }
+    return needResize;
+  }
+
+  function render(time) {
+    time *= 0.001;
+
+    if (resizeRendererToDisplaySize(renderer)) {
+      const canvas = renderer.domElement;
+      camera.aspect = canvas.clientWidth / canvas.clientHeight;
+      camera.updateProjectionMatrix();
+    }
+
+    cubes.forEach((cube, ndx) => {
+      cube.rotation.x = Math.sin(time) * 0.2;
+      cube.rotation.y = Math.cos(time) * 0.2;
+    });
+
+    renderer.render(scene, camera);
+
+    requestAnimationFrame(render);
+  }
+
+  requestAnimationFrame(render);
+}
+
+document.querySelector('#start').addEventListener('click', function(e) {
+  this.style.display = 'none';
+  main();
+});
+</script>
+</html>
