@@ -11,17 +11,9 @@ pre {
 
 </body>
 <script>
-if (window.location.search) {
-  var pairs = window.location.search.substring(1).split("&");
-  for (var p = 0; p < pairs.length; ++p) {
-    var pair = pairs[p];
-    var keyValue = pair.split("=");
-    log(p, ':', decodeURIComponent(keyValue[0]), '=', decodeURIComponent(keyValue[1]));
-  }
-  log("--end--");
-} else {
-  log("no query string")
-}
+const params = Object.fromEntries((new URLSearchParams(window.location.search)).entries());
+log('href:', window.location.href);
+log(JSON.stringify(params, null, 2));
 
 function log() {
   var elem = document.createElement("pre");
