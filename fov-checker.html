@@ -175,6 +175,26 @@ void main() {
       });
     }
 
+    function createFOVCircle(gl, radius, angle, segments) {
+      var positions = [];
+      var indices = [];
+      var r = Math.sin(angle);
+      for (let j = 0; j < segments; ++j) {
+        var a = j / segments * Math.PI * 2;
+        var u = Math.cos(a) * r;
+        var v = Math.sin(a) * r;
+        var ux = u;
+        var uy = v;
+        var uz = -Math.cos(angle);
+        positions.push(ux * radius, uy * radius, uz * radius);
+        indices.push(j, (j + 1) % segments);
+      }
+      return twgl.createBufferInfoFromArrays(gl, {
+        position: positions,
+        indices: indices,
+      });
+    }
+
     function deg2Rad(d) {
       return d * Math.PI / 180;
     }
@@ -195,6 +215,10 @@ void main() {
     var h3rdsSphere = createSphere(gl, radius, 36, 6, true, false);
     var vQuadSphere = createSphere(gl, radius, 4, 36, false, true);
     var hQuadSphere = createSphere(gl, radius, 36, 2, true, false);
+    var fovCircles = [];
+    for (let i = 10; i <= 90; i += 10) {
+      fovCircles.push(createFOVCircle(gl, radius, deg2Rad(i), 48));
+    }
 
     /**
      *   0---1
@@ -314,6 +338,18 @@ void main() {
           u_color: [1, 0, 0, 1],
         },
       },
+      ...fovCircles.map(bufferInfo => {
+        return {
+          programInfo,
+          bufferInfo,
+          type: gl.LINES,
+          uniforms: {
+            u_world: m4.identity(),
+            u_viewProjection: viewProjection,
+            u_color: [0.5, 0.5, 0, 1],
+          },
+        };
+      }),
     ];
 
     function addNumber(value, world) {
@@ -417,6 +453,11 @@ void main() {
       updateNodes();
       render();
     }
+
+    window.addEventListener('wheel', (e) => {
+      rangeElem.value = parseFloat(rangeElem.value) + e.deltaY / -20;
+      updateFOV();
+    });
 
     rangeElem.addEventListener('input', updateFOV, false);
     window.addEventListener('resize', updateFOV, false);
