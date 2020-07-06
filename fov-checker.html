@@ -104,8 +104,10 @@ void main() {
         startLatitudeInRadians,
         endLatitudeInRadians,
         startLongitudeInRadians,
-        endLongitudeInRadians) {
+        endLongitudeInRadians,
+        matrix) {
 
+      matrix = matrix || m4.identity();
       hConnect = hConnect === false ? false : true;
       vConnect = vConnect === false ? false : true;
 
@@ -158,21 +160,27 @@ void main() {
                 (y + 0) * numVertsAround + x + 1);
           }
 
+
           // Make vline of quad.
           if (vConnect) {
             indices.push(
                 (y + 1) * numVertsAround + x,
                 (y + 0) * numVertsAround + x);
           }
+
         }
       }
 
-      return twgl.createBufferInfoFromArrays(gl, {
-        position: positions,
-        normal: normals,
-        texcoord: texCoords,
-        indices: indices,
-      });
+      return twgl.createBufferInfoFromArrays(
+          gl,
+          twgl.primitives.reorientVertices(
+              {
+                position: positions,
+                normal: normals,
+                texcoord: texCoords,
+                indices: indices,
+              },
+              matrix));
     }
 
     function createFOVCircle(gl, radius, angle, segments) {
@@ -207,13 +215,18 @@ void main() {
     var a = Math.PI * 1.5;
     var b = Math.PI * 0.5;
     var c = 0.01;
+    var defaultRanges = [0, Math.PI, 0, Math.PI * 2];
+    var rot90 = m4.rotationZ(Math.PI / 2);
+    var rot90Ranges = [0, Math.PI, 0, Math.PI * 2, rot90];
     var vMarksSphere = createSphere(gl, radius, 2, 180, true, false, 0, Math.PI, a - c, a + c);
     var hMarksSphere = createSphere(gl, radius, 360, 2, false, true, b - c, b + c, 0, Math.PI * 2);
-    var highDetailSphere = createSphere(gl, radius, 36 * 2, 18 * 2);
-    var detailSphere = createSphere(gl, radius, 36, 18);
-    var v3rdsSphere = createSphere(gl, radius, 12, 36, false, true);
+    var highDetailSphereH = createSphere(gl, radius, 36 * 2, 18 * 2, true, false);
+    var highDetailSphereV = createSphere(gl, radius, 36 * 2, 18 * 2, true, false, ...rot90Ranges);
+    var detailSphereH = createSphere(gl, radius, 36, 18, true, false);
+    var detailSphereV = createSphere(gl, radius, 36, 18, true, false, ...rot90Ranges);
+    var v3rdsSphere = createSphere(gl, radius, 36, 12, true, false, ...rot90Ranges);
     var h3rdsSphere = createSphere(gl, radius, 36, 6, true, false);
-    var vQuadSphere = createSphere(gl, radius, 4, 36, false, true);
+    var vQuadSphere = createSphere(gl, radius, 36, 4, true, false, ...rot90Ranges);
     var hQuadSphere = createSphere(gl, radius, 36, 2, true, false);
     var fovCircles = [];
     for (let i = 10; i <= 90; i += 10) {
@@ -265,91 +278,31 @@ void main() {
     var fieldOfViewY = deg2Rad(30);
     var viewProjection = m4.identity();
 
+    function makeDrawObject(bufferInfo, color) {
+      return {
+        programInfo,
+        bufferInfo,
+        type: gl.LINES,
+        uniforms: {
+          u_world: m4.identity(),
+          u_viewProjection: viewProjection,
+          u_color: color,
+        },
+      };
+    }
+
     var drawObjects = [
-      { programInfo: programInfo,
-        bufferInfo: vMarksSphere,
-        type: gl.LINES,
-        uniforms: {
-          u_world: m4.identity(),
-          u_viewProjection: viewProjection,
-          u_color: [0.3, 0.3, 0.3, 1],
-        },
-      },
-      { programInfo: programInfo,
-        bufferInfo: hMarksSphere,
-        type: gl.LINES,
-        uniforms: {
-          u_world: m4.identity(),
-          u_viewProjection: viewProjection,
-          u_color: [0.3, 0.3, 0.3, 1],
-        },
-      },
-      { programInfo: programInfo,
-        bufferInfo: highDetailSphere,
-        type: gl.LINES,
-        uniforms: {
-          u_world: m4.identity(),
-          u_viewProjection: viewProjection,
-          u_color: [0.3, 0.3, 0.3, 1],
-        },
-      },
-      { programInfo: programInfo,
-        bufferInfo: detailSphere,
-        type: gl.LINES,
-        uniforms: {
-          u_world: m4.identity(),
-          u_viewProjection: viewProjection,
-          u_color: [0, 0, 1, 1],
-        },
-      },
-      { programInfo: programInfo,
-        bufferInfo: h3rdsSphere,
-        type: gl.LINES,
-        uniforms: {
-          u_world: m4.identity(),
-          u_viewProjection: viewProjection,
-          u_color: [0, 1, 0, 1],
-        },
-      },
-      { programInfo: programInfo,
-        bufferInfo: v3rdsSphere,
-        type: gl.LINES,
-        uniforms: {
-          u_world: m4.identity(),
-          u_viewProjection: viewProjection,
-          u_color: [0, 1, 0, 1],
-        },
-      },
-      { programInfo: programInfo,
-        bufferInfo: hQuadSphere,
-        type: gl.LINES,
-        uniforms: {
-          u_world: m4.identity(),
-          u_viewProjection: viewProjection,
-          u_color: [1, 0, 0, 1],
-        },
-      },
-      { programInfo: programInfo,
-        bufferInfo: vQuadSphere,
-        type: gl.LINES,
-        uniforms: {
-          u_world: m4.identity(),
-          u_viewProjection: viewProjection,
-          u_color: [1, 0, 0, 1],
-        },
-      },
-      ...fovCircles.map(bufferInfo => {
-        return {
-          programInfo,
-          bufferInfo,
-          type: gl.LINES,
-          uniforms: {
-            u_world: m4.identity(),
-            u_viewProjection: viewProjection,
-            u_color: [0.5, 0.5, 0, 1],
-          },
-        };
-      }),
+      makeDrawObject(vMarksSphere, [0.3, 0.3, 0.3, 1]),
+      makeDrawObject(hMarksSphere, [0.3, 0.3, 0.3, 1]),
+      makeDrawObject(highDetailSphereH, [0.3, 0.3, 0.3, 1]),
+      makeDrawObject(highDetailSphereV, [0.3, 0.3, 0.3, 1]),
+      makeDrawObject(detailSphereH, [0, 0, 1, 1]),
+      makeDrawObject(detailSphereV, [0, 0, 1, 1]),
+      makeDrawObject(h3rdsSphere, [0, 1, 0, 1]),
+      makeDrawObject(v3rdsSphere, [0, 1, 0, 1]),
+      makeDrawObject(hQuadSphere, [1, 0, 0, 1]),
+      makeDrawObject(vQuadSphere, [1, 0, 0, 1]),
+      ...fovCircles.map(bufferInfo => makeDrawObject(bufferInfo, [0.5, 0.5, 0, 1])),
     ];
 
     function addNumber(value, world) {
