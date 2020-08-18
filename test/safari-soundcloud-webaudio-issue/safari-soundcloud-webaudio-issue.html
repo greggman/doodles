@@ -9,12 +9,10 @@ canvas { border: 1px solid black; display: block; }
   <input id="soundcloud" checked type="checkbox">: Use SoundCloud
 </div>
 <canvas></canvas>
-<div id="log">
-  <pre>
-  </pre>
-</div>
+<div id="log"><pre></pre></div>
 <script>
 "use strict";
+
 const logElem = document.querySelector('#log>pre');
 const ctx = document.querySelector("canvas").getContext("2d");
 
@@ -30,14 +28,7 @@ const audio = new Audio();
 audio.loop = true;
 audio.autoplay = true;
 // have something ready to play when the user clicks to start
-audio.src = "data:audio/mp3;base64,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LpkVrc5yk0NnT5DN0r7ygGqp9SJxOeOSSTeJQgIRIKh6SBKLhsdFgnl4lic2AkshcfBYDR2PUjSDGiSttUZNSSMKkiMpyPz9XLaihbS6uJe0Qo39FI9RhJiijnMQAmqRJQnTnQQ9B6DATEFNRTMuOTkuNVW3U5Tx7Sg0GtNZay5wXQa29Bbl+W7LSqP/EUHXUMbiZZqWyph7iXH/eWVVovK8YFykUhfWpzKggb6B/o1f2ki9UxI8hDlinajtn1JsJGxmb0bOkuali0UaruYXWWcevHypyrfULvoUbdYW1ydMBPE6OqOplGZJbTRCQtDcrmVtVrK9TrpTM7lZijZ1rPtbwvvWbf69tPpZMVhe9GHEVuZt4rBdK5yT0a/ezMy4QrD60qtiTyZVsdUwnKE+b1TCOZnVrDRQnUywLHUnUVDV0sWVEFchCWZkNLiolpOD+bYTKfy5fmMlVyxZXCFrKmSTa5pRXM7w/+NoZPQfVjcEAGDPdiUsbg2ACN9MfSvcUWpFbTdensr6+XlZL8y/Po5TLn5WbBy75F8nmbTfY0s28yyHVD+sf9k12LpWSz6W5s3///z/+5XKktIqQbR9KBeCeS3IOBW1H8SjNCYt51CfMa4bXF+imtxZoDCxQn7gnVUpGN8+V2FLZxhxU7IrtJ0/pEusMbyRmzFckojzujKFkMshh9zKVEIefKGKtkQ47UVATb1NpRvVTEFNRTMuOTkuNVVVVVK4p5fWFEpWRCj+V5wkqN8pRbjZPAuJhHGS03lpEl5C+EiHGOknSnVMiqP1jOldLSGti0rTFErRp4SImoJTlbLYceic8+m2fv//q0Tj0SRezFPLbNGmJEStzv/5bZb/7LbLZTy2vlHFmJhICAxgUUkblWicXs5T5Wy+blS2y8tst/L/0WgkRAoSnKdtySvWwRrYL/MzNt5cdNuLmYmru702hWFoSR6KiC7/PHLEdTIeTAfhBKgfAiJ5ofbXWCcAkHREFxJcMjsfQmMAqHksE7TlQDYFhDCEGwVLOk1L5rDv50mqzbu1Jtsoa7Q7tlOaw7+d/+NoZPIbBjbsADzMbi1cbdSgGZ+gJsoa655Q1pH/DUGjUm1n5rDWEGdWNSaHeGqMxrDWGv/3ampNShrVh0mNasNZT5OU6J1zhpSwCYOBUAopIjCTonXvetz9xZoNJreumJdo0gxhIWZJ/O0NYEcfrmaKcMonqGGUfqwhq8tIavObpmTqJUiXMk/l2yO4uXrcznST43yaiTG4MYbp+IJWzK5rhxLvVMrzhL8izyJSbhelTEFNRTMuOTkuNVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV";
-
-function objectToSearchString(obj) {
-  const parts = Object.entries(obj).filter(v => v[1] !== undefined).map((keyValue) => {
-    return keyValue.map(encodeURIComponent).join('=');
-  });
-  return `?${parts.join('&')}`;
-}
+audio.src = getSilentMP3DataURL();
 
 // we need to ask soundcloud for a URL for each track as they are temporary
 // and encoded by client id
@@ -53,6 +44,8 @@ class SoundCloudAPI {
       '_status_code_map[302]': 200,
     });
 
+//I have the same issue with streaming in an HTML AudioContext from SoundCloud on Safari. The problem seems to be the redirecting from the SoundCloud API to actual audio file. The following workaround works for me:
+
     let status;
     let location = "https://api.soundcloud.com" + url + objectToSearchString(options);
     let result;
@@ -66,7 +59,11 @@ class SoundCloudAPI {
       status = result.status;
       done = !(status && status.substr(0, 3) === "302" && location)
     }
-    return result.stream_url + objectToSearchString({client_id: this.clientId});
+    const tempUrl = result.stream_url + objectToSearchString({client_id: this.clientId});
+    const res = await fetch(tempUrl, {
+       method: 'HEAD'
+    });
+    return res.url;
   }
 }
 
@@ -86,7 +83,7 @@ function waitSeconds(secs) {
   });
 }
 
-function start() {
+async function start() {
   ctx.canvas.removeEventListener('click', start);
   ctx.canvas.addEventListener('click', pause);
 
@@ -137,25 +134,24 @@ function start() {
 
   audio.play();
 
-  scAPI.getMediaURLForTrack('/resolve', {url: 'https://soundcloud.com/chibi-tech/lolitazia-season'})
-    .then((url) => {
-      // this line is only needed if the music you are trying to play is on a
-      // different server than the page trying to play it.
-      // It asks the server for permission to use the music. If the server says "no"
-      // then you will not be able to play the music
-      // Note if you are using music from the same domain
-      // **YOU MUST REMOVE THIS LINE** or your server must give permission.
-      log('set audio.src:', url);
-      audio.crossOrigin = "anonymous";
-      audio.src = url;
-      audio.load();
-    })
-    .catch((error) => {
-      console.error(error);
-      if (error.stack) {
-        console.error(error.stack);
-      }
-    });
+  try {
+    const url = await scAPI.getMediaURLForTrack('/resolve', {url: 'https://soundcloud.com/chibi-tech/lolitazia-season'})
+    // this line is only needed if the music you are trying to play is on a
+    // different server than the page trying to play it.
+    // It asks the server for permission to use the music. If the server says "no"
+    // then you will not be able to play the music
+    // Note if you are using music from the same domain
+    // **YOU MUST REMOVE THIS LINE** or your server must give permission.
+    log('set audio.src:', url);
+    audio.crossOrigin = "anonymous";
+    audio.src = url;
+    audio.load();
+  } catch (error) {
+    log('error:', error);
+    if (error.stack) {
+      log(error.stack);
+    }
+  }
 
   // call `handleCanplay` when it music can be played
   audio.addEventListener('canplay', handleCanplay);
@@ -179,5 +175,69 @@ function start() {
     }
   }
 }
-</script>
 
+function objectToSearchString(obj) {
+  const parts = Object.entries(obj).filter(v => v[1] !== undefined).map((keyValue) => {
+    return keyValue.map(encodeURIComponent).join('=');
+  });
+  return `?${parts.join('&')}`;
+}
+
+// formatted for S.O. horrible snippet editor
+function getSilentMP3DataURL() {
+return [
+'data:audio/mp3;base64,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',
+'0Mdim0bgQAEx+k/umvQjrMyLYsgVjMzEDztAUGBMcSHCshBnIWzA0hzP0ZpUXZiFXovdPz+/819qme',
+'zeOkLpkVrc5yk0NnT5DN0r7ygGqp9SJxOeOSSTeJQgIRIKh6SBKLhsdFgnl4lic2AkshcfBYDR2PUj',
+'SDGiSttUZNSSMKkiMpyPz9XLaihbS6uJe0Qo39FI9RhJiijnMQAmqRJQnTnQQ9B6DATEFNRTMuOTku',
+'NVW3U5Tx7Sg0GtNZay5wXQa29Bbl+W7LSqP/EUHXUMbiZZqWyph7iXH/eWVVovK8YFykUhfWpzKggb',
+'6B/o1f2ki9UxI8hDlinajtn1JsJGxmb0bOkuali0UaruYXWWcevHypyrfULvoUbdYW1ydMBPE6OqOp',
+'lGZJbTRCQtDcrmVtVrK9TrpTM7lZijZ1rPtbwvvWbf69tPpZMVhe9GHEVuZt4rBdK5yT0a/ezMy4Qr',
+'D60qtiTyZVsdUwnKE+b1TCOZnVrDRQnUywLHUnUVDV0sWVEFchCWZkNLiolpOD+bYTKfy5fmMlVyxZ',
+'XCFrKmSTa5pRXM7w/+NoZPQfVjcEAGDPdiUsbg2ACN9MfSvcUWpFbTdensr6+XlZL8y/Po5TLn5WbB',
+'y75F8nmbTfY0s28yyHVD+sf9k12LpWSz6W5s3///z/+5XKktIqQbR9KBeCeS3IOBW1H8SjNCYt51Cf',
+'Ma4bXF+imtxZoDCxQn7gnVUpGN8+V2FLZxhxU7IrtJ0/pEusMbyRmzFckojzujKFkMshh9zKVEIefK',
+'GKtkQ47UVATb1NpRvVTEFNRTMuOTkuNVVVVVK4p5fWFEpWRCj+V5wkqN8pRbjZPAuJhHGS03lpEl5C',
+'+EiHGOknSnVMiqP1jOldLSGti0rTFErRp4SImoJTlbLYceic8+m2fv//q0Tj0SRezFPLbNGmJEStzv',
+'/5bZb/7LbLZTy2vlHFmJhICAxgUUkblWicXs5T5Wy+blS2y8tst/L/0WgkRAoSnKdtySvWwRrYL/Mz',
+'Nt5cdNuLmYmru702hWFoSR6KiC7/PHLEdTIeTAfhBKgfAiJ5ofbXWCcAkHREFxJcMjsfQmMAqHksE7',
+'TlQDYFhDCEGwVLOk1L5rDv50mqzbu1Jtsoa7Q7tlOaw7+d/+NoZPIbBjbsADzMbi1cbdSgGZ+gJsoa',
+'655Q1pH/DUGjUm1n5rDWEGdWNSaHeGqMxrDWGv/3ampNShrVh0mNasNZT5OU6J1zhpSwCYOBUAopIj',
+'CTonXvetz9xZoNJreumJdo0gxhIWZJ/O0NYEcfrmaKcMonqGGUfqwhq8tIavObpmTqJUiXMk/l2yO4',
+'uXrcznST43yaiTG4MYbp+IJWzK5rhxLvVMrzhL8izyJSbhelTEFNRTMuOTkuNVVVVVVVVVVVVVVVVV',
+'VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV',
+'VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV',
+'VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV',
+'VVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVVV',
+].join('');
+};
+</script>
