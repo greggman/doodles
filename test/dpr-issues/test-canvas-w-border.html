@@ -1,0 +1,217 @@
+<style>
+html {
+  box-sizing: border-box;
+}
+*, *::before, *::after {
+  box-sizing: inherit;
+}
+html, body {
+  margin: 0;
+  height: 100%;
+}
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border: 1em solid yellow;
+  background: orange;
+  padding: 1em;
+}
+#info-area {
+  position: absolute;
+  left: 1em;
+  top: 1em;
+  padding: 1em;
+  background: rgba(0,0,0,0.8);
+  color: white;
+  padding: 1em;
+}
+</style>
+<body>
+<canvas></canvas>
+<div id="info-area">
+  <div><input type="radio" id="round" name="method" checked><label for="round">round(elem.gbcr().width * dpr)</label></div>
+  <div><input type="radio" id="observer" name="method"><label for="observer">devicePixelContentBox</label></div>
+  <pre id="info"></pre>
+</div>
+</body>
+<script id="vs" type="foo">
+attribute vec2 a_position;
+
+void main() {
+  // Multiply the position by the matrix.
+  gl_Position = vec4(a_position.xy, 0, 1);
+}
+</script>
+<script id="fs" type="foo">
+precision highp float;
+uniform vec2 canvasSize;
+uniform vec4 borderColor;
+
+void main() {
+  float c = mod(floor(gl_FragCoord.x) + floor(gl_FragCoord.y), 2.0);
+  float p = 
+      step(gl_FragCoord.x, 1.0) + 
+      step(gl_FragCoord.y, 1.0) + 
+      step(canvasSize.x - 1.0, gl_FragCoord.x) +
+      step(canvasSize.y - 1.0, gl_FragCoord.y);
+  gl_FragColor = mix(
+    vec4(c, c, c, 1),
+    vec4(borderColor), 
+    step(0.5, p));
+}
+</script>
+<script>
+"use strict";
+
+function main() {
+  var method = "round";
+  document.querySelectorAll('input[type=radio]').forEach(function(elem) {
+    elem.addEventListener('change', function(e) {
+      method = this.id;
+      console.log(method);
+    });
+  });
+
+  /** @type {HTMLCanvasElement} */
+  var canvas = document.querySelector("canvas");
+  var gl = canvas.getContext("webgl");
+  if (!gl) {
+    return;
+  }
+
+  var program = createProgram(gl, ["vs", "fs"]);
+  var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
+  var positionBuffer = gl.createBuffer();
+  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+  var positions = [
+    -1, -1,
+     1, -1,
+    -1,  1,
+    -1,  1,
+     1, -1,
+     1,  1,
+  ];
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+  gl.enableVertexAttribArray(positionAttributeLocation);
+  gl.vertexAttribPointer(
+      positionAttributeLocation, 2, gl.FLOAT, false, 0, 0);
+
+  var canvasSizeLoc = gl.getUniformLocation(program, 'canvasSize');
+  var borderColorLoc = gl.getUniformLocation(program, 'borderColor');
+
+  function drawScene() {
+    resize(gl.canvas);
+
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+    gl.useProgram(program);
+    gl.uniform2f(canvasSizeLoc, gl.canvas.width, gl.canvas.height);
+    gl.uniform4f(borderColorLoc,
+        Date.now() % 2,
+        Date.now() / 4 % 2,
+        Date.now() / 8 % 2,
+        1);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+
+    /*
+    gl.enable(gl.SCISSOR_TEST);
+    gl.scissor(gl.canvas.width - 1, 0, 1, gl.canvas.height);
+    gl.clearColor(0, 1, 0, 1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    gl.disable(gl.SCISSOR_TEST);
+    */
+    requestAnimationFrame(drawScene);
+  }
+  window.addEventListener('resize', updateInfo);
+
+  let actualWidth = 'N/A';
+  let actualHeight = 'N/A';
+  if (typeof ResizeObserver !== 'undefined') {
+    var observer = new ResizeObserver(function(entries) {
+      var entry = entries[0];
+      if (entry.devicePixelContentBoxSize) {
+        actualWidth = entry.devicePixelContentBoxSize[0].inlineSize;
+        actualHeight = entry.devicePixelContentBoxSize[0].blockSize;
+        updateInfo();
+      }
+    });
+    observer.observe(gl.canvas, {box: ['device-pixel-content-box']});
+  }
+
+  function updateInfo() {
+    var cssToRealPixels = window.devicePixelRatio || 1;
+
+    var rect = canvas.getBoundingClientRect();
+    var displayWidth  = Math.round(rect.width  * cssToRealPixels);
+    var displayHeight = Math.round(rect.height * cssToRealPixels);
+
+    var infoElem = document.querySelector('#info');
+    infoElem.textContent = "" +
+        "\ndpr: " + window.devicePixelRatio +
+        "\nwindow.innerWidth : " + window.innerWidth +
+        "\nbody.gbcr().width : " + document.body.getBoundingClientRect().width +
+        "\ncanvas.gbcr().width : " + rect.width +
+        "\nround(canvas.gbcr().width * dpr) : " + displayWidth +
+        "\ndevicePixelContentBoxSize width  : " + actualWidth +
+        "";
+  }
+
+  var prevWidth;
+  var prevHeight;
+  function resize(canvas) {
+    var cssToRealPixels = window.devicePixelRatio || 1;
+
+    var rect = canvas.getBoundingClientRect();
+    var displayWidth  = Math.round(rect.width  * cssToRealPixels);
+    var displayHeight = Math.round(rect.height * cssToRealPixels);
+
+    if (typeof actualWidth === 'number' && method === "observer") {
+      displayWidth = actualWidth;
+      displayHeight = actualHeight;
+    }
+
+    // Check if the canvas is not the same size.
+    if (prevWidth  !== displayWidth ||
+        prevHeight !== displayHeight) {
+      prevWidth = displayWidth;
+      prevHeight = displayHeight;
+
+      // Make the canvas the same size
+      canvas.width  = displayWidth;
+      canvas.height = displayHeight;
+    }
+
+    updateInfo();
+  }
+
+  drawScene();
+}
+
+function createShader(gl, type, src) {
+  const sh = gl.createShader(type);
+  const elem = document.getElementById(src);
+  if (elem) {
+    src = elem.text || elem.textContent;
+  }
+  gl.shaderSource(sh, src);
+  gl.compileShader(sh);
+  if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+    throw new Error(gl.getShaderInfoLog(sh));
+  }
+  return sh;
+}
+
+function createProgram(gl, shaders) {
+  const prg = gl.createProgram();
+  for (var i = 0; i < shaders.length; ++i) {
+    gl.attachShader(prg, createShader(gl, i ? gl.FRAGMENT_SHADER : gl.VERTEX_SHADER, shaders[i]));
+  }
+  gl.linkProgram(prg);
+  if (!gl.getProgramParameter(prg, gl.LINK_STATUS)) {
+    throw new Error(gl.getProgramInfoLog(prg));
+  }
+  return prg;
+}
+
+main();
+</script>

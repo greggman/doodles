@@ -1,0 +1,97 @@
+<style>
+html {
+  box-sizing: border-box;
+}
+*, *::before, *::after {
+  box-sizing: inherit;
+}
+html, body {
+  margin: 0;
+  height: 100%;
+}
+#border {
+  width: 100%;
+  height: 100%;
+}
+#info-area {
+  position: absolute;
+  left: 1em;
+  top: 1em;
+  padding: 1em;
+  background: rgba(0,0,0,0.8);
+  color: white;
+  padding: 1em;
+}
+</style>
+<body>
+<div id="border"></div>
+<div id="info-area">
+  <div><input type="radio" id="round" name="method" checked><label for="round">round(elem.gbcr().width * dpr)</label></div>
+  <div><input type="radio" id="observer" name="method"><label for="observer">devicePixelContentBox</label></div>
+  <pre id="info"></pre>
+</div>
+</body>
+<script>
+"use strict";
+
+var method = "round";
+document.querySelectorAll('input[type=radio]').forEach(function(elem) {
+  elem.addEventListener('change', function(e) {
+    method = this.id;
+    console.log(method);
+  });
+});
+
+var elem = document.querySelector("#border");
+window.addEventListener('resize', updateInfo);
+
+let actualWidth = 'N/A';
+let actualHeight = 'N/A';
+if (typeof ResizeObserver !== 'undefined') {
+  var observer = new ResizeObserver(function(entries) {
+    var entry = entries[0];
+    if (entry.devicePixelContentBoxSize) {
+      actualWidth = entry.devicePixelContentBoxSize[0].inlineSize;
+      actualHeight = entry.devicePixelContentBoxSize[0].blockSize;
+      updateInfo();
+    }
+  });
+  observer.observe(elem, {box: ['device-pixel-content-box']});
+}
+
+let width;
+let height;
+
+function update() {
+  var cssToRealPixels = window.devicePixelRatio || 1;
+  var rect = elem.getBoundingClientRect();
+  var displayWidth  = Math.round(rect.width  * cssToRealPixels);
+  var displayHeight = Math.round(rect.height * cssToRealPixels);
+  if (typeof actualWidth === 'number' && method === "observer") {
+    displayWidth = actualWidth;
+    displayHeight = actualHeight;
+  }
+  elem.style.border = (1 / cssToRealPixels) + "px solid hsl(" + (Date.now() % 360) + ",100%,50%)";
+  // elem.style.border = "1px solid red";
+  requestAnimationFrame(update);
+}
+update();
+
+function updateInfo() {
+  var cssToRealPixels = window.devicePixelRatio || 1;
+
+  var rect = elem.getBoundingClientRect();
+  var displayWidth  = Math.round(rect.width  * cssToRealPixels);
+  var displayHeight = Math.round(rect.height * cssToRealPixels);
+
+  var infoElem = document.querySelector('#info');
+  infoElem.textContent = "" +
+      "\dpr: " + window.devicePixelRatio +
+      "\nwindow.innerWidth : " + window.innerWidth +
+      "\nbody.gbcr().width : " + document.body.getBoundingClientRect().width +
+      "\ncanvas.gbcr().width : " + rect.width +
+      "\nround(canvas.gbcr().width * dpr) : " + displayWidth +
+      "\ndevicePixelContentBoxSize width  : " + actualWidth +
+      "";
+}
+</script>

@@ -1,0 +1,208 @@
+<style>
+body {
+  margin: 0;
+  background-color: white;
+}
+canvas {
+  display: block;  /* prevents scrollbar */
+  width: 100vw;
+  height: 100vh;
+}
+#info {
+  position: absolute;
+  left: 0;
+  top: 0;
+  background: rgba(0,0,0,0.8);
+  color: white;
+}
+</style>
+<canvas id="canvas"></canvas>
+<pre id="info"></pre>
+<script id="vs" type="foo">
+attribute vec2 a_position;
+
+void main() {
+  // Multiply the position by the matrix.
+  gl_Position = vec4(a_position.xy, 0, 1);
+}
+</script>
+<script id="fs" type="foo">
+precision highp float;
+uniform float canvasWidth;
+
+void main() {
+  float c = mod(floor(gl_FragCoord.x) + floor(gl_FragCoord.y), 2.0);
+  float p = step(gl_FragCoord.x, 1.0) + step(canvasWidth - 1.0, gl_FragCoord.x);
+  gl_FragColor = mix(
+    vec4(c, c, c, 1),
+    vec4(1, 0, 0, 1), 
+    step(1.0, p));
+}
+</script>
+<script>
+
+"use strict";
+
+function createShader(gl, type, src) {
+  const sh = gl.createShader(type);
+  const elem = document.getElementById(src);
+  if (elem) {
+    src = elem.text || elem.textContent;
+  }
+  gl.shaderSource(sh, src);
+  gl.compileShader(sh);
+  if (!gl.getShaderParameter(sh, gl.COMPILE_STATUS)) {
+    throw new Error(gl.getShaderInfoLog(sh));
+  }
+  return sh;
+}
+
+function createProgram(gl, shaders) {
+  const prg = gl.createProgram();
+  for (var i = 0; i < shaders.length; ++i) {
+    gl.attachShader(prg, createShader(gl, i ? gl.FRAGMENT_SHADER : gl.VERTEX_SHADER, shaders[i]));
+  }
+  gl.linkProgram(prg);
+  if (!gl.getProgramParameter(prg, gl.LINK_STATUS)) {
+    throw new Error(gl.getProgramInfoLog(prg));
+  }
+  return prg;
+}
+
+function main() {
+  // Get A WebGL context
+  /** @type {HTMLCanvasElement} */
+  var canvas = document.querySelector("#canvas");
+  var gl = canvas.getContext("webgl");
+  if (!gl) {
+    return;
+  }
+
+  // setup GLSL program
+  var program = createProgram(gl, ["vs", "fs"]);
+
+  // look up where the vertex data needs to go.
+  var positionAttributeLocation = gl.getAttribLocation(program, "a_position");
+
+  // lookup uniforms
+  var colorLocation = gl.getUniformLocation(program, "u_color");
+  var matrixLocation = gl.getUniformLocation(program, "u_matrix");
+
+  // Create a buffer and put a 2 points in it for 1 line
+  var positionBuffer = gl.createBuffer();
+
+  // Bind it to ARRAY_BUFFER (think of it as ARRAY_BUFFER = positionBuffer)
+  gl.bindBuffer(gl.ARRAY_BUFFER, positionBuffer);
+  var positions = [
+    -1, -1,
+     1, -1,
+    -1,  1,
+    -1,  1,
+     1, -1,
+     1,  1,
+  ];
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(positions), gl.STATIC_DRAW);
+
+  // Turn on the attribute
+  gl.enableVertexAttribArray(positionAttributeLocation);
+  // Tell the attribute how to get data out of positionBuffer (ARRAY_BUFFER)
+  var size = 2;          // 2 components per iteration
+  var type = gl.FLOAT;   // the data is 32bit floats
+  var normalize = false; // don't normalize the data
+  var stride = 0;        // 0 = move forward size * sizeof(type) each iteration to get the next position
+  var offset = 0;        // start at the beginning of the buffer
+  gl.vertexAttribPointer(
+      positionAttributeLocation, size, type, normalize, stride, offset);
+
+  var canvasWidthLoc = gl.getUniformLocation(program, 'canvasWidth');
+
+  // Draw the scene.
+  function drawScene(now) {
+    resize(gl.canvas);
+
+    now *= 0.001;  // convert to seconds
+
+    gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+
+    // Tell it to use our program (pair of shaders)
+    gl.useProgram(program);
+
+    gl.uniform1f(canvasWidthLoc, gl.canvas.width);
+
+    // Draw the line
+    var primitiveType = gl.TRIANGLES;
+    var offset = 0;
+    var count = 6;
+    gl.drawArrays(primitiveType, offset, count);
+  }
+  window.addEventListener('resize', drawScene);
+
+  let actualWidth = 'N/A';
+  let actualHeight = 'N/A';
+  if (typeof ResizeObserver !== 'undefined') {
+    var observer = new ResizeObserver(function(entries) {
+      var entry = entries[0];
+      if (entry.devicePixelContentBoxSize) {
+        actualWidth = entry.devicePixelContentBoxSize[0].inlineSize;
+        actualHeight = entry.devicePixelContentBoxSize[0].blockSize;
+        updateInfo();
+      }
+    });
+    observer.observe(gl.canvas);
+  }
+
+  function updateInfo() {
+    var cssToRealPixels = window.devicePixelRatio || 1;
+
+    // Lookup the size the browser is displaying the canvas in CSS pixels
+    // and compute a size needed to make our drawingbuffer match it in
+    // device pixels.
+    var rect = canvas.getBoundingClientRect();
+    var displayWidth  = Math.round(rect.width  * cssToRealPixels);
+    var displayHeight = Math.round(rect.height * cssToRealPixels);
+
+    var infoElem = document.querySelector('#info');
+    infoElem.textContent = "" +
+        "\nwindow.innerWidth : " + window.innerWidth +
+        "\nwindow.innerHeight: " + window.innerHeight +
+        "\ncanvas.gbcr().width : " + rect.width +
+        "\ncanvas gbcr().height: " + rect.height +
+        "\nround(canvas.gbcr().width * dpr) : " + displayWidth +
+        "\nround(canvas.gbcr().height * dpr): " + displayHeight +
+        "\ndevicePixelContentBoxSize width :" + actualWidth +
+        "\ndevicePixelContentBoxSize height:" + actualHeight +
+        "";
+  }
+
+  var prevWidth;
+  var prevHeight;
+  function resize(canvas) {
+    var cssToRealPixels = window.devicePixelRatio || 1;
+
+    // Lookup the size the browser is displaying the canvas in CSS pixels
+    // and compute a size needed to make our drawingbuffer match it in
+    // device pixels.
+    var rect = canvas.getBoundingClientRect();
+    var displayWidth  = Math.round(rect.width  * cssToRealPixels);
+    var displayHeight = Math.round(rect.height * cssToRealPixels);
+
+    // Check if the canvas is not the same size.
+    if (prevWidth  !== displayWidth ||
+        prevHeight !== displayHeight) {
+      prevWidth = displayWidth;
+      prevHeight = displayHeight;
+
+      // Make the canvas the same size
+      canvas.width  = displayWidth;
+      canvas.height = displayHeight;
+    }
+
+    updateInfo();
+  }
+
+  drawScene();
+}
+
+main();
+
+</script>

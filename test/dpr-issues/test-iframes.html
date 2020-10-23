@@ -1,0 +1,10 @@
+<button type="button" id="b0">open test 900px window</button>
+<button type="button" id="b1">open test 901px window</button>
+<script>
+document.querySelector('#b0').addEventListener('click', function() {
+  window.open('parent.html', '_blank', "width=900,height=600");
+});
+document.querySelector('#b1').addEventListener('click', function() {
+  window.open('parent.html', '_blank', "width=901,height=600");
+});
+</script>

@@ -1,0 +1,52 @@
+<style>
+html, body { margin: 0; width: 100%; height: 100%; }
+.sep {
+  width: 1px;
+  background: black;
+}
+.frame {
+  display: flex;
+  height: 100%;
+  justify-content: center;
+  align-items: center;
+}
+iframe {
+  flex: 1 1 auto;
+  border: 0;
+  display: block;
+  height: 250px;
+}
+#info {
+  position: absolute;
+  left: 1em;
+  top: 1em;
+  padding: 1em;
+  background: rgba(0,0,0,0.8);
+  color: white;
+}
+</style>
+<div class="frame">
+  <iframe id="i0" src="test-canvas.html"></iframe>
+  <div class="sep"></div>
+  <iframe id="i1" src="test-canvas.html"></iframe>
+</div>  
+<pre id="info"></pre>
+<script>
+function update() {
+  const i0 = document.querySelector('#i0');
+  const i1 = document.querySelector('#i1');
+  const sep = document.querySelector('.sep');
+  const elem = document.querySelector('#info');
+  elem.textContent = "" +
+      "\mwindow.innerWidth : " + window.innerWidth +
+      "\nwindow.innerHeight: " + window.innerHeight +
+      "\nbody.gbcr().width: "  + document.body.getBoundingClientRect().width +
+      "\ndevicePixelRatio: " + window.devicePixelRatio +
+      "\niframe1.gbcr().width: " + i0.getBoundingClientRect().width +
+      "\niframe2.gbcr().width: " + i1.getBoundingClientRect().width +
+      "\nsep.gbcr().width: " + sep.getBoundingClientRect().width +
+      "";
+}
+window.addEventListener('resize', update);
+update();
+</script>
