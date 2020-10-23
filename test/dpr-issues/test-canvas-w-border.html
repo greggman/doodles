@@ -31,7 +31,8 @@ canvas {
 <canvas></canvas>
 <div id="info-area">
   <div><input type="radio" id="round" name="method" checked><label for="round">round(elem.gbcr().width * dpr)</label></div>
-  <div><input type="radio" id="observer" name="method"><label for="observer">devicePixelContentBox</label></div>
+  <div><input type="radio" id="content-rect" name="method"><label for="content-rect">contentRect</label></div>
+  <div><input type="radio" id="device-content-box" name="method"><label for="observer">devicePixelContentBox</label></div>
   <pre id="info"></pre>
 </div>
 </body>
@@ -69,13 +70,12 @@ function main() {
   document.querySelectorAll('input[type=radio]').forEach(function(elem) {
     elem.addEventListener('change', function(e) {
       method = this.id;
-      console.log(method);
     });
   });
 
   /** @type {HTMLCanvasElement} */
-  var canvas = document.querySelector("canvas");
-  var gl = canvas.getContext("webgl");
+  var elem = document.querySelector("canvas");
+  var gl = elem.getContext("webgl");
   if (!gl) {
     return;
   }
@@ -124,26 +124,37 @@ function main() {
   }
   window.addEventListener('resize', updateInfo);
 
-  let actualWidth = 'N/A';
-  let actualHeight = 'N/A';
+  const devicePixelContentBoxSize = {width: 'N/A', height: 'N/A' };
+  const contentRect = {width: 'N/A', height: 'N/A'};
+  let canUseDevicePixelContentBoxSize = false;
   if (typeof ResizeObserver !== 'undefined') {
     var observer = new ResizeObserver(function(entries) {
       var entry = entries[0];
       if (entry.devicePixelContentBoxSize) {
-        actualWidth = entry.devicePixelContentBoxSize[0].inlineSize;
-        actualHeight = entry.devicePixelContentBoxSize[0].blockSize;
-        updateInfo();
+        devicePixelContentBoxSize.width = entry.devicePixelContentBoxSize[0].inlineSize;
+        devicePixelContentBoxSize.height = entry.devicePixelContentBoxSize[0].blockSize;
       }
+      contentRect.width = entry.contentRect.width;
+      contentRect.height = entry.contentRect.height;
+      updateInfo();
     });
-    observer.observe(gl.canvas, {box: ['device-pixel-content-box']});
+    try {
+      observer.observe(elem, {box: ['device-pixel-content-box']});
+      canUseDevicePixelContentBoxSize = true;
+    } catch (e) {
+      document.querySelector('#device-content-box').nextSibling.remove();
+      document.querySelector('#device-content-box').remove();
+      observer.observe(elem);
+      updateInfo();
+    }
   }
 
   function updateInfo() {
-    var cssToRealPixels = window.devicePixelRatio || 1;
+    var dpr = window.devicePixelRatio || 1;
 
-    var rect = canvas.getBoundingClientRect();
-    var displayWidth  = Math.round(rect.width  * cssToRealPixels);
-    var displayHeight = Math.round(rect.height * cssToRealPixels);
+    var rect = elem.getBoundingClientRect();
+    var displayWidth  = Math.round(rect.width  * dpr);
+    var displayHeight = Math.round(rect.height * dpr);
 
     var infoElem = document.querySelector('#info');
     infoElem.textContent = "" +
@@ -152,22 +163,27 @@ function main() {
         "\nbody.gbcr().width : " + document.body.getBoundingClientRect().width +
         "\ncanvas.gbcr().width : " + rect.width +
         "\nround(canvas.gbcr().width * dpr) : " + displayWidth +
-        "\ndevicePixelContentBoxSize width  : " + actualWidth +
+        "\ndevicePixelContentBoxSize width  : " + devicePixelContentBoxSize.width +
+        "\ncontextRect.width  : " + contentRect.width +
         "";
   }
 
   var prevWidth;
   var prevHeight;
   function resize(canvas) {
-    var cssToRealPixels = window.devicePixelRatio || 1;
+    var dpr = window.devicePixelRatio || 1;
 
     var rect = canvas.getBoundingClientRect();
-    var displayWidth  = Math.round(rect.width  * cssToRealPixels);
-    var displayHeight = Math.round(rect.height * cssToRealPixels);
+    var displayWidth  = Math.round(rect.width  * dpr);
+    var displayHeight = Math.round(rect.height * dpr);
 
-    if (typeof actualWidth === 'number' && method === "observer") {
-      displayWidth = actualWidth;
-      displayHeight = actualHeight;
+    if (method === 'content-rect') {
+      displayWidth = Math.round(contentRect.width * dpr);
+      displayHeight = Math.round(contentRect.height * dpr);
+    }
+    else if (method === 'device-content-box') {
+      displayWidth = devicePixelContentBoxSize.width;
+      displayHeight = devicePixelContentBoxSize.height;
     }
 
     // Check if the canvas is not the same size.

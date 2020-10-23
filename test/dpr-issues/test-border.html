@@ -56,7 +56,13 @@ if (typeof ResizeObserver !== 'undefined') {
       updateInfo();
     }
   });
-  observer.observe(elem, {box: ['device-pixel-content-box']});
+  try {
+    observer.observe(elem, {box: ['device-pixel-content-box']});
+  } catch (e) {
+    document.querySelector('#observer').nextSibling.remove();
+    document.querySelector('#observer').remove();
+    updateInfo();
+  }
 }
 
 let width;
