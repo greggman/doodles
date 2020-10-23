@@ -14,7 +14,7 @@ iframe {
   flex: 1 1 auto;
   border: 0;
   display: block;
-  height: 250px;
+  height: 280px;
 }
 #info {
   position: absolute;
@@ -38,7 +38,7 @@ function update() {
   const sep = document.querySelector('.sep');
   const elem = document.querySelector('#info');
   elem.textContent = "" +
-      "\mwindow.innerWidth : " + window.innerWidth +
+      "\nwindow.innerWidth : " + window.innerWidth +
       "\nwindow.innerHeight: " + window.innerHeight +
       "\nbody.gbcr().width: "  + document.body.getBoundingClientRect().width +
       "\ndevicePixelRatio: " + window.devicePixelRatio +
