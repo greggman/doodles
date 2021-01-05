@@ -1,0 +1,41 @@
+<style>
+html, body, #c {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+#info {
+  position: absolute;
+  left: 0;
+  top: 0;
+  background: black;
+  color: white;
+  font-size: 2vw;
+  padding: 0.2em;
+}
+#arrow {
+  position: absolute;
+  bottom: 0;
+  text-align: center;
+  width: 100%;
+}
+</style>
+<body>
+  <canvas id="c"></canvas>
+  <div id="info"></div>
+  <div id="arrow">drag this ⬇ slider up/down</div>
+</body>
+<script>
+const canvas = document.querySelector('#c');
+
+function onResize(entries) {}
+
+const resizeObserver = new ResizeObserver( onResize );
+resizeObserver.observe( canvas, { box: "content-box" } );
+
+/* if you don't check for the error non get report!?!? */
+window.addEventListener('error', function(e) {
+  console.error(e.error || e);
+});
+</script>
