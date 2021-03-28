@@ -71,6 +71,30 @@ a:focus {
 <body>
 <h1>Various Random Doodles by <a href="http://games.greggman.com">Greggman</a></h1>
 
+<div class="doodle">
+<h2>Slime Simulation</h2>
+<p>Inspired by <a href="https://www.youtube.com/watch?v=X-iSQQgOd1A">this amazing videoM</a> by <a href="https://www.youtube.com/channel/UCmtyQOKKmrMVaKuRXz02jbQ">Sebastian Lague</a>
+I thought I'd see if I could reproduce his results in WebGL2. In his example he uses compute shaders but WebGL2 doesn't have compute shaders so I used the techniques mentioned
+<a href="https://webgl2fundamentals.org/webgl/lessons/webgl-gpgpu.html">here</a>.
+</p>
+<p>
+The simple explanation is there are N particles, each with a position and direction. They move every frame each drawing a single pixel, so they effectively leave trails
+in the image. The image has a post processing affect to spread the trails out (blur) and fade them out to black over time. Added to that, each particle looks forward, left,
+and right a few pixels ahead of its direction and turns a random amount toward which ever of those 3 directions is brightest. That's it.
+</p>
+<p>One big optimization is instead of <code>sensorSize</code> being used to decide how large an area of pixels when sensing (that's extremely slow), instead I generate a mipmap
+and <code>sensorSize</code> is just a bias for which level of mips to use. It's not exactly the same but at a glance I mostly did't notice a difference and it's significantly faster.
+You can try a version that scans <a href="https://jsgist.org/?src=a18a1dc959a83b04c44d09cb59670f04">here</a>. On my 2014 MBP it runs too slow (10/15fps)
+</p>
+<p>Another optimization is the option to use 8bit textures. That is also significantly faster. For most examples I don't notice much of a difference in results. 
+One obvious place would be if you set <code>trailWeight</code> above 60</p>
+<p>This brings up one major difference which is my coloring is not nearly as pretty as Sebastian's. Would love to know what I'm doing wrong. The output of the simulation
+  is just a grayscale texture. I applying <a href="https://www.google.com/search?q=photoshop+gradient+map">a gradient map</a> which basically maps each of the gray values
+  to some color gradient. Maybe I just need to experiment with more/better gradients.
+</p>
+<div class="link"><a href="slime/slime.html">slime simulation</a></div>
+</div>
+
 
 <div class="doodle">
 <h2>3d-grid-video</h2>

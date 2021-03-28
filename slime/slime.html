@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!--
+      Inspired by https://www.youtube.com/watch?v=X-iSQQgOd1A
+    -->
+    <title>slime simulation</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+html, body {
+  width: 100%;
+  height: 100%;
+}
+body {
+  margin: 0;
+  font-family: monospace;
+  background: #444;
+  color: white;
+}
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.dg {
+  opacity: 0.8;
+}
+#link,
+#nowebgl {
+  font-family: sans-serif;
+  font-weight: bold;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+#link>div {
+  background: rgba(0, 0, 0, 0.8);
+  padding: 0.5em;
+  user-select: all;
+  max-width: 90%;
+}
+#link>div>div {
+  margin-top: 1em;
+  font-size: x-small;
+}
+a {
+  color: white;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  display: block;
+}
+#nowebgl {
+  font-size: 36pt;
+  background: red;
+}
+    </style>
+  </head>
+
+  <body>
+    <canvas></canvas>
+    <div id="nowebgl" style="display: none;">
+      <div>need WebGL2</div>
+    </div>
+    <div id="link" style="display: none;">
+      <div>
+        <a></a>
+        <div>bookmark or copy the link above</div>
+      </div>
+    </div>
+  </body>
+<script type="module">
+import {GUI} from '../js/dat.gui.module.js';
+import * as twgl from '../js/twgl-full.module.js';
+
+function main() {
+  const m4 = twgl.m4;
+  const v3 = twgl.v3;
+  const gl = document.querySelector("canvas").getContext("webgl2");
+  if (!gl) {
+    document.querySelector("canvas").style.display = "none";
+    document.querySelector("#nowebgl").style.display = "";
+  }
+  const ext = gl.getExtension('EXT_color_buffer_float');
+  const ext2 = gl.getExtension('OES_texture_float_linear');
+
+  console.log((ext && ext2) ? 'using floating point textures' : 'using 8bit textures');
+
+  const processVS = `#version 300 es
+  in vec2 position;
+  in float angle;
+
+  out vec2 v_position;
+  out float v_angle;
+  out vec4 v_color;
+
+  uniform vec2 resolution;
+  uniform float moveSpeed;
+  uniform float turnSpeed;
+  uniform float trailWeight;
+  uniform float sensorOffsetDist;
+  uniform float sensorAngleSpacing;
+  uniform float sensorSize;
+  uniform float deltaTime;
+  uniform sampler2D tex;
+
+  #define PI radians(180.0)
+
+  uint hash(uint s) {
+    s ^= 2747636419u;
+    s *= 2654435769u;
+    s ^= s >> 16;
+    s *= 2654435769u;
+    s ^= s >> 16;
+    s *= 2654435769u;
+    return s;
+  }
+
+  float scaleToRange01(uint v) {
+   return float(v) / 4294967295.0;
+  }
+
+  float sense(vec2 position, float sensorAngle) {
+    vec2 sensorDir = vec2(cos(sensorAngle), sin(sensorAngle));
+    vec2 sensorCenter = position + sensorDir * sensorOffsetDist;
+    vec2 size = vec2(textureSize(tex, 0));
+    vec2 sensorUV = sensorCenter / size;
+    vec4 s = textureLod(tex, sensorUV, sensorSize);
+    return s.r;
+  }
+
+  void main() {
+    uint width = uint(resolution.x);
+    uint height = uint(resolution.y);
+    uint random = hash(uint(position.y) * width + uint(position.x) + uint(gl_VertexID));
+
+    v_angle = angle;
+
+    float weightForward = sense(position, angle);
+    float weightLeft = sense(position, angle + sensorAngleSpacing);
+    float weightRight = sense(position, angle - sensorAngleSpacing);
+
+    float randomSteerStrength = scaleToRange01(random);
+
+    // continue in same direction
+    if (weightForward > weightLeft && weightForward > weightRight) {
+      v_angle += 0.0;  // ?
+    } else if (weightForward < weightLeft && weightForward < weightRight) {
+      v_angle += (randomSteerStrength - 0.5) * 2.0 * turnSpeed * deltaTime;
+    } else if (weightRight > weightLeft) {
+      v_angle -= randomSteerStrength * turnSpeed * deltaTime;
+    } else if (weightLeft > weightRight) {
+      v_angle += randomSteerStrength * turnSpeed * deltaTime;
+    }
+
+    // move agent
+    vec2 direction = vec2(cos(v_angle), sin(v_angle));
+    vec2 newPos = position + direction * moveSpeed * deltaTime;
+
+    // clamp to boundries and pick new angle if hit boundries
+    if (newPos.x < 0.0 || newPos.x >= resolution.x || 
+        newPos.y < 0.0 || newPos.y >= resolution.y) {
+      newPos.x = min(resolution.x - 0.01, max(0.0, newPos.x));
+      newPos.y = min(resolution.y - 0.01, max(0.0, newPos.y));
+      v_angle = scaleToRange01(random) * 2.0 * PI;
+    }
+
+    v_position = newPos;
+
+    // convert to clipspace
+    gl_Position = vec4(newPos / resolution * 2.0 - 1.0, 0, 1);
+    gl_PointSize = 1.0;
+    v_color = vec4(vec3(trailWeight * deltaTime), 1);
+  }
+  `;
+
+  const processFS = `#version 300 es
+  precision highp float;
+
+  in vec4 v_color;
+  out vec4 outColor;
+
+  void main() {
+    outColor = v_color;
+  }
+  `;
+
+  const quadVS = `#version 300 es
+  layout(location = 0) in vec4 position;
+  out vec2 v_texcoord;
+  void main() {
+    gl_Position = position;
+    v_texcoord = position.xy * 0.5 + 0.5;
+  }
+  `;
+
+  const rampFS = `#version 300 es
+  precision highp float;
+
+  uniform sampler2D tex;
+  uniform sampler2D ramp;
+  uniform float colorPower;
+  uniform float colorDivisor;
+
+  in vec2 v_texcoord;
+
+  out vec4 outputColor;
+
+  void main () {
+    vec4 inputColor = texture(tex, v_texcoord);
+    outputColor = texture(ramp, vec2(pow(inputColor.r, colorPower) / colorDivisor, 0));
+  }
+  `;
+
+  const fadeAndSpreadFS = `#version 300 es
+  precision highp float;
+  in vec2 v_texcoord;
+
+  uniform float evaporateSpeed;
+  uniform float diffuseSpeed;
+  uniform float deltaTime;
+  uniform sampler2D tex;
+
+  out vec4 outColor;
+
+  void main() {
+    vec4 originalValue = texture(tex, v_texcoord);
+
+    // Simulate diffuse with a simple 3x3 blur
+    vec4 sum;
+    ivec2 size = textureSize(tex, 0);
+    ivec2 samplePos = ivec2(v_texcoord * vec2(size));
+    for (int offsetY = -1; offsetY <= 1; ++offsetY) {
+      for (int offsetX = -1; offsetX <= 1; ++offsetX) {
+        ivec2 sampleOff = ivec2(offsetX, offsetY);
+        sum += texelFetch(tex, samplePos + sampleOff, 0);
+      }
+    }
+
+    vec4 blurResult = sum / 9.0;
+
+    vec4 diffusedValue = mix(originalValue, blurResult, diffuseSpeed * deltaTime);
+    vec4 diffusedAndEvaporatedValue = max(vec4(0), diffusedValue - evaporateSpeed * deltaTime);
+
+    outColor = vec4(diffusedAndEvaporatedValue.rgb, 1);
+  }
+  `;
+
+  const processProgramInfo = twgl.createProgramInfo(gl, [processVS, processFS], {
+    transformFeedbackVaryings: ['v_position', 'v_angle'],
+  });
+  const displayProgramInfo = twgl.createProgramInfo(gl, [quadVS, rampFS]);
+  const fadeAndSpreadProgramInfo = twgl.createProgramInfo(gl, [quadVS, fadeAndSpreadFS]);
+
+  const quadBufferInfo = twgl.primitives.createXYQuadBufferInfo(gl);
+  const quadVAI = twgl.createVertexArrayInfo(gl, displayProgramInfo, quadBufferInfo);
+
+  function createAgents(positions, angles) {
+    const bufferInfo = twgl.createBufferInfoFromArrays(gl, {
+      position: { data: positions, numComponents: 2, },
+      angle: { data: angles, numComponents: 1, },
+    });
+    const vertexArrayInfo = twgl.createVertexArrayInfo(gl, processProgramInfo, bufferInfo);
+    const transformFeedback = twgl.createTransformFeedback(gl, processProgramInfo, {
+      v_position: bufferInfo.attribs.position,
+      v_angle: bufferInfo.attribs.angle,
+    });
+    return {
+      bufferInfo,
+      transformFeedback,
+      vertexArrayInfo,
+    };
+  }
+
+  function rand(min, max) {
+    if (max === undefined) {
+      max = min;
+      min = 0;
+    }
+    return Math.random() * (max - min) + min;
+  }
+
+  // resize once before initialization
+  twgl.resizeCanvasToDisplaySize(gl.canvas);
+  const maxAgents = 1000000;
+
+  function createCircleInAgents(maxAgents) {
+    const positions = [];
+    const angles = [];
+    const radius = Math.min(gl.canvas.width, gl.canvas.height) / 2;
+    for (let i = 0; i < maxAgents; ++i) {
+      const angle = rand(0, Math.PI * 2);
+      const r = Math.sqrt(rand(1)) * radius; //Math.sqrt(rand(1)) ∗ radius;
+
+      positions.push(
+        gl.canvas.width / 2 + Math.cos(angle) * r,
+        gl.canvas.height / 2 + Math.sin(angle) * r,
+      );
+      angles.push(angle + Math.PI);
+    }
+    return {
+      positions,
+      angles,
+    }
+  };
+
+  function createCircleOutAgents(maxAgents) {
+    const positions = [];
+    const angles = [];
+    for (let i = 0; i < maxAgents; ++i) {
+      positions.push(
+        gl.canvas.width / 2 + rand(-10, 10),
+        gl.canvas.height / 2 + rand(-10, 10),
+      );
+      angles.push(rand(0, Math.PI * 2));
+    }
+    return {
+      positions,
+      angles,
+    }
+  };
+
+  function createRandomAgents(maxAgents) {
+    const positions = [];
+    const angles = [];
+    for (let i = 0; i < maxAgents; ++i) {
+      positions.push(
+        rand(0, gl.canvas.width),
+        rand(0, gl.canvas.height),
+      );
+      angles.push(rand(0, Math.PI * 2));
+    }
+    return {
+      positions,
+      angles,
+    }
+  };
+
+  const {positions, angles} = createCircleInAgents(maxAgents);
+  const agents1 = createAgents(positions, angles);
+  const agents2 = createAgents(positions, angles);
+
+  function restart({positions, angles}) {
+    twgl.setAttribInfoBufferFromArray(gl, agents1.bufferInfo.attribs.position, positions);
+    twgl.setAttribInfoBufferFromArray(gl, agents2.bufferInfo.attribs.position, positions);
+    twgl.setAttribInfoBufferFromArray(gl, agents1.bufferInfo.attribs.angle, angles);
+    twgl.setAttribInfoBufferFromArray(gl, agents2.bufferInfo.attribs.angle, angles);
+    twgl.bindFramebufferInfo(gl, fbi1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    twgl.bindFramebufferInfo(gl, fbi2);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+  }
+
+  function restartCircleIn() {
+    restart(createCircleInAgents(maxAgents));
+  }
+
+  function restartCircleOut() {
+    restart(createCircleOutAgents(maxAgents));
+  }
+
+  function restartRandom() {
+    restart(createRandomAgents(maxAgents));
+  }
+
+  const attachments = [
+    { internalFormat: (ext && ext2) ? gl.RGBA32F : gl.RGBA8, min: gl.LINEAR_MIPMAP_LINEAR },
+  ];
+  
+  const fbi1 = twgl.createFramebufferInfo(gl, attachments);
+  gl.generateMipmap(gl.TEXTURE_2D);
+  gl.clearColor(0, 0, 0, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  const fbi2 = twgl.createFramebufferInfo(gl, attachments);
+  gl.generateMipmap(gl.TEXTURE_2D);
+  gl.clearColor(0, 0, 0, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+
+
+  function createRampColors(numColors, _stops) {
+    // we could assume they are sorted but let's sort
+    const stops = _stops.slice().sort((a, b) => Math.sign(a[0] - b[0]));
+    const ramp = [];
+    fillRampRange([0, stops[0][1]], stops[0], numColors, ramp);
+    for (let i = 0; i < stops.length - 1; ++i) {
+      fillRampRange(stops[i], stops[i + 1], numColors, ramp);
+    }    
+    fillRampRange(stops[stops.length - 1], [1, stops[stops.length - 1][1]], numColors, ramp);
+    return ramp;
+  }
+
+  const lerpColor = (a, b, t) => a.map((s, i) => lerp(s, b[i], t));
+  const lerp = (a, b, t) => a + (b - a) * t;
+
+  function fillRampRange(start, end, numColors, ramp) {
+    const startPos = Math.round(start[0] * numColors);
+    const startColor = start[1];
+    const endPos = Math.round(end[0] * numColors);
+    const endColor = end[1];
+    const range = endPos - startPos - 1;
+    for (let pos = startPos; pos < endPos; ++pos) {
+      if (pos < 0 || pos >= numColors) {
+        continue;
+      }
+      const t = range ? (pos - startPos) / range : 0;
+      const color = lerpColor(startColor, endColor, t);
+      const off = pos * 4;
+      ramp[off    ] = color[0];
+      ramp[off + 1] = color[1];
+      ramp[off + 2] = color[2];
+      ramp[off + 3] = color[3];
+    }
+  }
+
+  function createRampTexture(rampSize, ramp) {
+    const rampColors = createRampColors(rampSize, ramp).map(a => a * 255);
+    return twgl.createTexture(gl, {
+      src: rampColors,
+      width: rampSize,
+      minMag: gl.LINEAR,
+      wrap: gl.CLAMP_TO_EDGE,
+    });
+  }
+
+  const rampSize = 1000;
+  const red     = [1, 0, 0, 1];
+  const green   = [0, 1, 0, 1];
+  const blue    = [0, 0, 1, 1];
+  const yellow  = [1, 1, 0, 1];
+  const cyan    = [0, 1, 1, 1];
+  const magenta = [1, 0, 1, 1];
+  const white   = [1, 1, 1, 1];
+  const black   = [0, 0, 0, 1];
+  const purple  = [0.5, 0, 1, 1];
+  const band = (stop, range, edgeColor, centerColor) => [
+    [stop - range, edgeColor  ],
+    [stop        , centerColor],
+    [stop + range, edgeColor  ],
+  ];
+  const rampTextures = {
+    'bpw': [
+      [0.0, black],
+      [0.9, purple],
+      [1.0, white],
+    ],
+    'ycmy': [
+      [0.0,  yellow],
+      [0.2,  cyan],
+      [0.4,  magenta],
+      [1,    yellow],
+    ],
+    'bycmy': [
+      [0.0,  black],
+      [0.1,  yellow],
+      [0.2,  cyan],
+      [0.4,  magenta],
+      [1,    yellow],
+    ],
+    'band': [
+  //    [0.045, blue],
+  //    [0.050, white],
+  //    [0.055, blue],    
+      ...band(0.1, 0.01, blue, white),
+  //    [0.1,   blue],
+  //    [0.12,  yellow],
+  //    [0.14,  blue],
+      ...band(0.24, 0.04, blue, yellow),
+  //    [0.155, blue],
+  //    [0.16,  [1, 0.5, 1, 1]],
+  //    [0.165, blue],
+      ...band(0.32, 0.01, blue, [1, 0.5, 1, 1]),
+  //    [0.2,   blue],
+  //    [0.22,  green],
+  //    [0.24,  blue],
+      ...band(0.44, 0.04, blue, green, blue),
+    ],
+    red: [
+      [0.0, black],
+      [0.5, red],
+      [1.0, white],
+    ],
+    bcr: [
+      [0.0, black],
+      [0.5, cyan],
+      [1.0, red], 
+    ],
+    gcm: [
+      [0.0, green],
+      [0.5, cyan],
+      [1.0, magenta], 
+    ],
+    fire: [
+      [0.0, black],
+      [0.25, red],
+      [1.0, yellow],
+    ],
+  };
+  Object.values(rampTextures).forEach(ramp => ramp.texture = createRampTexture(rampSize, ramp));
+
+  let currentFBI = fbi1;
+  let current = agents1;
+  let then = 0;
+
+  const settings = {
+    moveSpeed: 42.0,
+    turnSpeed: 12,
+    trailWeight: 60,
+    sensorOffsetDist: 11,
+    sensorAngleSpacing: 35 * Math.PI / 180,
+    sensorSize: 2,
+    evaporateSpeed: 2.9,
+    diffuseSpeed: 44,
+    colorPower: 1,
+    colorDivisor: 1,
+    colorScheme: 'ycmy',
+    numAgents: 1000000,
+    startShape: 'circleIn',
+  };
+
+  const q = Object.fromEntries(new URLSearchParams(window.location.search).entries());
+  for (const [key, value] of Object.entries(q)) {
+    if (settings[key] !== 'undefined') {
+      if (typeof settings[key] === 'number') {
+        settings[key] = parseFloat(value);
+      } else {
+        settings[key] = value;
+      }
+    }
+  }
+
+  const presets = {
+    blob: {
+      "moveSpeed": 65.22568599220493,
+      "turnSpeed": 50.72481828583753,
+      "trailWeight": 60,
+      "sensorOffsetDist": 11,
+      "sensorAngleSpacing": 0.6108652381980153,
+      "sensorSize": 2,
+      "evaporateSpeed": 2.9,
+      "diffuseSpeed": 44,
+      "colorPower": 1,
+      "colorDivisor": 1,
+      "colorScheme": "ycmy",
+      "numAgents": 1000000,
+      "startShape": "circleIn",
+    },
+    splat: {
+      "moveSpeed": 119.82207943566836,
+      "turnSpeed": 76.73755239691357,
+      "trailWeight": 60,
+      "sensorOffsetDist": 11,
+      "sensorAngleSpacing": 0.6108652381980153,
+      "sensorSize": 2,
+      "evaporateSpeed": 0.40102932011007003,
+      "diffuseSpeed": 13.873444961813131,
+      "colorPower": 1,
+      "colorDivisor": 1,
+      "colorScheme": "bcr",
+      "numAgents": 1000000,
+      "startShape": "circleOut",
+    },
+    wik: {
+      "moveSpeed": 119.82207943566836,
+      "turnSpeed": 24.712084174761483,
+      "trailWeight": 64.41252941466865,
+      "sensorOffsetDist": 11,
+      "sensorAngleSpacing": 0.6108652381980153,
+      "sensorSize": 2.8288838422724623,
+      "evaporateSpeed": 1.5932796335343884,
+      "diffuseSpeed": 37.7184512302995,
+      "colorPower": 1,
+      "colorDivisor": 1,
+      "colorScheme": "bpw",
+      "numAgents": 1000000,
+      "startShape": "random",
+    },
+    shockwave: {
+      "moveSpeed": 42,
+      "turnSpeed": 3.03480574886478,
+      "trailWeight": 21.274745347134232,
+      "sensorOffsetDist": 7.261884964985205,
+      "sensorAngleSpacing": 2.367158407185097,
+      "sensorSize": 2,
+      "evaporateSpeed": 3.923587064318284,
+      "diffuseSpeed": 63.73118534137554,
+      "colorPower": 1,
+      "colorDivisor": 1,
+      "colorScheme": "ycmy",
+      "numAgents": 1000000,
+      "startShape": "circleIn",
+    },
+    mute: {
+      "moveSpeed": 173.26707874682472,
+      "turnSpeed": 77.62912785774768,
+      "trailWeight": 91.18187976291279,
+      "sensorOffsetDist": 13.44623200677392,
+      "sensorAngleSpacing": 1.2233700254022015,
+      "sensorSize": 1.9204064352243861,
+      "evaporateSpeed": 10.194750211685012,
+      "diffuseSpeed": 47.28196443691787,
+      "colorPower": 1,
+      "colorDivisor": 1,
+      "colorScheme": "bcr",
+      "numAgents": 1000000,
+      "startShape": "circleOut",
+    },
+    whisps: {
+      "moveSpeed": 180,
+      "turnSpeed": 18,
+      "trailWeight": 69,
+      "sensorOffsetDist": 11,
+      "sensorAngleSpacing": 0.61,
+      "sensorSize": 2,
+      "evaporateSpeed": 16.6,
+      "diffuseSpeed": 45,
+      "colorPower": 1,
+      "colorDivisor": 1,
+      "colorScheme": "fire",
+      "numAgents": 1000000,
+      "startShape": "circleOut",
+    },
+  };
+
+  const link = document.querySelector("#link");
+  function save() {
+    const params = new URLSearchParams();
+    for (const [key, value] of Object.entries(settings)) {
+      params.set(key, value);
+    }
+    const url = new URL(window.location.href);
+    url.search = params.toString();
+
+    link.style.display = "";
+    const a = document.querySelector('#link a');
+    a.href = url.toString();
+    a.textContent = url.toString();
+  }
+  function hideLink() {
+    link.style.display = 'none';
+  }
+  document.querySelector("#link>div").addEventListener('mousedown', e => e.stopPropagation());
+  document.querySelector("#link>div").addEventListener('touchdown', e => e.stopPropagation());
+  link.addEventListener('mousedown', hideLink);
+  link.addEventListener('touchdown', hideLink);
+
+
+  const buttons = {
+    preset: Object.keys(presets)[0],
+    restart: _ => startShapes[settings.startShape](),
+    save,
+    '8bit': false,
+  };
+
+  const startShapes = {
+    circleIn: restartCircleIn,
+    circleOut: restartCircleOut,
+    random: restartRandom,
+  };
+
+  const gui = new GUI();
+  gui.add(settings, 'moveSpeed', 0.1, 180).listen();
+  gui.add(settings, 'turnSpeed', 0.0, 200).listen();
+  gui.add(settings, 'trailWeight', 1, 200).listen();
+  gui.add(settings, 'sensorOffsetDist', 0, 50).listen();
+  gui.add(settings, 'sensorAngleSpacing', 0, 6).listen();
+  gui.add(settings, 'sensorSize', 0, 15).listen();
+  gui.add(settings, 'evaporateSpeed', 0, 50).listen();
+  gui.add(settings, 'diffuseSpeed', 0, 200).listen();
+  gui.add(settings, 'numAgents', 1, 1000000).listen();
+  gui.add(settings, 'colorScheme', Object.keys(rampTextures)).listen();
+  //gui.add(settings, 'colorPower', 0.001, 10).listen();
+  //gui.add(settings, 'colorDivisor', 0.001, 5).listen();
+  gui.add(settings, 'startShape', Object.keys(startShapes)).listen(); 
+  gui.add(buttons, 'restart');
+  gui.add(buttons, 'preset', Object.keys(presets)).onChange(restartPreset);
+  if (ext && ext2) {
+    gui.add(buttons, '8bit').name('8bit (faster)');
+  }
+  gui.add(buttons, 'save');
+
+  window.addEventListener('keydown', e => {
+    if (e.key === 's' && e.ctrlKey) {
+      e.preventDefault();
+      console.log(JSON.stringify(settings, null, 2));
+    }
+  });
+
+  function restartPreset() {
+    const preset = presets[buttons.preset];
+    Object.assign(settings, preset);
+    startShapes[settings.startShape]();
+  }
+
+
+  function render(time) {
+    time *= 0.001;
+    const deltaTime = 1 / 60;  // note: we don't really want this to be framerate independent.
+
+	const format = buttons['8bit'] ? gl.RGBA8 : gl.RGBA32F;
+    const newFormat = attachments[0].internalFormat !== format;
+    if (newFormat || twgl.resizeCanvasToDisplaySize(gl.canvas)) {
+      attachments[0].internalFormat = format;
+      twgl.resizeFramebufferInfo(gl, fbi1, attachments);
+      gl.generateMipmap(gl.TEXTURE_2D);
+      twgl.resizeFramebufferInfo(gl, fbi2, attachments);
+      gl.generateMipmap(gl.TEXTURE_2D);
+    }
+
+    const dest = current === agents1 ? agents2 : agents1;
+    const destFBI = currentFBI === fbi1 ? fbi2 : fbi1;
+
+    gl.bindBuffer(gl.ARRAY_BUFFER, null);
+    twgl.bindFramebufferInfo(gl, destFBI);
+
+    gl.useProgram(processProgramInfo.program);
+    gl.bindVertexArray(current.vertexArrayInfo.vertexArrayObject);
+    gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, dest.transformFeedback);
+    gl.beginTransformFeedback(gl.POINTS);
+
+    twgl.setUniforms(processProgramInfo, {
+      resolution: [gl.canvas.width, gl.canvas.height],
+      deltaTime,
+      tex: currentFBI.attachments[0],
+    }, settings);
+    twgl.drawBufferInfo(gl, current.vertexArrayInfo, gl.POINTS, settings.numAgents);
+
+    current = dest;
+
+    gl.endTransformFeedback();
+    gl.bindTransformFeedback(gl.TRANSFORM_FEEDBACK, null);
+
+    twgl.bindFramebufferInfo(gl, currentFBI);
+    gl.useProgram(fadeAndSpreadProgramInfo.program);
+    gl.bindVertexArray(quadVAI.vertexArrayObject);
+    twgl.setUniforms(fadeAndSpreadProgramInfo, {
+      deltaTime,
+      tex: destFBI.attachments[0],
+    }, settings);
+    twgl.drawBufferInfo(gl, quadVAI);
+
+    twgl.bindFramebufferInfo(gl, null);
+    gl.bindTexture(gl.TEXTURE_2D, currentFBI.attachments[0]);
+    gl.generateMipmap(gl.TEXTURE_2D);
+
+    gl.useProgram(displayProgramInfo.program);
+    gl.bindVertexArray(quadVAI.vertexArrayObject);
+    twgl.setUniforms(displayProgramInfo, settings, {
+      tex: currentFBI.attachments[0],
+      ramp: rampTextures[settings.colorScheme],
+      colorDivisor: buttons['8bit'] ? 1 : settings.trailWeight * deltaTime,
+    });
+    twgl.drawBufferInfo(gl, quadVAI);
+
+    currentFBI = destFBI;
+
+    requestAnimationFrame(render);
+  }
+  requestAnimationFrame(render);
+}
+
+main();
+</script>
+</html>
