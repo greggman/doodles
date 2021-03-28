@@ -88,8 +88,8 @@ function main() {
     document.querySelector("canvas").style.display = "none";
     document.querySelector("#nowebgl").style.display = "";
   }
-  const ext = gl.getExtension('EXT_color_buffer_float');
-  const ext2 = gl.getExtension('OES_texture_float_linear');
+  const ext = null;// gl.getExtension('EXT_color_buffer_float');
+  const ext2 = null;//gl.getExtension('OES_texture_float_linear');
 
   console.log((ext && ext2) ? 'using floating point textures' : 'using 8bit textures');
 
@@ -703,7 +703,7 @@ function main() {
     time *= 0.001;
     const deltaTime = 1 / 60;  // note: we don't really want this to be framerate independent.
 
-	const format = buttons['8bit'] ? gl.RGBA8 : gl.RGBA32F;
+    const format = (!ext || !ext2 || buttons['8bit']) ? gl.RGBA8 : gl.RGBA32F;
     const newFormat = attachments[0].internalFormat !== format;
     if (newFormat || twgl.resizeCanvasToDisplaySize(gl.canvas)) {
       attachments[0].internalFormat = format;
