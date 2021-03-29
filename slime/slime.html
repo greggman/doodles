@@ -501,6 +501,40 @@ function main() {
       [0.25, red],
       [1.0, yellow],
     ],
+    brybry: [
+      [0.0, black],
+      [0.2, red],
+      [0.4, yellow],
+      [0.6, black],
+      [0.8, red],
+      [1.0, yellow],
+    ],
+    hardred: [
+      [0.0, black],
+      [0.01, red],
+      [1.0, black],
+    ],
+    rainbow: [
+      [0.0, black],
+      [0.1, red],
+      [0.2, yellow],
+      [0.3, green],
+      [0.4, cyan],
+      [0.5, blue],
+      [0.6, magenta],
+      [1.0, white],
+    ],
+    identity: [
+      [0.0, black],
+      [1.0, white],
+    ],
+    beam: [
+      [0.0, black],
+      [0.25, blue],
+      [0.5, cyan],
+      [0.75, blue],
+      [1.0, black],
+    ],
   };
   Object.values(rampTextures).forEach(ramp => ramp.texture = createRampTexture(rampSize, ramp));
 
@@ -671,7 +705,7 @@ function main() {
   gui.add(settings, 'sensorOffsetDist', 0, 50).listen();
   gui.add(settings, 'sensorAngleSpacing', 0, 6).listen();
   gui.add(settings, 'sensorSize', 0, 15).listen();
-  gui.add(settings, 'evaporateSpeed', 0, 50).listen();
+  gui.add(settings, 'evaporateSpeed', 0.01, 3, 0.01).listen();
   gui.add(settings, 'diffuseSpeed', 0, 200).listen();
   gui.add(settings, 'numAgents', 1, 1000000).listen();
   gui.add(settings, 'colorScheme', Object.keys(rampTextures)).listen();
