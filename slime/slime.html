@@ -692,7 +692,8 @@ function main() {
       params.set(key, value);
     }
     const url = new URL(window.location.href);
-    window.history.pushState({}, '', url.toString());
+    url.search = params.toString();
+    window.history.replaceState({}, '', url.toString());
   }
 
   const link = document.querySelector("#link");
