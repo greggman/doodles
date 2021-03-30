@@ -88,8 +88,8 @@ function main() {
     document.querySelector("canvas").style.display = "none";
     document.querySelector("#nowebgl").style.display = "";
   }
-  const ext = null;// gl.getExtension('EXT_color_buffer_float');
-  const ext2 = null;//gl.getExtension('OES_texture_float_linear');
+  const ext = gl.getExtension('EXT_color_buffer_float');
+  const ext2 = gl.getExtension('OES_texture_float_linear');
 
   console.log((ext && ext2) ? 'using floating point textures' : 'using 8bit textures');
 
@@ -215,7 +215,7 @@ function main() {
 
   void main () {
     vec4 inputColor = texture(tex, v_texcoord);
-    outputColor = texture(ramp, vec2(pow(inputColor.r, colorPower) / colorDivisor, 0));
+    outputColor = texture(ramp, vec2(pow(inputColor.r, colorPower) * colorDivisor, 0));
   }
   `;
 
@@ -327,6 +327,26 @@ function main() {
     }
   };
 
+  function createCircleInOutAgents(maxAgents) {
+    const positions = [];
+    const angles = [];
+    const radius = Math.min(gl.canvas.width, gl.canvas.height) / 4;
+    for (let i = 0; i < maxAgents; ++i) {
+      const angle = rand(0, Math.PI * 2);
+      const r = radius;
+
+      positions.push(
+        gl.canvas.width / 2 + Math.cos(angle) * r,
+        gl.canvas.height / 2 + Math.sin(angle) * r,
+      );
+      angles.push(angle + (rand(2) | 0) * Math.PI);
+    }
+    return {
+      positions,
+      angles,
+    }
+  };
+
   function createRandomAgents(maxAgents) {
     const positions = [];
     const angles = [];
@@ -364,6 +384,10 @@ function main() {
 
   function restartCircleOut() {
     restart(createCircleOutAgents(maxAgents));
+  }
+
+  function restartCircleInOut() {
+    restart(createCircleInOutAgents(maxAgents));
   }
 
   function restartRandom() {
@@ -662,19 +686,22 @@ function main() {
     },
   };
 
-  const link = document.querySelector("#link");
-  function save() {
+  function updateURL() {
     const params = new URLSearchParams();
     for (const [key, value] of Object.entries(settings)) {
       params.set(key, value);
     }
     const url = new URL(window.location.href);
-    url.search = params.toString();
+    window.history.pushState({}, '', url.toString());
+  }
 
+  const link = document.querySelector("#link");
+  function save() {
+    updateURL();
     link.style.display = "";
     const a = document.querySelector('#link a');
-    a.href = url.toString();
-    a.textContent = url.toString();
+    a.href = window.location.href;
+    a.textContent = window.location.href;
   }
   function hideLink() {
     link.style.display = 'none';
@@ -695,23 +722,28 @@ function main() {
   const startShapes = {
     circleIn: restartCircleIn,
     circleOut: restartCircleOut,
+    circleInOut: restartCircleInOut,
     random: restartRandom,
   };
 
+  function update() {
+    updateURL();
+  }
+
   const gui = new GUI();
-  gui.add(settings, 'moveSpeed', 0.1, 180).listen();
-  gui.add(settings, 'turnSpeed', 0.0, 200).listen();
-  gui.add(settings, 'trailWeight', 1, 200).listen();
-  gui.add(settings, 'sensorOffsetDist', 0, 50).listen();
-  gui.add(settings, 'sensorAngleSpacing', 0, 6).listen();
-  gui.add(settings, 'sensorSize', 0, 15).listen();
-  gui.add(settings, 'evaporateSpeed', 0.01, 3, 0.01).listen();
-  gui.add(settings, 'diffuseSpeed', 0, 200).listen();
-  gui.add(settings, 'numAgents', 1, 1000000).listen();
-  gui.add(settings, 'colorScheme', Object.keys(rampTextures)).listen();
-  //gui.add(settings, 'colorPower', 0.001, 10).listen();
-  //gui.add(settings, 'colorDivisor', 0.001, 5).listen();
-  gui.add(settings, 'startShape', Object.keys(startShapes)).listen(); 
+  gui.add(settings, 'moveSpeed', 0.1, 180).listen().onChange(update);
+  gui.add(settings, 'turnSpeed', 0.0, 200).listen().onChange(update);
+  gui.add(settings, 'trailWeight', 1, 200).listen().onChange(update);
+  gui.add(settings, 'sensorOffsetDist', 0, 50).listen().onChange(update);
+  gui.add(settings, 'sensorAngleSpacing', 0, 6).listen().onChange(update);
+  gui.add(settings, 'sensorSize', 0, 15).listen().onChange(update);
+  gui.add(settings, 'evaporateSpeed', 0.01, 3, 0.01).listen().onChange(update);
+  gui.add(settings, 'diffuseSpeed', 0, 200).listen().onChange(update);
+  gui.add(settings, 'numAgents', 1, 1000000).listen().onChange(update);
+  gui.add(settings, 'colorScheme', Object.keys(rampTextures)).listen().onChange(update);
+  //gui.add(settings, 'colorPower', 0.001, 10).listen().onChange(update);
+  //gui.add(settings, 'colorDivisor', 0.001, 5).listen().onChange(update);
+  gui.add(settings, 'startShape', Object.keys(startShapes)).listen().onChange(update); 
   gui.add(buttons, 'restart');
   gui.add(buttons, 'preset', Object.keys(presets)).onChange(restartPreset);
   if (ext && ext2) {
@@ -788,7 +820,7 @@ function main() {
     twgl.setUniforms(displayProgramInfo, settings, {
       tex: currentFBI.attachments[0],
       ramp: rampTextures[settings.colorScheme],
-      colorDivisor: buttons['8bit'] ? 1 : settings.trailWeight * deltaTime,
+      colorDivisor: buttons['8bit'] ? 1 : 1 / ((settings.trailWeight - settings.evaporateSpeed) * deltaTime),
     });
     twgl.drawBufferInfo(gl, quadVAI);
 
