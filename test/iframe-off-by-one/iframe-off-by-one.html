@@ -1,0 +1,61 @@
+<style>
+  iframe {
+    background: red;
+    width: 80%;
+    height: 20%;
+    border: none;
+  }
+  body {
+    background: #444;
+    color: white;
+    font-family: monospace;
+  }
+</style>
+<pre>
+steps:
+  1. set devicePixelRatio to 1.25 or 2.5 (see below)
+  2. size window
+
+What happens:
+
+  red lines appear
+
+What should happens
+
+  no red lines appear
+
+</pre>
+<iframe src="child.html"></iframe>
+
+<p>
+Generally you can modify the devicePixelRatio by setting the zoom level
+to 125%. You can also set it on Windows by setting a custom scaling size</p>
+<p></p>
+To set DPI to 1.25 on Windows
+<ol>
+<li>Right Click desktop and pick "Display Settings"</li>
+<li>Under "Scale and Layout" chose "Advanced scaling settings</li>
+<li>Set custom scaling size to "125"</li>
+</ol>
+<p>
+People with vision issue often set a custom scaling size or zoom.
+</p>
+<p>
+Note: the issue is not just with vertical stuff. The same issue
+can appear on the right of an iframe but the vertical issue repoed
+immediately so I didn't bother making a horizontal repo.
+</p>
+<p>
+Also note: This is not an easy issue to work around. The problem is
+you can't know the background color of an iframe a priori. If you set
+a background for an iframe (ie, iframe { background: &lt;some-color&gt;; }). 
+You'll get these lines of <code>some-color</code> but in order to know
+what to set <code>some-color</code> to make these lines blend into your
+design you need to know what color the iframe itself will use which you
+can't know if it's a 3rd party iframe nor even easily if you have a large
+collection of content that can appear in that iframe.
+</p>
+<p>Of course even then, that's working around the actual bug instead
+if fixing the bug. The fix is the frame should include that extra line
+OR that extra line should belong to the containing page's other content, not
+the iframe element.</p>
