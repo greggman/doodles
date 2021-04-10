@@ -92,7 +92,16 @@ One obvious place would be if you set <code>trailWeight</code> above 60</p>
   is just a grayscale texture. I applying <a href="https://www.google.com/search?q=photoshop+gradient+map">a gradient map</a> which basically maps each of the gray values
   to some color gradient. Maybe I just need to experiment with more/better gradients.
 </p>
-<div class="link"><a href="slime/slime.html">slime simulation</a></div>
+<p>Update:</p>
+<p>I decide to make a WebGL1 version as well which uses <a href="https://webglfundamentals.org/webgl/lessons/webgl-gpgpu.html">these techniques</a>.
+It's funny though that the WebGL2 version is more likely to work on mobile. This is because the WebGL2
+doesn't need floating point textures because it can do the particle math using the <i>transform feedback</i>
+feature of WebGL2. The WebGL1 version requires floating point textures which are not available on mobile.
+There are ways to work around that problem but I was not interested in trying. WebGL2 exists on the majority
+of android devices and it's behind a flag in Safari 14. Hopefully it will be enabled by default by Safari 15.</p>
+
+<div class="link"><a href="slime/slime.html">slime simulation (WebGL2)</a></div>
+<div class="link"><a href="slime/slime-webgl1.html">slime simulation (WebGL1)</a></div>
 </div>
 
 

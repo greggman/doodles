@@ -1,0 +1,889 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <!--
+      Inspired by https://www.youtube.com/watch?v=X-iSQQgOd1A
+    -->
+    <title>slime simulation</title>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, user-scalable=no, minimum-scale=1.0, maximum-scale=1.0">
+    <style>
+html, body {
+  width: 100%;
+  height: 100%;
+}
+body {
+  margin: 0;
+  font-family: monospace;
+  background: #444;
+  color: white;
+}
+canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+.dg {
+  opacity: 0.8;
+}
+#link,
+#nowebgl {
+  font-family: sans-serif;
+  font-weight: bold;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  position: absolute;
+  left: 0;
+  top: 0;
+}
+#link>div {
+  background: rgba(0, 0, 0, 0.8);
+  padding: 0.5em;
+  user-select: all;
+  max-width: 90%;
+}
+#link>div>div {
+  margin-top: 1em;
+  font-size: x-small;
+}
+a {
+  color: white;
+  text-overflow: ellipsis;
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  display: block;
+}
+#nofloat {
+  font-size: 36pt;
+  background: red;
+}
+    </style>
+  </head>
+
+  <body>
+    <canvas></canvas>
+    <div id="nofloat" style="display: none;">
+      <div>need support for floating point textures</div>
+    </div>
+    <div id="link" style="display: none;">
+      <div>
+        <a></a>
+        <div>bookmark or copy the link above</div>
+      </div>
+    </div>
+  </body>
+<script type="module">
+/* 
+
+notes:
+
+There's no support for systems that don't support rendering to floating point
+(which is funny because the WebGL2 version does support that. The reason is
+that WebGL2 can support transform feedback for the parts that must be floating
+point where as WebGL1 we have to do it in the fragment shader via textures.
+We could work around that be encoding floating point in RGBA8 textures but it
+I'm lazy. That also means the WebGL2 one will work on most smartphones
+though at least on iOS 14 you'll need to enable WebGL2 in the settings app.
+On the other hand this one will not work on most mobile phones)
+
+There's no support for sensorSize. In the WebGL2 version sensorSize is handled
+by generating mips (calling gl.generateMipmap). That works because you can 
+generate mips for any size texture in WebGL2. In WebGL1 you can only generate mips
+for textures with dimensions that are a power-of-2. We could again work around it 
+by always allocating a power-of-2 texture large enough for the size we need and just
+using some smaller portion of that texture. It wouldn't be perfect because the mips
+would include the parts of the texture we are not using. We could maybe work around
+that by repeating the edges. In anycase again, too lazy.
+
+*/
+
+// import 'https://greggman.github.io/webgl-lint/webgl-lint.js';
+import {GUI} from '../js/dat.gui.module.js';
+import * as twgl from '../js/twgl-full.module.js';
+
+function main() {
+  const m4 = twgl.m4;
+  const v3 = twgl.v3;
+  const gl = document.querySelector("canvas").getContext("webgl");
+
+  // make extensions that can look like WebGL2 look like WebGL2
+  // eg ext.bindVertexArrayOES -> gl.bindVertexArray
+  twgl.addExtensionsToContext(gl);
+
+  //const ext0 = gl.getExtension('EXT_color_buffer_float');
+  const ext1 = gl.getExtension('OES_texture_float');
+  const ext2 = gl.getExtension('OES_texture_float_linear');
+  const ext3 = gl.getExtension('WEBGL_color_buffer_float');
+  const canFloat = !!ext1 && !!ext2 && !!ext3;
+  if (!canFloat) {
+    document.querySelector("canvas").style.display = "none";
+    document.querySelector("#nofloat").style.display = "";
+    return;
+  }
+
+  console.log((canFloat) ? 'using floating point textures' : 'using 8bit textures');
+
+  const processFS = `
+  precision highp float;
+  
+  varying vec2 v_texcoord;
+  
+  uniform vec2 resolution;
+  uniform float moveSpeed;
+  uniform float turnSpeed;
+  uniform float trailWeight;
+  uniform float sensorOffsetDist;
+  uniform float sensorAngleSpacing;
+  uniform float sensorSize;
+  uniform float deltaTime;
+  uniform float time;
+  uniform sampler2D tex; // data with blurred trails
+  uniform sampler2D agentsTex; // data with position, angle
+  uniform vec2 agentsTexResolution;
+
+  #define PI radians(180.0)
+
+  float hash(float p) {
+    vec2 p2 = fract(vec2(p * 5.3983, p * 5.4427));
+    p2 += dot(p2.yx, p2.xy + vec2(21.5351, 14.3137));
+    return fract(p2.x * p2.y * 95.4337);
+  }
+  
+  float sense(vec2 position, float sensorAngle) {
+    vec2 sensorDir = vec2(cos(sensorAngle), sin(sensorAngle));
+    vec2 sensorCenter = position + sensorDir * sensorOffsetDist;
+    vec2 sensorUV = sensorCenter / resolution;
+    vec4 s = texture2D(tex, sensorUV, sensorSize);
+    return s.r;
+  }
+
+  void main() {
+    float vertexId = floor(gl_FragCoord.y * agentsTexResolution.x + gl_FragCoord.x);
+  	vec2 uv = gl_FragCoord.xy / agentsTexResolution;
+    vec4 temp = texture2D(agentsTex, uv);
+    vec2 position = temp.xy;
+    float angle = temp.z;
+    float width = resolution.x;
+    float height = resolution.y;
+    float random = hash(vertexId / (agentsTexResolution.x * agentsTexResolution.y) + time);
+
+    float weightForward = sense(position, angle);
+    float weightLeft = sense(position, angle + sensorAngleSpacing);
+    float weightRight = sense(position, angle - sensorAngleSpacing);
+
+    float randomSteerStrength = random;
+
+    // continue in same direction
+    if (weightForward > weightLeft && weightForward > weightRight) {
+      angle += 0.0;  // ?
+    } else if (weightForward < weightLeft && weightForward < weightRight) {
+      angle += (randomSteerStrength - 0.5) * 2.0 * turnSpeed * deltaTime;
+    } else if (weightRight > weightLeft) {
+      angle -= randomSteerStrength * turnSpeed * deltaTime;
+    } else if (weightLeft > weightRight) {
+      angle += randomSteerStrength * turnSpeed * deltaTime;
+    }
+
+    // move agent
+    vec2 direction = vec2(cos(angle), sin(angle));
+    vec2 newPos = position + direction * moveSpeed * deltaTime;
+
+    // clamp to boundries and pick new angle if hit boundries
+    if (newPos.x < 0.0 || newPos.x >= resolution.x || 
+        newPos.y < 0.0 || newPos.y >= resolution.y) {
+      newPos.x = min(resolution.x - 0.01, max(0.0, newPos.x));
+      newPos.y = min(resolution.y - 0.01, max(0.0, newPos.y));
+      angle = random * 2.0 * PI;
+    }
+
+    gl_FragColor = vec4(newPos, angle, 0);
+  }
+  `;
+
+  const processVS = `
+  attribute vec4 position;
+  varying vec2 v_texcoord;
+  void main() {
+    gl_Position = position;
+    v_texcoord = position.xy * 0.5 + 0.5;
+  }
+  `;
+  
+  const drawParticlesVS = `
+  attribute float count;
+  varying vec4 v_color;
+  uniform vec2 dataResolution;
+  uniform vec2 resolution; // output resolution
+  uniform float deltaTime;
+  uniform float trailWeight;
+  uniform sampler2D tex;
+  
+  void main() {
+    vec2 uv = (vec2(
+      mod(count, dataResolution.x),
+      floor(count / dataResolution.x)
+    ) + 0.5) / dataResolution;
+    vec2 newPos = texture2D(tex, uv).xy;
+    
+    // convert to clipspace
+    gl_Position = vec4(newPos / resolution * 2.0 - 1.0, 0, 1);
+    gl_PointSize = 1.0;
+    v_color = vec4(vec3(trailWeight * deltaTime), 1);
+  }    
+  `;
+  
+  //   0 0   0
+  //   . .   .
+  //   1 2   5
+  //   2 5
+  //   5
+  // +---+---+---+---+
+  //   0   1   2   3
+  //   0.5         3+0.5 / 4 0
+  //   
+  
+  const drawParticlesFS = `
+  precision highp float;
+  varying vec4 v_color;
+  void main() {
+    gl_FragColor = v_color;
+  }
+  `;
+
+  const quadVS = `
+  attribute vec4 position;
+  varying vec2 v_texcoord;
+  void main() {
+    gl_Position = position;
+    v_texcoord = position.xy * 0.5 + 0.5;
+  }
+  `;
+
+  const rampFS = `
+  precision highp float;
+
+  uniform sampler2D tex;
+  uniform sampler2D ramp;
+  uniform float colorPower;
+  uniform float colorDivisor;
+
+  varying vec2 v_texcoord;
+
+  void main () {
+    vec4 inputColor = texture2D(tex, v_texcoord);
+    gl_FragColor = texture2D(ramp, vec2(pow(inputColor.r, colorPower) / colorDivisor, 0));
+  }
+  `;
+
+  const fadeAndSpreadFS = `
+  precision highp float;
+  varying vec2 v_texcoord;
+
+  uniform vec2 resolution;
+  uniform float evaporateSpeed;
+  uniform float diffuseSpeed;
+  uniform float deltaTime;
+  uniform sampler2D tex;
+
+  void main() {
+    vec4 originalValue = texture2D(tex, v_texcoord);
+
+    // Simulate diffuse with a simple 3x3 blur
+    vec4 sum;
+    for (int offsetY = -1; offsetY <= 1; ++offsetY) {
+      for (int offsetX = -1; offsetX <= 1; ++offsetX) {
+        vec2 sampleOff = vec2(offsetX, offsetY) / resolution;
+        sum += texture2D(tex, v_texcoord + sampleOff);
+      }
+    }
+
+    vec4 blurResult = sum / 9.0;
+
+    vec4 diffusedValue = mix(originalValue, blurResult, diffuseSpeed * deltaTime);
+    vec4 diffusedAndEvaporatedValue = max(vec4(0), diffusedValue - evaporateSpeed * deltaTime);
+
+    gl_FragColor = vec4(diffusedAndEvaporatedValue.rgb, 1);
+  }
+  `;
+
+  const locations = ['position'];
+  const processProgramInfo = twgl.createProgramInfo(gl, [processVS, processFS], locations);
+  const drawParticlesProgramInfo = twgl.createProgramInfo(gl, [drawParticlesVS, drawParticlesFS], locations);
+  const displayProgramInfo = twgl.createProgramInfo(gl, [quadVS, rampFS], locations);
+  const fadeAndSpreadProgramInfo = twgl.createProgramInfo(gl, [quadVS, fadeAndSpreadFS], locations);
+
+  const quadBufferInfo = twgl.primitives.createXYQuadBufferInfo(gl);
+  const quadVAI = twgl.createVertexArrayInfo(gl, displayProgramInfo, quadBufferInfo);
+  const countBufferInfo = twgl.createBufferInfoFromArrays(gl, {
+    count: {
+      numComponents: 1,
+      data: new Float32Array(1024 * 1024).map((v, i, a) => a[i] = i),
+    }
+  });
+  const countVAI = twgl.createVertexArrayInfo(gl, drawParticlesProgramInfo, countBufferInfo);
+
+  function convertToTextureData(positions, angles) {
+    const data = new Float32Array(1024 * 1024 * 4);
+    for (let i = 0; i < angles.length; ++i) {
+      const src = i * 2;
+      const dst = i * 4;
+      data[dst    ] = positions[src];
+      data[dst + 1] = positions[src + 1];
+      data[dst + 2] = angles[i];
+    }
+    return data;
+  }
+  
+  function createAgents(positions, angles) {
+    const texture = twgl.createTexture(gl, {
+      src: convertToTextureData(positions, angles),
+      width: 1024,
+      height: 1024,
+      min: gl.NEAREST,
+      wrap: gl.CLAMP_TO_EDGE,
+    });
+    const framebufferInfo = twgl.createFramebufferInfo(gl, [
+      { attachment: texture, }
+    ], 1024, 1024);
+    return {
+      texture,
+      framebufferInfo,
+    };
+  }
+
+  function rand(min, max) {
+    if (max === undefined) {
+      max = min;
+      min = 0;
+    }
+    return Math.random() * (max - min) + min;
+  }
+
+  // resize once before initialization
+  twgl.resizeCanvasToDisplaySize(gl.canvas);
+  const maxAgents = 1000000;
+
+  function createCircleInAgents(maxAgents) {
+    const positions = [];
+    const angles = [];
+    const radius = Math.min(gl.canvas.width, gl.canvas.height) / 2;
+    for (let i = 0; i < maxAgents; ++i) {
+      const angle = rand(0, Math.PI * 2);
+      const r = Math.sqrt(rand(1)) * radius; //Math.sqrt(rand(1)) ∗ radius;
+
+      positions.push(
+        gl.canvas.width / 2 + Math.cos(angle) * r,
+        gl.canvas.height / 2 + Math.sin(angle) * r,
+      );
+      angles.push(angle + Math.PI);
+    }
+    return {
+      positions,
+      angles,
+    }
+  };
+
+  function createCircleOutAgents(maxAgents) {
+    const positions = [];
+    const angles = [];
+    for (let i = 0; i < maxAgents; ++i) {
+      positions.push(
+        gl.canvas.width / 2 + rand(-10, 10),
+        gl.canvas.height / 2 + rand(-10, 10),
+      );
+      angles.push(rand(0, Math.PI * 2));
+    }
+    return {
+      positions,
+      angles,
+    }
+  };
+
+  function createRandomAgents(maxAgents) {
+    const positions = [];
+    const angles = [];
+    for (let i = 0; i < maxAgents; ++i) {
+      positions.push(
+        rand(0, gl.canvas.width),
+        rand(0, gl.canvas.height),
+      );
+      angles.push(rand(0, Math.PI * 2));
+    }
+    return {
+      positions,
+      angles,
+    }
+  };
+
+  const {positions, angles} = createCircleInAgents(maxAgents);
+  const agents1 = createAgents(positions, angles);
+  const agents2 = createAgents(positions, angles);
+
+  function restart({positions, angles}) {
+    const data = convertToTextureData(positions, angles);
+    twgl.setTextureFromArray(gl, agents1.texture, data);
+    twgl.setTextureFromArray(gl, agents2.texture, data);
+    twgl.bindFramebufferInfo(gl, fbi1);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+    twgl.bindFramebufferInfo(gl, fbi2);
+    gl.clear(gl.COLOR_BUFFER_BIT);
+  }
+
+  function restartCircleIn() {
+    restart(createCircleInAgents(maxAgents));
+  }
+
+  function restartCircleOut() {
+    restart(createCircleOutAgents(maxAgents));
+  }
+
+  function restartRandom() {
+    restart(createRandomAgents(maxAgents));
+  }
+
+  const attachments = [
+    { type: (canFloat) ? gl.FLOAT : gl.UNSIGNED_BYTE, min: gl.LINEAR /* FIX: gl.LINEAR_MIPMAP_LINEAR*/ },
+  ];
+  
+  const fbi1 = twgl.createFramebufferInfo(gl, attachments);
+  // FIX: gl.generateMipmap(gl.TEXTURE_2D);
+  gl.clearColor(0, 0, 0, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  const fbi2 = twgl.createFramebufferInfo(gl, attachments);
+  // FIX: gl.generateMipmap(gl.TEXTURE_2D);
+  gl.clearColor(0, 0, 0, 1);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+
+
+  function createRampColors(numColors, _stops) {
+    // we could assume they are sorted but let's sort
+    const stops = _stops.slice().sort((a, b) => Math.sign(a[0] - b[0]));
+    const ramp = [];
+    fillRampRange([0, stops[0][1]], stops[0], numColors, ramp);
+    for (let i = 0; i < stops.length - 1; ++i) {
+      fillRampRange(stops[i], stops[i + 1], numColors, ramp);
+    }    
+    fillRampRange(stops[stops.length - 1], [1, stops[stops.length - 1][1]], numColors, ramp);
+    return ramp;
+  }
+
+  const lerpColor = (a, b, t) => a.map((s, i) => lerp(s, b[i], t));
+  const lerp = (a, b, t) => a + (b - a) * t;
+
+  function fillRampRange(start, end, numColors, ramp) {
+    const startPos = Math.round(start[0] * numColors);
+    const startColor = start[1];
+    const endPos = Math.round(end[0] * numColors);
+    const endColor = end[1];
+    const range = endPos - startPos - 1;
+    for (let pos = startPos; pos < endPos; ++pos) {
+      if (pos < 0 || pos >= numColors) {
+        continue;
+      }
+      const t = range ? (pos - startPos) / range : 0;
+      const color = lerpColor(startColor, endColor, t);
+      const off = pos * 4;
+      ramp[off    ] = color[0];
+      ramp[off + 1] = color[1];
+      ramp[off + 2] = color[2];
+      ramp[off + 3] = color[3];
+    }
+  }
+
+  function createRampTexture(rampSize, ramp) {
+    const rampColors = createRampColors(rampSize, ramp).map(a => a * 255);
+    return twgl.createTexture(gl, {
+      src: rampColors,
+      width: rampSize,
+      minMag: gl.LINEAR,
+      wrap: gl.CLAMP_TO_EDGE,
+    });
+  }
+
+  const rampSize = 256;
+  const red     = [1, 0, 0, 1];
+  const green   = [0, 1, 0, 1];
+  const blue    = [0, 0, 1, 1];
+  const yellow  = [1, 1, 0, 1];
+  const cyan    = [0, 1, 1, 1];
+  const magenta = [1, 0, 1, 1];
+  const white   = [1, 1, 1, 1];
+  const black   = [0, 0, 0, 1];
+  const purple  = [0.5, 0, 1, 1];
+  const pink    = [1, 0.6, 0.6, 1];
+  const band = (stop, range, edgeColor, centerColor) => [
+    [stop - range, edgeColor  ],
+    [stop        , centerColor],
+    [stop + range, edgeColor  ],
+  ];
+  const rampTextures = {
+    'bpw': [
+      [0.0, black],
+      [0.9, purple],
+      [1.0, white],
+    ],
+    'ycmy': [
+      [0.0,  yellow],
+      [0.2,  cyan],
+      [0.4,  magenta],
+      [1,    yellow],
+    ],
+    'bycmy': [
+      [0.0,  black],
+      [0.1,  yellow],
+      [0.2,  cyan],
+      [0.4,  magenta],
+      [1,    yellow],
+    ],
+    'band': [
+  //    [0.045, blue],
+  //    [0.050, white],
+  //    [0.055, blue],    
+      ...band(0.1, 0.01, blue, white),
+  //    [0.1,   blue],
+  //    [0.12,  yellow],
+  //    [0.14,  blue],
+      ...band(0.24, 0.04, blue, yellow),
+  //    [0.155, blue],
+  //    [0.16,  [1, 0.5, 1, 1]],
+  //    [0.165, blue],
+      ...band(0.32, 0.01, blue, [1, 0.5, 1, 1]),
+  //    [0.2,   blue],
+  //    [0.22,  green],
+  //    [0.24,  blue],
+      ...band(0.44, 0.04, blue, green, blue),
+    ],
+    red: [
+      [0.0, black],
+      [0.5, red],
+      [1.0, white],
+    ],
+    bcr: [
+      [0.0, black],
+      [0.5, cyan],
+      [1.0, red], 
+    ],
+    gcm: [
+      [0.0, green],
+      [0.5, cyan],
+      [1.0, magenta], 
+    ],
+    fire: [
+      [0.0, black],
+      [0.25, red],
+      [1.0, yellow],
+    ],
+    brybry: [
+      [0.0, black],
+      [0.2, red],
+      [0.4, yellow],
+      [0.6, black],
+      [0.8, red],
+      [1.0, yellow],
+    ],
+    prprprprprb: [
+      [0.0, pink],
+      [0.1, red],
+      [0.2, pink],
+      [0.3, red],
+      [0.4, pink],
+      [0.5, red],
+      [0.6, pink],
+      [0.7, red],
+      [0.8, pink],
+      [0.9, red],
+      [1.0, black],
+    ],
+    bwbwbwbwbwb: [
+      [0.0, black],
+      [0.1, white],
+      [0.2, black],
+      [0.3, white],
+      [0.4, black],
+      [0.5, white],
+      [0.6, black],
+      [0.7, white],
+      [0.8, black],
+      [0.9, white],
+      [1.0, black],
+    ],
+    hardred: [
+      [0.0, black],
+      [0.01, red],
+      [1.0, black],
+    ],
+    rainbow: [
+      [0.0, red],
+      [0.2, yellow],
+      [0.4, green],
+      [0.6, cyan],
+      [0.8, blue],
+      [1.0, magenta],
+    ],
+    rainbowbw: [
+      [0.0, black],
+      [0.1, red],
+      [0.2, yellow],
+      [0.3, green],
+      [0.4, cyan],
+      [0.5, blue],
+      [0.6, magenta],
+      [1.0, white],
+    ],
+    identity: [
+      [0.0, black],
+      [1.0, white],
+    ],
+    beam: [
+      [0.0, black],
+      [0.25, blue],
+      [0.5, cyan],
+      [0.75, blue],
+      [1.0, black],
+    ],
+  };
+  Object.values(rampTextures).forEach(ramp => ramp.texture = createRampTexture(rampSize, ramp));
+
+  let currentFBI = fbi1;
+  let current = agents1;
+  let then = 0;
+
+  const settings = {
+    moveSpeed: 42.0,
+    turnSpeed: 12,
+    trailWeight: 60,
+    sensorOffsetDist: 11,
+    sensorAngleSpacing: 35 * Math.PI / 180,
+    sensorSize: 2,
+    evaporateSpeed: 2.9,
+    diffuseSpeed: 44,
+    colorPower: 1,
+    colorDivisor: 1,
+    colorScheme: 'ycmy',
+    numAgents: 1000000,
+    startShape: 'circleIn',
+  };
+
+  const presets = {
+    blob: {
+      "moveSpeed": 65.22568599220493,
+      "turnSpeed": 10.72481828583753,
+      "trailWeight": 60,
+      "sensorOffsetDist": 11,
+      "sensorAngleSpacing": 0.6108652381980153,
+      "sensorSize": 2,
+      "evaporateSpeed": 2.9,
+      "diffuseSpeed": 44,
+      "colorPower": 1,
+      "colorDivisor": 1,
+      "colorScheme": "ycmy",
+      "numAgents": 1000000,
+      "startShape": "circleIn",
+    },
+    splat: {
+      "moveSpeed": 119.82207943566836,
+      "turnSpeed": 76.73755239691357,
+      "trailWeight": 60,
+      "sensorOffsetDist": 11,
+      "sensorAngleSpacing": 0.6108652381980153,
+      "sensorSize": 2,
+      "evaporateSpeed": 0.40102932011007003,
+      "diffuseSpeed": 13.873444961813131,
+      "colorPower": 1,
+      "colorDivisor": 1,
+      "colorScheme": "bcr",
+      "numAgents": 1000000,
+      "startShape": "circleOut",
+    },
+    cells: {
+      "moveSpeed": 119.82207943566836,
+      "turnSpeed": 24.712084174761483,
+      "trailWeight": 64.41252941466865,
+      "sensorOffsetDist": 11,
+      "sensorAngleSpacing": 0.6108652381980153,
+      "sensorSize": 2.8288838422724623,
+      "evaporateSpeed": 1.5932796335343884,
+      "diffuseSpeed": 37.7184512302995,
+      "colorPower": 1,
+      "colorDivisor": 1,
+      "colorScheme": "prprprprprb",
+      "numAgents": 1000000,
+      "startShape": "random",
+    },
+    shockwave: {
+      "moveSpeed": 42,
+      "turnSpeed": 3.03480574886478,
+      "trailWeight": 21.274745347134232,
+      "sensorOffsetDist": 7.261884964985205,
+      "sensorAngleSpacing": 2.367158407185097,
+      "sensorSize": 2,
+      "evaporateSpeed": 3.923587064318284,
+      "diffuseSpeed": 63.73118534137554,
+      "colorPower": 1,
+      "colorDivisor": 1,
+      "colorScheme": "ycmy",
+      "numAgents": 1000000,
+      "startShape": "circleIn",
+    },
+    mute: {
+      "moveSpeed": 173.26707874682472,
+      "turnSpeed": 77.62912785774768,
+      "trailWeight": 91.18187976291279,
+      "sensorOffsetDist": 13.44623200677392,
+      "sensorAngleSpacing": 1.2233700254022015,
+      "sensorSize": 1.9204064352243861,
+      "evaporateSpeed": 10.194750211685012,
+      "diffuseSpeed": 47.28196443691787,
+      "colorPower": 1,
+      "colorDivisor": 1,
+      "colorScheme": "bcr",
+      "numAgents": 1000000,
+      "startShape": "circleOut",
+    },
+    whisps: {
+      "moveSpeed": 180,
+      "turnSpeed": 18,
+      "trailWeight": 69,
+      "sensorOffsetDist": 11,
+      "sensorAngleSpacing": 0.61,
+      "sensorSize": 2,
+      "evaporateSpeed": 16.6,
+      "diffuseSpeed": 45,
+      "colorPower": 1,
+      "colorDivisor": 1,
+      "colorScheme": "fire",
+      "numAgents": 1000000,
+      "startShape": "circleOut",
+    },
+  };
+
+  const buttons = {
+    preset: Object.keys(presets).pop(),
+    restart: _ => startShapes[settings.startShape](),
+    '8bit': false,
+  };
+
+  const startShapes = {
+    circleIn: restartCircleIn,
+    circleOut: restartCircleOut,
+    random: restartRandom,
+  };
+
+  const gui = new GUI();
+  gui.add(settings, 'moveSpeed', 0.1, 180).listen();
+  gui.add(settings, 'turnSpeed', 0.0, 200).listen();
+  gui.add(settings, 'trailWeight', 1, 200).listen();
+  gui.add(settings, 'sensorOffsetDist', 0, 50).listen();
+  gui.add(settings, 'sensorAngleSpacing', 0, 6).listen();
+  gui.add(settings, 'sensorSize', 0, 15).listen();
+  gui.add(settings, 'evaporateSpeed', 0, 50).listen();
+  gui.add(settings, 'diffuseSpeed', 0, 200).listen();
+  gui.add(settings, 'numAgents', 1, 1000000).listen();
+  gui.add(settings, 'colorScheme', Object.keys(rampTextures)).listen();
+  //gui.add(settings, 'colorPower', 0.001, 10).listen();
+  //gui.add(settings, 'colorDivisor', 0.001, 5).listen();
+  gui.add(settings, 'startShape', Object.keys(startShapes)).listen(); 
+  gui.add(buttons, 'restart');
+  gui.add(buttons, 'preset', Object.keys(presets)).onChange(restartPreset);
+  if (canFloat) {
+    gui.add(buttons, '8bit').name('8bit (faster)');
+  }
+  window.addEventListener('keydown', e => {
+    if (e.key === 's' && e.ctrlKey) {
+      e.preventDefault();
+      console.log(JSON.stringify(settings, null, 2));
+    }
+  });
+
+  function restartPreset() {
+    const preset = presets[buttons.preset];
+    Object.assign(settings, preset);
+    startShapes[settings.startShape]();
+  }
+  restartPreset();
+  
+  current.name = "foo";
+
+  function render(time) {
+    time *= 0.001;
+    const deltaTime = 1 / 60;  // note: we don't really want this to be framerate independent.
+
+	const type = (!canFloat || buttons['8bit']) ? gl.UNSIGNED_BYTE : gl.FLOAT;
+    const newType = attachments[0].type !== type;
+    if (newType || twgl.resizeCanvasToDisplaySize(gl.canvas)) {
+      attachments[0].type = type;
+      twgl.resizeFramebufferInfo(gl, fbi1, attachments);
+      twgl.resizeFramebufferInfo(gl, fbi2, attachments);
+    }
+
+    const dest = current === agents1 ? agents2 : agents1;
+    const destFBI = currentFBI === fbi1 ? fbi2 : fbi1;
+    
+    const resolution = [gl.canvas.width, gl.canvas.height];
+
+    // process particles
+    twgl.bindFramebufferInfo(gl, dest.framebufferInfo);
+
+    gl.useProgram(processProgramInfo.program);
+    gl.bindVertexArray(quadVAI.vertexArrayObject);
+    twgl.setUniforms(processProgramInfo, {
+      agentsTexResolution: [1024, 1024],
+      resolution,
+      deltaTime,
+      time,
+      tex: currentFBI.attachments[0],
+      agentsTex: current.texture,
+    }, settings);
+    twgl.drawBufferInfo(gl, quadVAI);
+    
+    // draw particles
+    twgl.bindFramebufferInfo(gl, destFBI);
+    gl.useProgram(drawParticlesProgramInfo.program);
+    gl.bindVertexArray(countVAI.vertexArrayObject);
+    twgl.setUniforms(drawParticlesProgramInfo, {
+      dataResolution: [1024, 1024],
+      resolution,
+      deltaTime,
+      tex: dest.texture,
+    }, settings);
+    twgl.drawBufferInfo(gl, countVAI, gl.POINTS, settings.numAgents);
+
+    current = dest;
+
+    twgl.bindFramebufferInfo(gl, currentFBI);
+    gl.useProgram(fadeAndSpreadProgramInfo.program);
+    gl.bindVertexArray(quadVAI.vertexArrayObject);
+    twgl.setUniforms(fadeAndSpreadProgramInfo, {
+      deltaTime,
+      tex: destFBI.attachments[0],
+      resolution,
+    }, settings);
+    twgl.drawBufferInfo(gl, quadVAI);
+
+    twgl.bindFramebufferInfo(gl, null);
+    gl.bindTexture(gl.TEXTURE_2D, currentFBI.attachments[0]);
+    // FIX: gl.generateMipmap(gl.TEXTURE_2D);
+
+    gl.useProgram(displayProgramInfo.program);
+    gl.bindVertexArray(quadVAI.vertexArrayObject);
+    twgl.setUniforms(displayProgramInfo, settings, {
+      tex: currentFBI.attachments[0],
+      ramp: rampTextures[settings.colorScheme].texture,
+      colorDivisor: buttons['8bit'] ? 1 : settings.trailWeight * deltaTime,
+    });
+    twgl.drawBufferInfo(gl, quadVAI);
+
+    currentFBI = destFBI;
+
+    requestAnimationFrame(render);
+  }
+  requestAnimationFrame(render);
+}
+
+main();
+</script>
+</html>
