@@ -1,0 +1,17 @@
+<body>
+
+</body>
+<script>
+function log(...args) {
+  console.log(...args);
+  const pre = document.createElement('pre');
+  pre.textContent = args.join(' ');
+  document.body.appendChild(pre);
+}
+
+try {
+  log(crypto.randomUUID());
+} catch (e) {
+  log(e);
+}
+</script>
