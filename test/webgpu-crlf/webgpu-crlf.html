@@ -1,0 +1,44 @@
+<script type="module">
+async function main() {
+  const gpu = navigator.gpu;
+  if (!gpu) {
+    alert('need webgpu');
+    return;
+  }
+
+  const adapter = await gpu.requestAdapter();
+  const device = await adapter.requestDevice();
+
+  const shaderSrc = await (await fetch('./shader.wgsl')).text();
+
+  {
+    const test = shaderSrc.split(/\r\n/);
+    console.assert(test.length === 8, 'must be CRLF');
+  }
+
+  function showErrorsSimple(code, info) {
+    let hasError = false;
+    info.messages.forEach(m => {
+      console[m.type](`${m.lineNum}:${m.linePos}:${m.message}`);
+      hasError |= m.type === 'error';
+    });
+    return hasError;
+  }
+
+  async function createShaderModule(device, code) {
+    const shader = device.createShaderModule({code});
+    const info = await shader.compilationInfo();
+    if (info.messages.length) {
+      const hasError = showErrorsSimple(code, info);
+      if (hasError) {
+        throw new Error('can not compile shader');
+      }
+    }
+    return shader;
+  }
+
+  const shaderModule = await createShaderModule(device, shaderSrc);
+}
+
+main();
+</script>

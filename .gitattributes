@@ -1,0 +1,2 @@
+test/webgpu-crlf/webgpu-crlf.html text eol=crlf
+test/webgpu-crlf/shader.wgsl text eol=crlf
