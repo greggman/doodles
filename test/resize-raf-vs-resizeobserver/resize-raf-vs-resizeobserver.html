@@ -1,0 +1,104 @@
+<html>
+  <style>
+html, body, .split {
+  margin: 0;
+  width: 100%;
+  height: 100%;
+}
+.split {
+  display: flex;
+}
+.holder {
+  flex: 1 1 50%;
+}
+canvas {
+  width: 100%;
+  height: 100%;
+  display: block;
+}    
+  </style>
+  <body>
+    <div class="split">
+      <div class="holder"><canvas id="raf"></canvas></div>
+      <div class="holder"><canvas id="resizeObserver"></canvas></div>
+    </div>
+  </body>
+  <script type="module">
+import * as twgl from 'https://twgljs.org/dist/4.x/twgl-full.module.js';
+
+function run(selector, fn) {
+  const gl = document.querySelector(selector).getContext('webgl');
+
+  const vs = `
+  attribute vec4 position;
+  uniform vec2 resolution;
+  void main() {
+    vec4 scale = resolution.x < resolution.y
+        ? vec4(1, resolution.x / resolution.y, 1, 1)
+        : vec4(resolution.y / resolution.x, 1, 1, 1);
+    gl_Position = position * scale;
+  }
+  `;
+
+  const fs = `
+  precision mediump float;
+  uniform vec4 color;
+  void main() {
+    gl_FragColor = color;
+  }
+  `;
+
+  const numPoints = 60;
+  const points = [];
+  const r = 0.75;
+  for (let i = 0; i < numPoints; ++i) {
+    const a = i / numPoints * Math.PI * 2; 
+    points.push(Math.sin(a) * r, Math.cos(a) * r);
+  }
+  const prgInfo = twgl.createProgramInfo(gl, [vs, fs]);
+  const bufferInfo = twgl.createBufferInfoFromArrays(gl, {
+    position: {
+      numComponents: 2,
+      data: points,
+    },
+  });
+
+
+  function draw(gl) {
+    gl.viewport(0, 0, gl.drawingBufferWidth, gl.drawingBufferHeight);
+    gl.useProgram(prgInfo.program);
+    twgl.setBuffersAndAttributes(gl, prgInfo, bufferInfo);
+    twgl.setUniforms(prgInfo, {
+      color: [1, 0, 0, 1],
+      resolution: [gl.canvas.clientWidth, gl.canvas.clientHeight],
+    });
+    twgl.drawBufferInfo(gl, bufferInfo, gl.TRIANGLE_FAN);
+  }
+
+  function render() {
+    fn(gl);
+    draw(gl);
+    requestAnimationFrame(render);
+  }
+  requestAnimationFrame(render);
+}
+run('#raf', (gl) => {
+  twgl.resizeCanvasToDisplaySize(gl.canvas);
+});
+run('#resizeObserver', (() => {
+  let needResize = false;
+
+  const resizeObserver = new ResizeObserver(() => {
+    needResize = true;
+  });
+  resizeObserver.observe(document.querySelector('#resizeObserver'));
+
+  return function(gl) {
+    if (needResize) {
+      needResize = false;
+      twgl.resizeCanvasToDisplaySize(gl.canvas);
+    }
+  };
+})());
+  </script>
+</html>
