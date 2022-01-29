@@ -1,0 +1,18 @@
+<p>May not see syntax error in JavaScript console</p>
+<script>
+window.addEventListener('error', (e) => {
+  e.preventDefault();  // just in case
+  console.log('handler fired');
+});
+</script>
+<!-- same below this line -->
+<script type="module" src="module-with-syntax-error.js"></script>
+<script src="script-with-syntax-error.js"></script>
+<script type="module">
+import './module2-with-syntax-error.js';
+</script>
+<script>
+import('./module3-with-syntax-error.js')
+   .then(_ => console.log('import resolved'))
+   .catch(_ => console.log('import rejected'))
+</script>

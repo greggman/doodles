@@ -1,0 +1,11 @@
+<p>Should see syntax error in JavaScript console</p>
+<!-- same below this line -->
+<script type="module" src="module-with-syntax-error.js"></script>
+<script src="script-with-syntax-error.js"></script>
+<script type="module">
+import './module2-with-syntax-error.js';
+</script>
+<script>
+import('./module3-with-syntax-error.js')
+   .then(_ => console.log('import resolved'))
+</script>
