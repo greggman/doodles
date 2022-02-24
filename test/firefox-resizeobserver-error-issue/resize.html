@@ -1,3 +1,8 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8">
+    <title>ResizeObserver issue</title>
 <style>
 html, body, #c {
   margin: 0;
@@ -21,10 +26,11 @@ html, body, #c {
   width: 100%;
 }
 </style>
+</head>
 <body>
   <canvas id="c"></canvas>
   <div id="info"></div>
-  <div id="arrow">drag this ⬇ slider up/down</div>
+  <div id="arrow">drag this ⬇ slide up/down</div>
 </body>
 <script>
 const canvas = document.querySelector('#c');
@@ -34,8 +40,9 @@ function onResize(entries) {}
 const resizeObserver = new ResizeObserver( onResize );
 resizeObserver.observe( canvas, { box: "content-box" } );
 
-/* if you don't check for the error non get report!?!? */
+/* if you don't check for the error you don't get report!?!? */
 window.addEventListener('error', function(e) {
   console.error(e.error || e);
 });
 </script>
+</html>
