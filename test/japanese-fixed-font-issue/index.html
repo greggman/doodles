@@ -1,0 +1,34 @@
+<html>
+  <head>
+    <style>
+      .test {
+        padding: 0.5em;
+        display: inline-block;
+        color: white;
+      }
+      .test>div>code {
+        display: inline-block;
+        background-color: rgba(0, 0, 0, 0.05);
+      }
+    </style>
+  </head>
+  <body>
+    <div class="test">
+      <div><code>abcdef: 123</code></div>
+      <div><code>ghijkl: 456</code></div>
+      <div><code>mnopqr: 789</code></div>
+      <div><code>stuvwx: 012</code></div>
+      <div><code>yz!'|;: 345</code></div>
+    </div>
+  </body>
+  <script>
+    const elems = [...document.querySelectorAll('code')];
+    const size = elems[0].clientWidth;
+    const same = elems.reduce((same, elem) => {
+      return same && elem.clientWidth === size;
+    });
+    const elem = document.querySelector('.test');
+    elem.style.backgroundColor = same ? 'blue' : 'red';
+    document.body.style.backgroundColor = same ? 'lightblue' : 'pink';
+  </script>
+</html>
