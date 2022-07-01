@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+<title>ResizeObserver devicePixelContentBox</title>
+<style>
+html {
+  box-sizing: border-box;
+  height: 100%;
+}
+*, *:before, *:after {
+  box-sizing: inherit;
+}
+body {
+    height: 100%;
+    margin: 0;
+    font-family: Helvetica, Arial, Sans-Serif;
+}
+#editor {
+    display: flex;
+    flex-direction: row-reverse;
+    width: 100%;
+    height: 100%;
+}
+#canvas {
+    width: 100%;
+    height: 100%;
+    display: block;
+}
+#viewContainer {
+    flex: 1 1 auto;
+}
+#controlContainer {
+    flex: 1 1 30%;
+}
+#sep {
+    flex: 0 0 5px;
+    width: 5px;
+    background-color: black;
+    cursor: pointer;
+    user-select: none;
+}
+#controls {
+    background-color:#666;
+    padding: 0.5em;
+    text-align: right;
+    color: white;
+    width: 100%;
+    height: 100%;
+    font-size: large;
+    user-select: none;
+}
+#controls>span {
+    word-break: break-all;
+}
+</style>
+</head>
+<body>
+<div id="editor">
+  <div id="viewContainer">
+       <canvas id="canvas"></canvas>
+  </div>
+  <div id="sep"></div>
+  <div id="controlContainer">
+    <div id="controls">Controls<br/>for<br/>an<br/>Editor<br/>would<br/>go<br/>here<br/><br/>Drag this black bar ➡<br><br>
+    dpr:<span id="dpr"></span></div>
+  </div>
+  </tr>
+</table>
+</body>
+<script>
+function create2x2PixelPattern() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 2;
+  canvas.height = 2;
+  const ctx = canvas.getContext('2d');
+  ctx.fillStyle = '#FFF';
+  ctx.fillRect(0, 0, 2, 2);
+  ctx.fillStyle = '#000';
+  ctx.fillRect(0, 0, 1, 2);
+  //ctx.fillRect(1, 1, 1, 1);
+  return ctx.createPattern(ctx.canvas, 'repeat');
+}
+const pattern = create2x2PixelPattern();
+
+const ctx = document.querySelector('canvas').getContext('2d');
+
+function adjustCanvas(entries) {
+  const entry = entries[0];
+  ctx.canvas.width = entry.devicePixelContentBoxSize[0].inlineSize;
+  ctx.canvas.height = entry.devicePixelContentBoxSize[0].blockSize;
+  ctx.fillStyle = pattern;
+  ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+  dpr.textContent = devicePixelRatio;
+}
+
+const observer = new ResizeObserver(adjustCanvas);
+observer.observe(ctx.canvas, {box: 'device-pixel-content-box'});
+
+const view = document.querySelector('#viewContainer');
+const control = document.querySelector('#controlContainer');
+const sep = document.querySelector('#sep');
+const editor = document.querySelector('#editor');
+const dpr = document.querySelector('#dpr');
+
+let startX;
+let startSize;
+
+function handleMove(e) {
+  const deltaX = e.clientX - startX;
+  const newSize = startSize + deltaX;
+  const parentSize = editor.getBoundingClientRect().width;
+  const newPercent = newSize / parentSize;
+  const sepSize = sep.getBoundingClientRect().width;
+  control.style.flexBasis = `${newPercent * 100}%`;
+  const viewSize = parentSize - newSize - sepSize;
+  const viewPercent = viewSize / parentSize;
+  view.style.flexBasis = `${viewPercent * 100}%`;
+}
+
+function handleUp(e) {
+  window.removeEventListener('mousemove', handleMove);
+  window.removeEventListener('mouseup', handleUp);
+}
+
+sep.addEventListener('mousedown', (e) => {
+  startX = e.clientX;
+  startSize = control.getBoundingClientRect().width;
+  console.log(startSize);
+  window.addEventListener('mousemove', handleMove);
+  window.addEventListener('mouseup', handleUp);
+});
+
+</script>
+</html>
+
+
