@@ -79,10 +79,15 @@ function create2x2PixelPattern() {
   ctx.fillRect(0, 0, 2, 2);
   ctx.fillStyle = '#000';
   ctx.fillRect(0, 0, 1, 2);
-  //ctx.fillRect(1, 1, 1, 1);
   return ctx.createPattern(ctx.canvas, 'repeat');
 }
 const pattern = create2x2PixelPattern();
+
+const view = document.querySelector('#viewContainer');
+const control = document.querySelector('#controlContainer');
+const sep = document.querySelector('#sep');
+const editor = document.querySelector('#editor');
+const dpr = document.querySelector('#dpr');
 
 const ctx = document.querySelector('canvas').getContext('2d');
 
@@ -92,17 +97,16 @@ function adjustCanvas(entries) {
   ctx.canvas.height = entry.devicePixelContentBoxSize[0].blockSize;
   ctx.fillStyle = pattern;
   ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
-  dpr.textContent = devicePixelRatio;
 }
 
 const observer = new ResizeObserver(adjustCanvas);
 observer.observe(ctx.canvas, {box: 'device-pixel-content-box'});
 
-const view = document.querySelector('#viewContainer');
-const control = document.querySelector('#controlContainer');
-const sep = document.querySelector('#sep');
-const editor = document.querySelector('#editor');
-const dpr = document.querySelector('#dpr');
+function updateDRP() {
+  dpr.textContent = devicePixelRatio;
+}
+updateDRP();
+window.addEventListener('resize', updateDRP);
 
 let startX;
 let startSize;
