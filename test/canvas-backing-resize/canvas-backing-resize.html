@@ -33,6 +33,7 @@ const kmgt = function() {
 }();
 
 const gl = document.querySelector('canvas').getContext('webgl');
+const ext = gl.getExtension('WEBGL_debug_renderer_info');
 const vs = `
 attribute vec4 position;
 uniform mat4 matrix;
@@ -89,6 +90,8 @@ function resizeCanvasToDisplaySize(gl) {
  drawingBufferWidth: ${gl.drawingBufferWidth}
 drawingBufferHeight: ${gl.drawingBufferHeight}
   min memory needed: ${kmgt(mem)}
+            samples: ${samples}
+                gpu: ${gl.getParameter(ext ? ext.UNMASKED_VENDOR_WEBGL : gl.VENDOR)}
 `;
   }
 }
