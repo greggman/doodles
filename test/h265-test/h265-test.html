@@ -1,0 +1,33 @@
+<!DOCTYPE html>
+<html>
+  <style>
+    canvas, video {
+      max-width: 300px;
+    }
+  </style>
+  <body>
+    <p>Test that h265 video plays and we can capture a frame</p>
+    <p>Click Play</p>
+    <video controls loop src="clock-h625.mkv"></video>
+    <canvas></canvas>
+  </body>
+  <script>
+    /* @type HTMLVideoElement */
+    const video = document.querySelector('video');
+
+    let captured = false;
+    function capture() {
+      if (!captured && video.currentTime > 0.2) {
+        captured = true;
+        const ctx = document.querySelector('canvas').getContext('2d');
+        ctx.canvas.width = video.videoWidth;
+        ctx.canvas.height = video.videoHeight;
+        ctx.drawImage(video, 0, 0);
+      }
+      requestAnimationFrame(capture);
+
+    }
+    requestAnimationFrame(capture);
+
+  </script>
+</html>
