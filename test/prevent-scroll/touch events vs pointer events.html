@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>touch events vs pointer events</title>
+    <style>
+pre {
+  font-size: 48pt;
+}
+#split {
+  display: flex;
+  width: 100%;
+  user-select: none;
+  --webkit-user-select: none; /* FUCK YOU SAFARI! It's 2023! */
+}
+#left, #right {
+  flex: 1 1 50%;
+  height: 400px;
+  min-width: 0;
+  position: relative;
+  overflow: hidden;
+}
+#left {
+  background: yellow;
+}
+#right {
+  background: pink;
+}
+#touch, #pointer {
+  position: absolute;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  width: 60px;
+  height: 60px;
+}
+#touch {
+  background-color: teal;
+  color: white;
+}
+#pointer {
+  background-color: purple;
+  color: white;
+}
+    </style>
+  </head>
+  <body>
+<pre>
+  some
+
+  lines
+
+  to
+
+  take
+  
+  space
+</pre>
+<button type="button">click</button>
+<div id="split">
+  <div id="left">
+    <div id="touch" style="left: 50px; top: 50px;"><div>Touch</div></div>
+  </div>
+  <div id="right">
+    <div id="pointer" style="left: 50px; top: 50px;"><div>Pointer</div></div>
+  </div>
+</div>
+<pre>
+  some
+
+  lines
+
+  to
+
+  take
+
+  lots
+
+  and
+
+  lots
+
+  and
+  
+  lots
+
+  of
+
+  space
+
+  so
+
+  the
+
+  page
+
+  will
+
+  scroll
+</pre>
+
+  </body>
+  <script>
+'use strict';
+
+const px = v => `${v}px`;
+const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
+
+console.log('init');
+
+{
+  const touchElem = document.querySelector('#touch');
+
+  let elemStartX;
+  let elemStartY;
+  let mouseStartX;
+  let mouseStartY;
+
+  function onTouchMove(e) {
+    e.preventDefault();
+    console.log('touchMove', e.touches[0].clientX);
+
+    const deltaX = e.touches[0].clientX - mouseStartX;
+    const deltaY = e.touches[0].clientY - mouseStartY;
+
+    touchElem.style.left = px(clamp(elemStartX + deltaX, 0, touchElem.parentElement.clientWidth - touchElem.clientWidth));
+    touchElem.style.top = px(clamp(elemStartY + deltaY, 0, touchElem.parentElement.clientHeight - touchElem.clientHeight));
+  }
+
+  function onTouchEnd() {
+    console.log('touchEnd');
+    window.removeEventListener('touchmove', onTouchMove);
+    window.removeEventListener('touchend', onTouchEnd)
+  }
+
+  function onTouchStart(e) {
+    e.preventDefault();
+    console.log('touchStart');
+    mouseStartX = e.touches[0].clientX;
+    mouseStartY = e.touches[0].clientY;
+    elemStartX = parseInt(touchElem.style.left);
+    elemStartY = parseInt(touchElem.style.top);
+
+    window.addEventListener('touchmove', onTouchMove, {passive: false});
+    window.addEventListener('touchend', onTouchEnd)
+  }
+  touchElem.addEventListener('touchstart', onTouchStart, {passive: false});
+}
+
+{
+  const pointerElem = document.querySelector('#pointer');
+
+  let elemStartX;
+  let elemStartY;
+  let mouseStartX;
+  let mouseStartY;
+
+  function onPointerMove(e) {
+    e.preventDefault();
+    console.log('pointerMove', e.clientX);
+
+    const deltaX = e.clientX - mouseStartX;
+    const deltaY = e.clientY - mouseStartY;
+
+    pointerElem.style.left = px(clamp(elemStartX + deltaX, 0, pointerElem.parentElement.clientWidth - pointerElem.clientWidth));
+    pointerElem.style.top = px(clamp(elemStartY + deltaY, 0, pointerElem.parentElement.clientHeight - pointerElem.clientHeight));
+  }
+
+  function onPointerUp() {
+    console.log('pointerUp');
+    window.removeEventListener('pointermove', onPointerMove);
+    window.removeEventListener('pointerup', onPointerUp)
+  }
+
+  function onPointerDown(e) {
+    e.preventDefault();
+  console.log('pointerDown');
+
+    mouseStartX = e.clientX;
+    mouseStartY = e.clientY;
+    elemStartX = parseInt(pointerElem.style.left);
+    elemStartY = parseInt(pointerElem.style.top);
+
+    window.addEventListener('pointermove', onPointerMove, {passive: false});
+    window.addEventListener('pointerup', onPointerUp)
+  }
+  pointerElem.addEventListener('pointerdown', onPointerDown, {passive: false});
+}
+
+console.log('end');
+
+  </script>
+</html>
