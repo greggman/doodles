@@ -131,7 +131,7 @@ console.log('init');
   function onTouchEnd() {
     console.log('touchEnd');
     window.removeEventListener('touchmove', onTouchMove);
-    window.removeEventListener('touchend', onTouchEnd)
+    window.removeEventListener('touchend', onTouchEnd);
   }
 
   function onTouchStart(e) {
@@ -143,7 +143,7 @@ console.log('init');
     elemStartY = parseInt(touchElem.style.top);
 
     window.addEventListener('touchmove', onTouchMove, {passive: false});
-    window.addEventListener('touchend', onTouchEnd)
+    window.addEventListener('touchend', onTouchEnd);
   }
   touchElem.addEventListener('touchstart', onTouchStart, {passive: false});
 }
@@ -170,7 +170,7 @@ console.log('init');
   function onPointerUp() {
     console.log('pointerUp');
     window.removeEventListener('pointermove', onPointerMove);
-    window.removeEventListener('pointerup', onPointerUp)
+    window.removeEventListener('pointerup', onPointerUp);
   }
 
   function onPointerDown(e) {
@@ -183,7 +183,7 @@ console.log('init');
     elemStartY = parseInt(pointerElem.style.top);
 
     window.addEventListener('pointermove', onPointerMove, {passive: false});
-    window.addEventListener('pointerup', onPointerUp)
+    window.addEventListener('pointerup', onPointerUp);
   }
   pointerElem.addEventListener('pointerdown', onPointerDown, {passive: false});
 }
