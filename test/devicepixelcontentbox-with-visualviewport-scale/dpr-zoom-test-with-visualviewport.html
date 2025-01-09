@@ -8,6 +8,7 @@
 html, body {
   margin: 0;       /* remove the default margin          */
   height: 100%;    /* make the html,body fill the page   */
+  font-family: monospace;
 }
 canvas {
   display: block;  /* make the canvas act like a block   */
@@ -23,6 +24,18 @@ canvas {
   background-color: rgba(0, 0, 0, 0.7);
   color: white;
 }
+label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25em;
+}
+input {
+  margin: 0;
+}
+.pixelated {
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
     </style>
   </head>
   <body>
@@ -32,6 +45,9 @@ canvas {
     <label><input type="radio" name="mode" value="round">round</label>
     <label><input type="radio" name="mode" value="ceil">ceil</label>
     <label><input type="radio" name="mode" value="floor" checked>floor</label>
+  </div>
+  <div>
+    <label><input type="checkbox" id="pixelated">css: pixelated</label>
   </div>
   <pre id="info"></pre>
 </div>
@@ -59,8 +75,10 @@ precision highp float;
 out vec4 fragColor;
 void main() {
   vec2 hv = vec2(floor(mod(gl_FragCoord.xy, 2.0)));
-  fragColor = vec4(1, 0, 1, 1) * hv.x +
-              vec4(0, 1, 0, 1) * hv.y;
+  float s = mod(floor(gl_FragCoord.x / 256.0), 2.0);
+  vec4 hStripe = mix(vec4(1,0,0,1), vec4(1, 1, 0, 1), hv.x);
+  vec4 vStripe = mix(vec4(0,1,0,1), vec4(0, 0, 1, 1), hv.y);
+  fragColor = mix(hStripe, vStripe, s);
 }
 `;
 
@@ -68,6 +86,11 @@ const program = twgl.createProgram(gl, [vs, fs])
 
 const radioElems = [...document.querySelectorAll('[name="mode"]')];
 radioElems.forEach(e => e.addEventListener('change', _ => render()));
+
+const pixelatedElem = document.querySelector('#pixelated');
+pixelatedElem.addEventListener('change', e => {
+  canvas.classList.toggle('pixelated', pixelatedElem.checked);
+});
 
 let renderCount = 0;
 const elemSizes = new WeakMap();
