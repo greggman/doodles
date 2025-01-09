@@ -3,9 +3,8 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>WebGPU Resize Canvas - Pixel Perfect</title>
+    <title>visualViewport.scale * devicePixelContentBox does not return device pixels</title>
     <style>
-@import url(https://webgpufundamentals.org/webgpu/resources/webgpu-lesson.css);
 html, body {
   margin: 0;       /* remove the default margin          */
   height: 100%;    /* make the html,body fill the page   */
@@ -15,7 +14,7 @@ canvas {
   width: 100%;     /* make the canvas fill its container */
   height: 100%;
 }
-#info {
+#ui {
   position: absolute;
   left: 0;
   top: 0;
@@ -28,139 +27,90 @@ canvas {
   </head>
   <body>
 <canvas></canvas>
-<pre id="info"></pre>
+<div id="ui">
+  <div>
+    <label><input type="radio" name="mode" value="round">round</label>
+    <label><input type="radio" name="mode" value="ceil">ceil</label>
+    <label><input type="radio" name="mode" value="floor" checked>floor</label>
+  </div>
+  <pre id="info"></pre>
+</div>
   </body>
-  <script>
-// WebGPU Resize Canvas - Pixel Perfect
-// from https://webgpufundamentals.org/webgpu/webgpu-resize-pixel-perfect.html
+  <script type="module">
+import * as twgl from 'https://twgljs.org/dist/5.x/twgl-full.module.js';
 
 const info = document.querySelector('#info');
 
-async function main() {
-  const adapter = await navigator.gpu?.requestAdapter();
-  const device = await adapter?.requestDevice();
-  if (!device) {
-    fail('need a browser that supports WebGPU');
-    return;
-  }
+const canvas = document.querySelector('canvas');
+const gl = canvas.getContext('webgl2', {antialias: false});
 
-  // Get a WebGPU context from the canvas and configure it
-  const canvas = document.querySelector('canvas');
-  const context = canvas.getContext('webgpu');
-  const presentationFormat = navigator.gpu.getPreferredCanvasFormat();
-  context.configure({
-    device,
-    format: presentationFormat,
-  });
+const vs = `#version 300 es
+void main() {
+  vec2 pos[3];
+  pos[0] = vec2(-1.0,  3.0);
+  pos[1] = vec2( 3.0, -1.0);
+  pos[2] = vec2(-1.0, -1.0);
+  gl_Position = vec4(pos[gl_VertexID], 0, 1);
+}
+`;
 
-  const module = device.createShaderModule({
-    label: 'hardcoded checkerboard triangle shaders',
-    code: `
-      struct OurVertexShaderOutput {
-        @builtin(position) position: vec4f,
-      };
+const fs = `#version 300 es
+precision highp float;
+out vec4 fragColor;
+void main() {
+  vec2 hv = vec2(floor(mod(gl_FragCoord.xy, 2.0)));
+  fragColor = vec4(1, 0, 1, 1) * hv.x +
+              vec4(0, 1, 0, 1) * hv.y;
+}
+`;
 
-      @vertex fn vs(
-        @builtin(vertex_index) vertexIndex : u32
-      ) -> OurVertexShaderOutput {
-        let pos = array(
-          vec2f(-1.0,  3.0),
-          vec2f( 3.0, -1.0),
-          vec2f(-1.0, -1.0),
-        );
+const program = twgl.createProgram(gl, [vs, fs])
 
-        var vsOutput: OurVertexShaderOutput;
-        vsOutput.position = vec4f(pos[vertexIndex], 0.0, 1.0);
-        return vsOutput;
-      }
+const radioElems = [...document.querySelectorAll('[name="mode"]')];
+radioElems.forEach(e => e.addEventListener('change', _ => render()));
 
-      @fragment fn fs(fsInput: OurVertexShaderOutput) -> @location(0) vec4f {
-        let hv = vec2f(floor(fsInput.position.xy % 2));
-        return vec4f(1, 0, 1, 1) * hv.x +
-               vec4f(0, 1, 0, 1) * hv.y;
-      }
-    `,
-  });
+let renderCount = 0;
+const elemSizes = new WeakMap();
+function render() {
+  const mode = radioElems.find(e => e.checked).value;
 
-  const pipeline = device.createRenderPipeline({
-    label: 'hardcoded checkerboard triangle pipeline',
-    layout: 'auto',
-    vertex: {
-      module,
-    },
-    fragment: {
-      module,
-      targets: [{ format: presentationFormat }],
-    },
-  });
+  const { width, height } = elemSizes.get(canvas);
+  canvas.width = Math.max(1, Math[mode](width * visualViewport.scale));
+  canvas.height = Math.max(1, Math[mode](height * visualViewport.scale));
 
-  const renderPassDescriptor = {
-    label: 'our basic canvas renderPass',
-    colorAttachments: [
-      {
-        // view: <- to be filled out when we render
-        clearValue: [0.3, 0.3, 0.3, 1],
-        loadOp: 'clear',
-        storeOp: 'store',
-      },
-    ],
-  };
-
-  let renderCount = 0;
-  const elemSizes = new WeakMap();
-  function render() {
-    const { width, height } = elemSizes.get(canvas);
-    canvas.width = Math.max(1, Math.min(Math.round(width * visualViewport.scale), device.limits.maxTextureDimension2D));
-    canvas.height = Math.max(1, Math.min(Math.round(height * visualViewport.scale), device.limits.maxTextureDimension2D));
-
-    info.textContent = `\
+  info.textContent = `\
+         renderCount: ${++renderCount}
     devicePixelRatio: ${devicePixelRatio}
          canvas size: ${canvas.width}x${canvas.height}
 visualViewport.scale: ${visualViewport.scale}
 `;
 
-    // Get the current texture from the canvas context and
-    // set it as the texture to render to.
-    renderPassDescriptor.colorAttachments[0].view =
-        context.getCurrentTexture().createView();
-
-    const encoder = device.createCommandEncoder({ label: 'our encoder' });
-    const pass = encoder.beginRenderPass(renderPassDescriptor);
-    pass.setPipeline(pipeline);
-    pass.draw(3);  // call our vertex shader 3 times
-    pass.end();
-
-    const commandBuffer = encoder.finish();
-    device.queue.submit([commandBuffer]);
-  }
-
-  const observer = new ResizeObserver(entries => {
-    for (const entry of entries) {
-      const width = (entry.devicePixelContentBoxSize?.[0].inlineSize ||
-                    entry.contentBoxSize[0].inlineSize * devicePixelRatio);
-      const height = (entry.devicePixelContentBoxSize?.[0].blockSize ||
-                     entry.contentBoxSize[0].blockSize * devicePixelRatio);
-      elemSizes.set(entry.target, { width, height });
-      // re-render
-      render();
-    }
-  });
-
-  visualViewport.addEventListener('resize', render);
-
-  try {
-    observer.observe(canvas, { box: 'device-pixel-content-box' });
-  } catch {
-    observer.observe(canvas, { box: 'content-box' });
-  }
+  gl.clearColor(0,1,1,1);
+  gl.clear(gl.COLOR_BUFFER_BIT);
+  gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+  gl.useProgram(program);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
 }
 
-function fail(msg) {
-  // eslint-disable-next-line no-alert
-  alert(msg);
-}
+const observer = new ResizeObserver(entries => {
+  for (const entry of entries) {
+    const width = (entry.devicePixelContentBoxSize?.[0].inlineSize ||
+                  entry.contentBoxSize[0].inlineSize * devicePixelRatio);
+    const height = (entry.devicePixelContentBoxSize?.[0].blockSize ||
+                   entry.contentBoxSize[0].blockSize * devicePixelRatio);
+    elemSizes.set(entry.target, { width, height });
+    // re-render
+    render();
+  }
+});
 
-main();
-  
+visualViewport.addEventListener('resize', render);
+
+try {
+  observer.observe(canvas, { box: 'device-pixel-content-box' });
+} catch {
+  observer.observe(canvas, { box: 'content-box' });
+}
+ 
   </script>
 </html>
