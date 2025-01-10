@@ -15,6 +15,9 @@ canvas {
   width: 100%;     /* make the canvas fill its container */
   height: 100%;
 }
+pre { 
+  margin: 0;
+}
 #ui {
   position: absolute;
   left: 0;
@@ -106,11 +109,11 @@ function render() {
          renderCount: ${++renderCount}
     devicePixelRatio: ${devicePixelRatio}
          canvas size: ${canvas.width}x${canvas.height}
- visualViewport.scale: ${visualViewport.scale}
-visualViewport.offset: ${visualViewport.offsetLeft}, ${visualViewport.offsetTop}
-  visualViewport.page: ${visualViewport.pageLeft}, ${visualViewport.pageTop}
-  visualViewport.size: ${visualViewport.width}, ${visualViewport.height}
-`;
+ visualViewport.scale: ${visualViewport.scale}`;
+//visualViewport.offset: ${visualViewport.offsetLeft}, ${visualViewport.offsetTop}
+//  visualViewport.page: ${visualViewport.pageLeft}, ${visualViewport.pageTop}
+//  visualViewport.size: ${visualViewport.width}, ${visualViewport.height}
+//`;
 
   ui.style.left = `${visualViewport.offsetLeft * visualViewport.scale}px`;
   ui.style.top = `${visualViewport.offsetTop * visualViewport.scale}px`;
