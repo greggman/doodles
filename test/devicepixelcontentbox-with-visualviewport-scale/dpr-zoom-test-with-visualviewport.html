@@ -56,6 +56,7 @@ input {
 import * as twgl from 'https://twgljs.org/dist/5.x/twgl-full.module.js';
 
 const info = document.querySelector('#info');
+const ui = document.querySelector('#ui');
 
 const canvas = document.querySelector('canvas');
 const gl = canvas.getContext('webgl2', {antialias: false});
@@ -105,8 +106,15 @@ function render() {
          renderCount: ${++renderCount}
     devicePixelRatio: ${devicePixelRatio}
          canvas size: ${canvas.width}x${canvas.height}
-visualViewport.scale: ${visualViewport.scale}
+ visualViewport.scale: ${visualViewport.scale}
+visualViewport.offset: ${visualViewport.offsetLeft}, ${visualViewport.offsetTop}
+  visualViewport.page: ${visualViewport.pageLeft}, ${visualViewport.pageTop}
+  visualViewport.size: ${visualViewport.width}, ${visualViewport.height}
 `;
+
+  ui.style.left = `${visualViewport.offsetLeft * visualViewport.scale}px`;
+  ui.style.top = `${visualViewport.offsetTop * visualViewport.scale}px`;
+  ui.style.zoom = `${1 / visualViewport.scale}`;
 
   gl.clearColor(0,1,1,1);
   gl.clear(gl.COLOR_BUFFER_BIT);
@@ -128,6 +136,7 @@ const observer = new ResizeObserver(entries => {
 });
 
 visualViewport.addEventListener('resize', render);
+visualViewport.addEventListener('scroll', render);
 
 try {
   observer.observe(canvas, { box: 'device-pixel-content-box' });
