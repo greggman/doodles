@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+
+    <meta name="theme-color" content="#000000">
+    <meta name="mobile-web-app-capable" content="yes">
+
+    <meta name="apple-mobile-web-app-status-bar-style" content="black">
+    <title>pointerevent issue</title>
+
+    <style>
+:root {
+  color-scheme: light dark;
+}
+html, body {
+  overscroll-behavior: none;
+  box-sizing: border-box;
+  margin: 0;
+  height: 100%;
+}
+*, *:before, *:after {
+  box-sizing: inherit;
+}
+canvas {
+  flex: 1 1 auto;
+  min-width: 0;
+  min-height: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+#ui, #help {
+  position: absolute;
+  top: 0;
+  background-color: rgb(0 0 0 / 0.8);
+  padding: 5px;
+  margin: 10px;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+#ui {
+  right: 0;
+}
+#help {
+  left: 0;
+}
+#instructions {
+  text-align: center;
+  padding-bottom: 3px;
+  border-bottom: 1px solid gray;
+  margin-bottom: 3px;
+}
+#split {
+  display: flex;
+  align-items: center;
+}
+#controls {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+}
+inupt, a {
+  user-select: initial;
+  pointer-events: initial;
+}
+label {
+  display: flex;
+  align-items: center;
+}
+.warn, .info {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  font-weight: bold;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  text-align: center;
+
+  > div {
+    max-width: 80%;
+    max-height: 80%;
+    overflow-y: auto;
+    color: white;
+    padding: 1em;
+  }
+}
+.warn {
+  pointer-events: none;
+}
+.warn>div {
+  background-color: red;
+}
+.info>div {
+  background-color: rgb(0 0 0 / 0.9);
+  text-align: left;
+}
+
+    </style>
+  </head>
+  <body>
+<canvas id="drawing"></canvas>
+<div id="ui">
+  <div id="instructions">use mouse/pad/finger to draw</div>
+</div>
+  </body>
+  <script type="module">
+const kBrushSizeForDrawing = 40;
+
+let h = 0;
+const hsl = (h, s, l) => `hsl(${h * 360 | 0}, ${s * 100}%, ${l * 100 | 0}%)`;
+
+async function main() {
+  /**
+   * @returns {[HTMLCanvasElement, GPUCanvasContext]}
+   */
+  function setupCanvas(selector, alphaMode) {
+    /** @type {HTMLCanvasElement} */
+    const canvas = document.querySelector(selector);
+    /** @type {CanvasRenderingContext2D} */
+    const context = canvas.getContext('2d');
+    return [canvas, context];
+  }
+
+  const [drawingCanvas, drawingContext] = setupCanvas('#drawing', 'opaque');
+
+  function drawBrush(ctx, x, y, brushSize) {
+    const { width, height } = ctx.canvas;
+    ctx.fillStyle = hsl(h, 1, 0.5);
+    h += 0.01;
+    ctx.beginPath();
+    ctx.arc(x * width, y * height, brushSize, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
+  function draw(x, y) {
+    drawBrush(drawingContext, x, y, kBrushSizeForDrawing);
+  }
+
+  function onMove(e) {
+    e.preventDefault();
+    const x = e.clientX / drawingCanvas.clientWidth;
+    const y = e.clientY / drawingCanvas.clientHeight;
+    draw(x, y);
+  }
+
+  function onUp(e) {
+    e.preventDefault();
+    window.removeEventListener('pointerup', onUp);
+    window.removeEventListener('pointermove', onMove);
+  }
+
+  function onDown(e) {
+    onMove(e);
+    window.addEventListener('pointerup', onUp, { passive: false });
+    window.addEventListener('pointermove', onMove, { passive: false });
+  }
+
+  drawingCanvas.addEventListener('pointerdown', onDown, { passive: false });
+
+  const observer = new ResizeObserver(entries => {
+    for (const entry of entries) {
+      const width = entry.contentBoxSize[0].inlineSize;
+      const height = entry.contentBoxSize[0].blockSize;
+      const canvas = entry.target;
+      canvas.width = width;
+      canvas.height = height;
+    }
+  })
+  observer.observe(drawingCanvas);
+}
+
+main();
+  </script>
+</html>
