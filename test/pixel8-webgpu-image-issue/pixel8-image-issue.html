@@ -13,6 +13,7 @@ async function main() {
 
   device.addEventListener('uncapturederror', e => fail(e.error.message));
   window.addEventListener('error', e => fail(e));
+  window.addEventListener('unhandledrejection', e => fail(`${e}${e?.reason ?? ''}`));
 
   // Get a WebGPU context from the canvas and configure it
   const canvas = document.querySelector('canvas');
