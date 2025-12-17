@@ -1,0 +1,26 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Check window.visualViewport.scale</title>
+    <style>
+:root { color-scheme: light dark; }
+    </style>
+  </head>
+  <body>
+<pre></pre> 
+  </body>
+  <script type="module">
+const elem = document.querySelector('pre');
+let frameCount = 0;
+function update() {
+  elem.textContent = `\
+frameCount: ${frameCount++}
+window.visualViewport.scale: ${window.visualViewport.scale}`;
+
+  requestAnimationFrame(update);
+}
+update();
+  </script>
+</html>
