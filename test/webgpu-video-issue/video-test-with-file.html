@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+:root {
+  color-scheme: dark;
+}
+canvas {
+  max-width: 100%;
+  margin: 5px;
+  border: 1px solid red;
+  display: block;
+}
+    </style>
+  </head>
+<body>
+  <h1>click to start</h1>
+  <div>top canvas is WebGPU, bottom is WebGL, both should render the same, WebGPU is wrong.</div>
+  <script type="module">
+let src = 'Canvas-Animation-from-mp4.m4v';
+
+let videoFrameRequestId;
+let frameCount = 0;
+
+const adapter = await navigator.gpu.requestAdapter();
+const device = await adapter.requestDevice();
+
+const context = document.createElement('canvas').getContext('webgpu');
+const format = 'rgba8unorm';
+context.configure({
+  device,
+  format,
+  usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_DST,
+});
+document.body.appendChild(context.canvas);
+
+const gl = document.createElement('canvas').getContext('webgl2');
+document.body.appendChild(gl.canvas);
+
+const vsSource = `#version 300 es
+in vec2 a_position;
+out vec2 v_texCoord;
+void main() {
+  vec2 pos[3];
+  pos[0] = vec2(-1.0, -1.0);
+  pos[1] = vec2( 3.0, -1.0);
+  pos[2] = vec2(-1.0,  3.0);
+  vec2 xy = pos[gl_VertexID];
+  v_texCoord = xy * vec2(0.5, -0.5) + vec2(0.5);
+  gl_Position = vec4(xy, 0.0, 1.0);
+}
+`;
+
+const fsSource = `#version 300 es
+precision highp float;
+uniform sampler2D u_video;
+in vec2 v_texCoord;
+out vec4 fragColor;
+
+#define PI radians(180.0)
+
+void main() {
+  fragColor = texture(u_video, v_texCoord);
+}
+`;
+
+const program = createProgram(gl, vsSource, fsSource);
+
+// Texture Setup
+const texture = gl.createTexture();
+gl.bindTexture(gl.TEXTURE_2D, texture);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+
+const video = document.createElement('video');
+video.loop = true;
+video.crossOrigin = 'anonymous';
+
+const p = Promise.withResolvers();
+document.body.addEventListener('click', async () => {
+  await startVideo();
+  p.resolve();
+}, { once: true });
+await p.promise;
+
+async function startVideo() {
+  if (!video.paused) {
+    return;
+  }
+  try {
+    video.src = src;
+    await video.play();
+    videoFrameRequestId = video.requestVideoFrameCallback(copyVideoFrame);
+  } catch(e) {
+    throw new Error('Video play failed. Check URL and CORS.', e);
+  }
+}
+
+function copyVideoFrame() {
+  videoFrameRequestId = undefined;
+  ++frameCount;
+
+  context.canvas.width = video.videoWidth;
+  context.canvas.height = video.videoHeight;
+  device.queue.copyExternalImageToTexture(
+    { source: video },
+    { texture: context.getCurrentTexture() },
+    { width: video.videoWidth, height: video.videoHeight, depthOrArrayLayers: 1 }
+  );
+
+  gl.canvas.width = video.videoWidth;
+  gl.canvas.height = video.videoHeight;
+  gl.useProgram(program);
+  gl.bindTexture(gl.TEXTURE_2D, texture);
+  gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGB, gl.RGB, gl.UNSIGNED_BYTE, video);
+  gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
+  gl.drawArrays(gl.TRIANGLES, 0, 3);
+
+  videoFrameRequestId = video.requestVideoFrameCallback(copyVideoFrame);
+}
+
+
+function createShader(gl, type, src) {
+  const shader = gl.createShader(type);
+  gl.shaderSource(shader, src);
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    throw new Error(gl.getShaderInfoLog(shader));
+  }
+  return shader;
+}
+
+function createProgram(gl, vSrc, fSrc) {
+  const vs = createShader(gl, gl.VERTEX_SHADER, vSrc);
+  const fs = createShader(gl, gl.FRAGMENT_SHADER, fSrc);
+
+  const prg = gl.createProgram();
+  gl.attachShader(prg, vs);
+  gl.attachShader(prg, fs);
+  gl.linkProgram(prg);
+  if (!gl.getProgramParameter(prg, gl.LINK_STATUS)) {
+    throw new Error(gl.getProgramInfoLog(prg));
+  }
+  return prg;
+}
+  </script>
+</body>
+</html>
