@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Canvas2D text metrics do not work at small scales in Chrome</title>
+    <style>
+:root {
+  color-scheme: light dark;
+}
+    </style>
+  </head>
+  <body>
+<h1>The `1x` should be centered in the red square. It is in Firefox and Safari but not Chrome</h1>
+<canvas width="64" height="64"></canvas>
+  </body>
+  <script>
+const ctx = document.querySelector('canvas').getContext('2d');
+ctx.fillStyle = 'red';
+ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+
+function drawCenteredTextAtPoint(ctx, text, x, y) {
+    const metrics = ctx.measureText(text);
+
+    const drawX = x - (metrics.actualBoundingBoxLeft + metrics.actualBoundingBoxRight) / 2 + metrics.actualBoundingBoxLeft;
+    const drawY = y + (metrics.actualBoundingBoxAscent + metrics.actualBoundingBoxDescent) / 2 - metrics.actualBoundingBoxDescent;
+
+    ctx.save();
+    ctx.textAlign = "left";
+    ctx.textBaseline = "alphabetic";
+    ctx.fillText(text, drawX, drawY);
+    ctx.restore();
+}
+
+ctx.translate(32, 32);
+ctx.scale(32, 32);
+ctx.fillStyle = 'yellow';
+ctx.font = '1.5px monospace';
+drawCenteredTextAtPoint(ctx, '1x', 0, 0);
+
+  </script>
+</html>
