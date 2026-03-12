@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <title>WebGPU Iframe print test</title>
+    <style>
+:root {
+  color-scheme: light dark;
+}
+#content {
+  margin: 0 auto;
+  max-width: 800px;
+}
+.diagram {
+  max-width: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+}
+.keep-together {
+  break-inside: avoid;  
+}
+.caption {
+  margin-top: 0.5em;
+  font-size: x-large;
+  font-weight: bold;
+}
+iframe {
+  display: block;
+  border: none;
+  max-width: 400px;
+  width: 100%;
+  height: 100%;
+  aspect-ratio: 4 / 3;
+}
+    </style>
+  </head>
+  <body>
+<div id="content">
+<h1>WebGPU in iframes - print test</h1>
+  <div class="keep-together">
+    <p>
+    Lorem ipsum dolor sit amet, consectetur adipiscing elit. Suspendisse nec leo tincidunt, egestas elit ut, cursus nulla. Phasellus bibendum maximus neque, porttitor laoreet turpis mattis at. Nullam massa nisl, egestas a nunc nec, convallis tincidunt sapien. Aenean at faucibus erat. Maecenas et dictum odio. Phasellus a diam sed ante lobortis efficitur. Fusce vel magna non ipsum pulvinar ultrices. Suspendisse dolor libero, ornare non eleifend a, pharetra eu elit. Suspendisse pellentesque id risus luctus porttitor.
+    </p>
+    <div class="diagram">
+      <iframe src="https://greggman.github.io/webgpu-utils/examples/primitives.html"></iframe>
+      <div class="caption">primitives - (webgpu remote)</div>
+    </div>
+  </div>
+  <div class="keep-together">
+    <p>
+    Nunc odio risus, aliquam vitae enim sed, tincidunt tincidunt mi. Nulla vel nulla id augue varius tristique. In ultrices nisl in dictum finibus. Suspendisse vel porta ex. Nulla maximus lacinia eros, non feugiat eros. Sed in nunc non purus tristique auctor posuere id augue. Proin est dolor, eleifend ac diam ac, tincidunt tempus ex. Vestibulum placerat magna sit amet porttitor fringilla.
+    </p>
+    <div class="diagram">
+      <iframe src="nested.html?src=https://greggman.github.io/webgpu-utils/examples/stencil.html"></iframe>
+      <div class="caption">stencil - (webgpu remote nested)</div>
+    </div>
+  </div>
+  <div class="keep-together">
+    <p>
+    Nulla et elit sed mi sollicitudin convallis et et mi. Suspendisse ac nulla non metus laoreet luctus. Nunc pharetra elit est, elementum finibus justo tempus et. Phasellus finibus volutpat porta. Mauris dictum ex sed tortor fringilla interdum. Quisque pellentesque at enim eget accumsan. Vestibulum sit amet placerat nibh, at fermentum dolor. Vivamus vitae faucibus justo. Aenean diam neque, venenatis ut luctus tincidunt, venenatis et eros. Nunc tincidunt rhoncus maximus. Nunc ultrices nisi at lectus ultrices, eget vulputate sem mollis. Ut ut quam sit amet risus semper varius ut at augue. Pellentesque eleifend dui ut lectus ultrices, sed condimentum lacus ultricies.
+    </p>
+    <div class="diagram">
+      <iframe src="wireframe.html"></iframe>
+      <div class="caption">wireframe - (webgpu local)</div>
+    </div>
+  </div>
+  <div class="keep-together">
+    <p>
+    Mauris eget magna non tortor lacinia tristique aliquet sit amet justo. Aenean lectus nibh, vulputate non elit sed, vulputate pellentesque magna. Vivamus non rutrum eros. Etiam euismod luctus ex, eu dapibus leo vulputate eu. Aenean ac bibendum turpis. Nam iaculis augue diam, sed suscipit nisi tincidunt et. Nulla ac turpis nec diam laoreet dignissim ut et velit.
+    </p>
+    <div class="diagram">
+      <iframe src="cube.html"></iframe>
+      <div class="caption">primitives - (webgpu local, not animated)</div>
+    </div>
+  </div>
+  <div class="keep-together">
+    <p>
+    Nam dapibus varius augue, at sagittis elit blandit sit amet. Nam commodo vehicula sodales. Aliquam pharetra, nibh vel vulputate sodales, orci arcu facilisis quam, eu tincidunt ante enim sit amet turpis. Donec odio nibh, dapibus ut feugiat non, lacinia fermentum nisi. Aenean varius tellus velit, id molestie nunc commodo nec. Pellentesque tincidunt faucibus tellus, sit amet posuere est dapibus nec. Praesent consectetur magna pellentesque molestie sagittis. Praesent ligula odio, molestie ac eros a, molestie maximus est. Nam maximus leo arcu, ultricies lobortis risus cursus eget.
+    </p>
+  </div>
+</div>
+  </body>
+</html>

@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+      html, body {
+        margin: 0;
+        height: 100%;
+      }
+      iframe {
+        border: none;
+        display: block;
+        width: 100%;
+        height: 100%;
+      }
+    </style>
+  </head>
+  <body>
+    <iframe></iframe>
+    <script>
+      const iframe = document.querySelector('iframe');
+      const params = new URLSearchParams(window.location.search);
+      iframe.src = params.get('src');
+    </script>
+  </body>
+</html>
