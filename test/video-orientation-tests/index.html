@@ -80,13 +80,14 @@ const sampler = device.createSampler({
   minFilter: 'linear',
 });
 
+const videoElement = document.createElement('video');
+
 for (const method of ['HTMLVideoElement', 'VideoFrame']) {
   const h1 = document.createElement('h1');
   h1.textContent = method;
   document.body.append(h1);
 
   for (const src of videos) {
-    const videoElement = document.createElement('video');
     videoElement.src = src;
     videoElement.muted = true;
     await videoElement.play();
