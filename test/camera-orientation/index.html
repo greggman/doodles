@@ -278,7 +278,10 @@ async function main() {
     {
       const aspect = canvas.clientWidth / canvas.clientHeight;
       const videoAspect = video.videoWidth / video.videoHeight;
-      const projectionMatrix = mat4.ortho(-aspect, aspect, 1, -1, 0, 1);
+      const projectionMatrix = aspect < 1
+        ? mat4.ortho(-aspect, aspect, 1, -1, 0, 1)
+        : mat4.ortho(-1, 1, 1 / aspect, 1 / -aspect, 0, 1);
+
 
       // Get the current texture from the canvas context and
       // set it as the texture to render to.
@@ -320,7 +323,9 @@ async function main() {
    {
       const aspect = canvas.clientWidth / canvas.clientHeight;
       const videoAspect = video.videoWidth / video.videoHeight;
-      const projectionMatrix = mat4.ortho(-aspect, aspect, 1, -1, 0, 1);
+      const projectionMatrix = aspect < 1
+        ? mat4.ortho(-aspect, aspect, 1, -1, 0, 1)
+        : mat4.ortho(-1, 1, 1 / aspect, 1 / -aspect, 0, 1);
 
       const matrix = mat4.identity();
       mat4.copy(projectionMatrix, matrix);
@@ -347,7 +352,11 @@ async function main() {
       ctx.save();
       ctx.translate(ctx.canvas.width / 2, ctx.canvas.height / 2);
       ctx.scale(ctx.canvas.width * 0.5, ctx.canvas.height * 0.5);
-      ctx.scale(1 / aspect, 1);
+      if (aspect < 1) {
+        ctx.scale(1 / aspect, 1);
+      } else {
+        ctx.scale(1, aspect);
+      }
       ctx.scale(videoAspect, 1);
       ctx.drawImage(video, -0.5, -0.5, 1, 1);
       ctx.restore();
