@@ -306,7 +306,7 @@ async function main() {
       });
 
       mat4.copy(projectionMatrix, matrix);
-      mat4.scale(matrix, [videoAspect, 1, 1], matrix);
+      mat4.scale(matrix, [-videoAspect, 1, 1], matrix);
       mat4.translate(matrix, [-0.5, -0.5, 0], matrix);
       device.queue.writeBuffer(uniformBuffer, 0, uniformValues);
 
@@ -329,7 +329,7 @@ async function main() {
 
       const matrix = mat4.identity();
       mat4.copy(projectionMatrix, matrix);
-      mat4.scale(matrix, [videoAspect, 1, 1], matrix);
+      mat4.scale(matrix, [-videoAspect, 1, 1], matrix);
       mat4.translate(matrix, [-0.5, -0.5, 0], matrix);
 
       gl.viewport(0, 0, gl.canvas.width, gl.canvas.height);
@@ -357,7 +357,7 @@ async function main() {
       } else {
         ctx.scale(1, aspect);
       }
-      ctx.scale(videoAspect, 1);
+      ctx.scale(-videoAspect, 1);
       ctx.drawImage(video, -0.5, -0.5, 1, 1);
       ctx.restore();
     }
