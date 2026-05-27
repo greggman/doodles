@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <!-- Global Metadata -->
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Lumigrid Synth - Premium dynamic color-shifting animated grid with real-time procedural sound synthesis and mouse proximity visualizers.">
+  <meta name="author" content="Antigravity AI">
+  
+  <title>Lumigrid Synth - Interactive Quantum Color-Shift Grid</title>
+
+  <!-- Security Configurations (Strict Client Defense) -->
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self';">
+  <meta http-equiv="X-Frame-Options" content="SAMEORIGIN">
+
+  <!-- Core Visual System Linkage -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+  <!-- Premium Application Frame -->
+  <main class="app-container" id="main-app">
+    
+    <!-- Left Section: Premium Glassmorphic Settings Sidebar -->
+    <aside class="controls-sidebar" id="control-panel" aria-label="Visualizer Controls">
+      
+      <!-- Brand Headers -->
+      <header class="header-wrapper">
+        <div class="title-badge" id="app-badge">Quantum Interactive</div>
+        <h1 id="app-title">Lumigrid <span>Synth</span></h1>
+        <p class="tagline" id="app-tagline">A real-time synthesizer and procedural reactive color grid canvas.</p>
+      </header>
+
+      <!-- Section 1: Color Harmony Engine -->
+      <section class="control-section" aria-labelledby="harmony-title">
+        <h2 class="control-section-title" id="harmony-title">
+          Color Harmony
+          <span class="value-readout" id="active-palette-name">Cyberpunk</span>
+        </h2>
+        
+        <div class="form-group">
+          <label for="theme-selector">Active Presets</label>
+          <div class="select-wrapper">
+            <select id="theme-selector" name="theme">
+              <option value="cyberpunk">Cyberpunk Pink &amp; Cyan</option>
+              <option value="emerald">Emerald Oasis &amp; Deep Teal</option>
+              <option value="sunrise">Neon Sunrise &amp; Solar Orange</option>
+              <option value="aurora">Velvet Aurora &amp; Electric Lime</option>
+            </select>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 2: Cellular Grid Geometry -->
+      <section class="control-section" aria-labelledby="geometry-title">
+        <h2 class="control-section-title" id="geometry-title">Grid Geometry</h2>
+        
+        <div class="form-group">
+          <label for="grid-cols-slider">
+            Grid Columns
+            <span class="value-readout" id="cols-val">20</span>
+          </label>
+          <input type="range" id="grid-cols-slider" min="10" max="40" step="1" value="20" aria-valuemin="10" aria-valuemax="40" aria-valuenow="20">
+        </div>
+        
+        <div class="form-group">
+          <label for="grid-rows-slider">
+            Grid Rows
+            <span class="value-readout" id="rows-val">20</span>
+          </label>
+          <input type="range" id="grid-rows-slider" min="10" max="40" step="1" value="20" aria-valuemin="10" aria-valuemax="40" aria-valuenow="20">
+        </div>
+
+        <div class="form-group">
+          <label for="corner-radius-slider">
+            Cell Shape (Roundness)
+            <span class="value-readout" id="shape-val">6px</span>
+          </label>
+          <input type="range" id="corner-radius-slider" min="0" max="50" step="2" value="15" aria-valuemin="0" aria-valuemax="50" aria-valuenow="15">
+        </div>
+      </section>
+
+      <!-- Section 3: Kinetic Motion & Dynamics -->
+      <section class="control-section" aria-labelledby="kinetic-title">
+        <h2 class="control-section-title" id="kinetic-title">Kinetic Motion</h2>
+        
+        <div class="form-group">
+          <label for="speed-slider">
+            Animation Speed
+            <span class="value-readout" id="speed-val">3.0s</span>
+          </label>
+          <input type="range" id="speed-slider" min="0.5" max="8.0" step="0.1" value="3.0" aria-valuemin="0.5" aria-valuemax="8.0" aria-valuenow="3.0">
+        </div>
+
+        <div class="form-group">
+          <label for="ripple-radius-slider">
+            Proximity Influence
+            <span class="value-readout" id="ripple-val">150px</span>
+          </label>
+          <input type="range" id="ripple-radius-slider" min="50" max="400" step="10" value="150" aria-valuemin="50" aria-valuemax="400" aria-valuenow="150">
+        </div>
+
+        <div class="toggle-wrapper" id="toggle-wave-wrapper">
+          <span>Diagonal Phase Wave</span>
+          <label class="switch" for="wave-toggle" aria-label="Toggle Diagonal Wave">
+            <input type="checkbox" id="wave-toggle" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+
+        <div class="toggle-wrapper" id="toggle-ripple-wrapper">
+          <span>Mouse Proximity Glow</span>
+          <label class="switch" for="ripple-toggle" aria-label="Toggle Proximity Ripple">
+            <input type="checkbox" id="ripple-toggle" checked>
+            <span class="slider"></span>
+          </label>
+        </div>
+      </section>
+
+      <!-- Section 4: Audio-Synthesizer Integration Card -->
+      <section class="synth-controller" id="audio-module" aria-labelledby="audio-title">
+        <header class="synth-header">
+          <h2 class="synth-title" id="audio-title">Sequencer &amp; Synth</h2>
+          <div class="audio-pulse-indicator" id="pulse-dot" aria-hidden="true"></div>
+        </header>
+        
+        <!-- Synthesizer Loop Sequencer Grid Matrix -->
+        <div class="sequencer-wrapper" aria-label="Interactive 8-Step Sequencer Pattern Programmer">
+          <!-- Step Playhead Indicator Lights -->
+          <div class="sequencer-lights" id="seq-step-lights">
+            <div class="seq-node" data-step="0"></div>
+            <div class="seq-node" data-step="1"></div>
+            <div class="seq-node" data-step="2"></div>
+            <div class="seq-node" data-step="3"></div>
+            <div class="seq-node" data-step="4"></div>
+            <div class="seq-node" data-step="5"></div>
+            <div class="seq-node" data-step="6"></div>
+            <div class="seq-node" data-step="7"></div>
+          </div>
+          
+          <!-- Matrix Tracks UI Container -->
+          <div class="sequencer-matrix" id="seq-matrix">
+            <!-- Rendered dynamically by app.js using safe DOM APIs (zero XSS) -->
+          </div>
+        </div>
+
+        <!-- Audio Engine Synthesizer Controls -->
+        <div class="synth-parameters" style="display: flex; flex-direction: column; gap: 12px; margin: 8px 0; border-top: 1px solid rgba(255,255,255,0.06); padding-top: 12px;">
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="synth-wave-selector">Synth Waveform</label>
+            <div class="select-wrapper">
+              <select id="synth-wave-selector" name="synthWave">
+                <option value="sawtooth">Sawtooth (Vibrant)</option>
+                <option value="square">Square (8-Bit)</option>
+                <option value="triangle">Triangle (Smooth)</option>
+                <option value="sine">Sine (Pure Ambient)</option>
+              </select>
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="filter-cutoff-slider">
+              Synth Filter Cutoff
+              <span class="value-readout" id="filter-val">2500Hz</span>
+            </label>
+            <input type="range" id="filter-cutoff-slider" min="200" max="8000" step="100" value="2500" aria-valuemin="200" aria-valuemax="8000" aria-valuenow="2500">
+          </div>
+
+          <div class="form-group" style="margin-bottom: 0;">
+            <label for="delay-feedback-slider">
+              Stereo Delay Feedback
+              <span class="value-readout" id="feedback-val">40%</span>
+            </label>
+            <input type="range" id="delay-feedback-slider" min="0" max="80" step="5" value="40" aria-valuemin="0" aria-valuemax="80" aria-valuenow="40">
+          </div>
+        </div>
+
+        <div class="form-group" style="margin-bottom: 4px;">
+          <label for="bpm-slider">
+            Engine Tempo (BPM)
+            <span class="value-readout" id="bpm-val">120</span>
+          </label>
+          <input type="range" id="bpm-slider" min="80" max="180" step="2" value="120" aria-valuemin="80" aria-valuemax="180" aria-valuenow="120">
+        </div>
+
+        <button class="btn btn-pulse" id="synth-toggle-btn" type="button">
+          <span>Start Beat Engine</span>
+        </button>
+      </section>
+
+      <!-- Section 5: Real-time Cellular Diagnostics Panel -->
+      <section class="diagnostics-panel" id="stats-panel" aria-label="Real-time Analytics">
+        <div class="diag-row">
+          <span>Active Cells:</span>
+          <span id="stat-cell-count">400</span>
+        </div>
+        <div class="diag-row">
+          <span>Engine Status:</span>
+          <span id="stat-engine">IDLE</span>
+        </div>
+        <div class="diag-row">
+          <span>Average FPS:</span>
+          <span id="stat-fps">60 FPS</span>
+        </div>
+        <div class="diag-row">
+          <span>Interactivity Index:</span>
+          <span id="stat-interactivity">0.0</span>
+        </div>
+      </section>
+
+      <!-- Actions -->
+      <button class="btn" id="randomize-btn" type="button" style="margin-top: 16px;">
+        <span>Randomize Synthesis</span>
+      </button>
+
+      <!-- Footer & Citation -->
+      <footer class="footer-text" id="app-footer">
+        Procedural Canvas Engine © 2026. Made with ❤️ by <a href="#" id="dev-link">Antigravity</a>.
+      </footer>
+
+    </aside>
+
+    <!-- Right Section: Ambient CSS Grid Layer -->
+    <section class="canvas-wrapper" id="canvas-panel" aria-label="Grid Canvas Visualizer">
+      <div class="grid-viewport" id="grid-container" role="grid" aria-live="polite">
+        <!-- Rendered Dynamically by secure JavaScript in app.js -->
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Core JavaScript Module Injection -->
+  <script src="app.js" type="module"></script>
+</body>
+</html>
