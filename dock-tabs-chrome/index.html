@@ -1,0 +1,799 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Chrome — Dock-Style Tabs</title>
+<style>
+  :root {
+    --frame: #dee1e6;              /* the frame Chrome paints behind the tabs — strip or side list */
+    --toolbar: #ffffff;
+    --omnibox: #f1f3f4;
+    --border: rgba(0, 0, 0, 0.10);
+    --divider: rgba(0, 0, 0, 0.16);
+    --text: #202124;
+    --text-dim: #5f6368;
+    --accent: #1a73e8;
+    --page: #ffffff;
+    --tab-active: #ffffff;         /* the active tab lifts to the toolbar's color */
+    --label-bg: rgba(255, 255, 255, 0.96);
+    --pop-shadow: 0 8px 28px rgba(0,0,0,0.20), 0 1px 3px rgba(0,0,0,0.12);
+    --shadow: 0 22px 70px rgba(0, 0, 0, 0.35), 0 4px 14px rgba(0,0,0,0.18);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --frame: #202124;
+      --toolbar: #35363a;
+      --omnibox: #202124;
+      --border: rgba(255, 255, 255, 0.10);
+      --divider: rgba(255, 255, 255, 0.18);
+      --text: #e8eaed;
+      --text-dim: #9aa0a6;
+      --accent: #8ab4f8;
+      --page: #202124;
+      --tab-active: #35363a;
+      --label-bg: rgba(60, 64, 67, 0.96);
+      --pop-shadow: 0 8px 28px rgba(0,0,0,0.5), 0 1px 3px rgba(0,0,0,0.4);
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    height: 100%;
+    font-family: system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 14px;
+    min-height: 100vh;
+    padding: 20px;
+    background:
+      radial-gradient(1200px 800px at 20% 10%, #6a5acd55, transparent),
+      radial-gradient(1000px 700px at 90% 90%, #ff7eb355, transparent),
+      linear-gradient(135deg, #3a3a5c, #1a1a2e);
+    color: var(--text);
+  }
+
+  /* ---------- The one control that lives OUTSIDE the browser ----------
+     Chrome shows one or the other: the tab strip across the top, or the
+     vertical tab list down the side. Never both. */
+  .controls {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #fff;
+    font-size: 13px;
+    padding: 8px 14px;
+    border-radius: 20px;
+    background: rgba(255, 255, 255, 0.12);
+    border: 1px solid rgba(255, 255, 255, 0.18);
+    backdrop-filter: blur(6px);
+    cursor: pointer;
+    user-select: none;
+    flex-shrink: 0;
+  }
+  .controls input { accent-color: #8ab4f8; margin: 0; cursor: pointer; }
+
+  /* ---------- Window ----------
+     A row: the vertical tab list (when shown) is a full-height column to the
+     LEFT of everything, toolbar included. Everything else stacks to its right. */
+  .window {
+    width: min(1440px, 100%);
+    height: min(900px, 88vh);
+    background: var(--frame);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    display: flex;                 /* row: [sidebar][main] */
+    border: 0.5px solid rgba(0,0,0,0.2);
+    overflow: hidden;              /* backstop: magnified icons can never escape the window */
+  }
+  .main {
+    flex: 1;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;        /* column: [tab strip][toolbar][page] */
+  }
+
+  .traffic { display: flex; gap: 8px; align-items: center; flex-shrink: 0; }
+  .light { width: 12px; height: 12px; border-radius: 50%; }
+  .light.red    { background: #ff5f57; }
+  .light.yellow { background: #febc2e; }
+  .light.green  { background: #28c840; }
+
+  svg { display: block; }
+
+  /* ================= Tab strip: a horizontal Dock =================
+     Chrome favicons are 16px, so these icons rest at 16px and the strip is only
+     as tall as it needs to be. ONLY the icons grow, exactly like the Dock — no
+     tab shows its own title; the name of the single icon under the pointer
+     appears in one floating label. */
+  .tabstrip {
+    position: relative;          /* icons are absolutely placed by JS */
+    height: 36px;                /* hugs the RESTING icons — no dead space above them */
+    background: var(--frame);
+    flex-shrink: 0;
+    overflow: visible;           /* magnified icons grow DOWN out of the strip, over the toolbar —
+                                    exactly how the Dock grows out over your windows */
+    z-index: 30;
+  }
+  .tabstrip .traffic { position: absolute; left: 16px; top: 50%; transform: translateY(-50%); }
+
+  .newtab {
+    position: absolute;
+    right: 10px; top: 50%;
+    transform: translateY(-50%);
+    width: 24px; height: 24px;
+    display: grid; place-items: center;
+    border-radius: 50%;
+    color: var(--text-dim);
+    background: var(--frame);
+    cursor: default;
+    z-index: 2;
+  }
+  .newtab:hover { background: rgba(127,127,127,0.20); }
+
+  .tab {
+    position: absolute;
+    left: 0;                     /* left + width driven by JS */
+    top: 10px;                   /* icons hang from a common baseline and grow downward */
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    cursor: default;
+    will-change: left, width;
+  }
+
+  /* The active tab is a Chrome tab shape drawn behind its icon — it grows with
+     the icon, and at rest it reads as the familiar rounded-top tab running into
+     the toolbar. */
+  .tab.active::before {
+    content: "";
+    position: absolute;
+    left: -5px; right: -5px; top: -8px;
+    bottom: -10px;               /* runs into the toolbar, so the two colors merge */
+    background: var(--tab-active);
+    border-radius: 8px 8px 0 0;
+    box-shadow: 0 1px 2px rgba(0,0,0,0.10);
+    z-index: -1;
+  }
+
+  /* Chrome's hairline seam between adjacent tabs. It sits on the cell's right
+     edge and keeps its RESTING size however big the icon swells — a divider that
+     magnified along with the icon would read as a rule, not a seam. */
+  .tab::after {
+    content: "";
+    position: absolute;
+    right: 0; top: 1px;
+    width: 1px; height: 14px;
+    background: var(--divider);
+  }
+  /* No seam beside the active tab: its tab shape already ends the run. */
+  .tab.active::after, .tab.pre-active::after, .tab.last::after { display: none; }
+
+  .tab .favicon {
+    border-radius: 22%;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-weight: 700;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.25);
+    will-change: width, height, font-size;
+  }
+
+  /* The one floating name label, parked under whichever icon the pointer is on */
+  .tab-label {
+    position: absolute;
+    top: 0;                      /* top + left driven by JS: it rides under the hovered icon */
+    left: 0;
+    transform: translateX(-50%);
+    padding: 4px 10px;
+    border-radius: 4px;
+    background: var(--label-bg);
+    border: 0.5px solid var(--border);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.20);
+    font-size: 12px;
+    color: var(--text);
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    z-index: 3;
+    will-change: left, opacity;
+  }
+
+  /* ---------- Toolbar: back, forward, reload, home, omnibox, profile, menu ---------- */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 8px;
+    height: 44px;
+    background: var(--toolbar);
+    flex-shrink: 0;
+    position: relative;
+    z-index: 10;
+  }
+
+  .ico {
+    width: 30px; height: 30px;
+    display: grid; place-items: center;
+    border-radius: 50%;
+    color: var(--text-dim);
+    flex-shrink: 0;
+    cursor: default;
+  }
+  .ico:hover { background: rgba(127,127,127,0.18); }
+
+  /* Chrome's omnibox: a full-width pill, not a centered capsule */
+  .addr {
+    flex: 1;
+    height: 30px;
+    background: var(--omnibox);
+    border-radius: 16px;
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    padding: 0 14px;
+    color: var(--text);
+    font-size: 13px;
+    margin: 0 8px;
+    min-width: 0;
+  }
+  .addr .url { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .addr .url .dim { color: var(--text-dim); }
+
+  .avatar {
+    width: 24px; height: 24px; border-radius: 50%;
+    background: linear-gradient(135deg, #4285f4, #34a853);
+    color: #fff; font-size: 11px; font-weight: 700;
+    display: grid; place-items: center;
+    flex-shrink: 0;
+    margin: 0 4px;
+  }
+
+  /* ---------- Vertical tab list: a full-height column, left of the toolbar ---------- */
+  .sidebar {
+    width: 250px;
+    flex-shrink: 0;
+    background: var(--frame);
+    border-right: 1px solid var(--divider);   /* the seam against the rest of the browser */
+    padding: 8px;
+    position: relative;
+    z-index: 15;                    /* above the toolbar, so rows can pop out over it too */
+    border-radius: 12px 0 0 12px;
+    display: flex;
+    flex-direction: column;         /* so the tab list can take the leftover height */
+  }
+
+  /* With no tab strip there is no title bar, so the window controls live at the
+     top of the side list — which is where Chrome puts them. */
+  .sb-head {
+    display: flex;
+    align-items: center;
+    height: 26px;
+    padding: 0 8px;
+    flex-shrink: 0;
+  }
+
+  /* The side list's own toolbar: collapse, group, search — Chrome's defaults. */
+  .sb-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    padding: 6px 4px 4px;
+    flex-shrink: 0;
+  }
+  .sb-toolbar .ico { width: 26px; height: 26px; border-radius: 6px; }
+  .sb-toolbar .spacer { flex: 1; }
+
+  /* The list is a vertical Dock. Here there IS room for the names, so each row
+     keeps its title inline and simply widens to fit it. It takes whatever height
+     is left; if its rows don't fit, it wheel-scrolls rather than growing the
+     sidebar. Rows are clipped vertically so they stay in their own lane —
+     but NOT horizontally, so a magnified row still widens out over the page. */
+  .sb-list {
+    position: relative;
+    flex: 1 1 0;
+    min-height: 0;
+    margin-top: 2px;
+    overflow-y: clip;               /* `clip` (not `hidden`) so overflow-x can stay visible */
+    overflow-x: visible;
+    overflow-clip-margin: 6px;      /* just enough for a popped row's shadow */
+  }
+
+  .sb-item {
+    position: absolute;
+    left: 0; top: 0;
+    display: flex;
+    align-items: center;
+    height: 22px;
+    width: 234px;
+    padding: 0 8px;
+    border-radius: 8px;
+    color: var(--text);
+    cursor: default;
+    overflow: hidden;
+    white-space: nowrap;
+    background: var(--frame);
+    will-change: top, height, width;
+  }
+
+  .sb-item.popped {
+    background: var(--toolbar);
+    box-shadow: var(--pop-shadow);
+    z-index: 10;
+  }
+  /* Chrome marks the current tab with a tinted row, not a saturated one */
+  .sb-item.active { background: color-mix(in srgb, var(--accent) 16%, var(--frame)); }
+  .sb-item.active.popped { background: color-mix(in srgb, var(--accent) 16%, var(--toolbar)); }
+
+  .sb-item .favicon {
+    border-radius: 22%;
+    display: grid; place-items: center;
+    color: #fff; font-weight: 700;
+    flex-shrink: 0;
+    will-change: width, height, font-size;
+  }
+  .sb-item .title {
+    font-size: 13px;
+    margin-left: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+
+  /* ---------- Content ---------- */
+  .content { flex: 1; overflow: auto; background: var(--page); }
+  .hero { padding: 56px 60px; display: flex; flex-direction: column; gap: 18px; align-items: flex-start; }
+  .hero h1 { margin: 0; font-size: 30px; font-weight: 500; }
+  .hero p { margin: 0; color: var(--text-dim); font-size: 15px; max-width: 640px; line-height: 1.55; }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; width: 100%; margin-top: 12px; }
+  .card { height: 120px; border-radius: 12px;
+    background: linear-gradient(135deg, rgba(127,127,127,0.10), rgba(127,127,127,0.04));
+    border: 0.5px solid var(--border); }
+  .hint {
+    font-size: 13px; color: var(--text-dim);
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border-radius: 20px; background: rgba(127,127,127,0.12);
+  }
+
+  /* ---------- The two modes: one or the other, never both ---------- */
+  .window.vertical .tabstrip { display: none; }
+  .window:not(.vertical) .sidebar { display: none; }
+
+  /* offscreen ruler for measuring natural title widths */
+  #ruler {
+    position: absolute; visibility: hidden; white-space: nowrap;
+    font-size: 13px; left: -9999px; top: -9999px;
+    font-family: system-ui, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  }
+</style>
+</head>
+<body>
+  <span id="ruler"></span>
+
+  <label class="controls">
+    <input type="checkbox" id="verticalTabs">
+    Vertical tabs
+  </label>
+
+  <div class="window" id="window">
+    <div class="sidebar" id="sidebar">
+      <div class="sb-head">
+        <div class="traffic">
+          <span class="light red"></span><span class="light yellow"></span><span class="light green"></span>
+        </div>
+      </div>
+
+      <div class="sb-toolbar">
+        <span class="ico" title="Collapse side panel">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="1.5" y="2.5" width="13" height="11" rx="2"/><line x1="10" y1="2.5" x2="10" y2="13.5"/><path d="M6.5 6.2 4.5 8l2 1.8"/></svg>
+        </span>
+        <span class="spacer"></span>
+        <span class="ico" title="Group tabs">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M1.8 5.2V4a1.5 1.5 0 0 1 1.5-1.5h2.2l1.2 1.4h4A1.5 1.5 0 0 1 12.2 5.4v.3"/><rect x="1.8" y="5.7" width="12.4" height="7.8" rx="1.5"/></svg>
+        </span>
+        <span class="ico" title="Search tabs">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><circle cx="7" cy="7" r="4.5"/><path d="m10.4 10.4 3.1 3.1"/></svg>
+        </span>
+        <span class="ico" title="New tab">
+          <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>
+        </span>
+      </div>
+
+      <div class="sb-list" id="sbTabs"></div>
+    </div>
+
+    <div class="main">
+      <div class="tabstrip" id="tabstrip">
+        <div class="traffic">
+          <span class="light red"></span><span class="light yellow"></span><span class="light green"></span>
+        </div>
+        <div class="tab-label" id="tabLabel"></div>
+        <div class="newtab" title="New Tab">
+          <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M8 3v10M3 8h10"/></svg>
+        </div>
+      </div>
+
+      <div class="toolbar">
+        <span class="ico"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13 8H3M7 4 3 8l4 4"/></svg></span>
+        <span class="ico"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8h10M9 4l4 4-4 4"/></svg></span>
+        <span class="ico"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 8a5.5 5.5 0 1 1-1.7-3.9"/><path d="M13.5 2v3h-3"/></svg></span>
+        <span class="ico"><svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 7.2 8 2.5l5.5 4.7"/><path d="M4 6.8v6.7h8V6.8"/></svg></span>
+        <div class="addr">
+          <svg width="12" height="12" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5 7V5a3 3 0 0 1 6 0v2"/></svg>
+          <span class="url"><span class="dim">https://</span>developer.chrome.com<span class="dim">/blog/tab-magnification</span></span>
+        </div>
+        <span class="avatar">G</span>
+        <span class="ico"><svg width="4" height="16" viewBox="0 0 4 16" fill="currentColor"><circle cx="2" cy="3" r="1.6"/><circle cx="2" cy="8" r="1.6"/><circle cx="2" cy="13" r="1.6"/></svg></span>
+      </div>
+
+      <div class="content">
+        <div class="hero">
+          <h1>Tab magnification lands in Chrome</h1>
+          <p>Sixty tabs, and not a favicon squeezed out of existence. Sweep the mouse across the tab strip: only the icons grow, up to 4× — biggest under the pointer, tapering off to each side — and the name of the one icon you are actually on appears below it. Tick <b>Vertical tabs</b> above the window to swap the strip for the side list, where there <i>is</i> room for names, so rows keep their titles inline and widen to fit. Either way, the wheel scrolls the tabs that run off the end.</p>
+          <div class="hint">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1v3M8 12v3M1 8h3M12 8h3"/><circle cx="8" cy="8" r="3"/></svg>
+            Hover the tabs to magnify them
+          </div>
+          <div class="cards"><div class="card"></div><div class="card"></div><div class="card"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // ---- 60 tabs, with real-world-length page titles ----
+  const SITES = [
+    { title: "Tab magnification lands in Chrome | Chrome for Developers", short: "C", color: "#4285f4" },
+    { title: "css - How do I vertically center text with CSS? - Stack Overflow", short: "S", color: "#f48024" },
+    { title: "GitHub - facebook/react: The library for web and native user interfaces", short: "GH", color: "#24292f" },
+    { title: "Element.getBoundingClientRect() - Web APIs | MDN", short: "M", color: "#000000" },
+    { title: "Dock (macOS) - Wikipedia, the free encyclopedia", short: "W", color: "#636466" },
+    { title: "Show HN: I rebuilt the macOS Dock in 200 lines of CSS | Hacker News", short: "Y", color: "#ff6600" },
+    { title: "The 10 best espresso machines of 2026, tested and reviewed - The Verge", short: "V", color: "#5200ff" },
+    { title: "Everything announced at Google I/O in 12 minutes - YouTube", short: "▶", color: "#ff0000" },
+    { title: "r/webdev - What's the most over-engineered thing you've ever shipped?", short: "r", color: "#ff4500" },
+    { title: "Inbox (1,284) - claude@greggman.com - Gmail", short: "M", color: "#ea4335" },
+    { title: "requestAnimationFrame is not a timing function — and other lies", short: "B", color: "#0f9d58" },
+    { title: "Amazon.com: USB-C to USB-C Cable 100W 6ft (2-Pack) : Electronics", short: "a", color: "#ff9900" },
+    { title: "Figma — Chrome Redesign / Tab Strip Explorations (v4, final, FINAL)", short: "F", color: "#a259ff" },
+    { title: "Flight AA184 SFO → LHR — Check in for your trip | American Airlines", short: "AA", color: "#0078d2" },
+    { title: "Docs: dock-tabs-chrome — Notion", short: "N", color: "#111111" },
+    { title: "The Cheesecake Factory menu, prices and locations - DoorDash", short: "D", color: "#eb1700" },
+    { title: "Zoom Meeting — Weekly Design Sync (recurring) — Join from browser", short: "Z", color: "#2d8cff" },
+    { title: "Cubic-bezier.com — a better tool for cubic-bezier easing curves", short: "C", color: "#f24e1e" },
+    { title: "Linear — ENG-4471: Tab magnification jitters at high refresh rates", short: "L", color: "#5e6ad2" },
+    { title: "Slack | #design-systems | Anthropic", short: "#", color: "#4a154b" },
+    { title: "Can I use... CSS overflow: clip? | Browser support tables", short: "?", color: "#2c7cbd" },
+    { title: "WebGPU Fundamentals — Inter-stage variables and interpolation", short: "W", color: "#7a3ef0" },
+    { title: "Google Docs — Q3 Roadmap (Draft, do not circulate)", short: "≡", color: "#4285f4" },
+    { title: "Google Sheets — Espresso machine comparison (17 columns)", short: "▦", color: "#0f9d58" },
+    { title: "Google Calendar — Week of July 13, 2026", short: "31", color: "#4285f4" },
+    { title: "Chrome DevTools — Performance panel: what the flame chart is telling you", short: "D", color: "#0b57d0" },
+    { title: "npm — install size of left-pad, and why nobody learned anything", short: "n", color: "#cb3837" },
+    { title: "Twitch — someone is speedrunning a spreadsheet, 4.2k viewers", short: "T", color: "#9146ff" },
+    { title: "Netflix — Continue watching: Episode 4 (you fell asleep, again)", short: "N", color: "#e50914" },
+    { title: "Spotify — Deep Focus / Instrumental Study (247 songs, 14 hr)", short: "♪", color: "#1db954" },
+    { title: "Bug 1874321 — overflow-y: clip forces overflow-x to auto | Bugzilla", short: "B", color: "#ff9500" },
+    { title: "WHATWG HTML Standard — 4.10 Forms (you are on section 4.10.5.1.2)", short: "H", color: "#e34f26" },
+    { title: "CSS Tricks — A complete guide to Flexbox (bookmarked since 2019)", short: "T", color: "#ff7a18" },
+    { title: "Zillow — 3 bd, 2 ba, definitely-not-haunted Victorian, $1.4M", short: "Z", color: "#006aff" },
+    { title: "REI — Ultralight tent, 2-person, 981 g (23 reviews, 4.6 stars)", short: "R", color: "#4c8b2b" },
+    { title: "Wirecutter — The best USB-C hub, after 62 hours of testing", short: "W", color: "#000000" },
+    { title: "Apple Support — Why is my battery at 87% health after 9 months?", short: "", color: "#333333" },
+    { title: "Home Assistant — Living room lights are still, somehow, unavailable", short: "H", color: "#41bdf5" },
+    { title: "Cloudflare Dashboard — DNS records for greggman.com", short: "C", color: "#f38020" },
+    { title: "AWS Console — us-east-1 — Billing (do not look, it is fine)", short: "A", color: "#ff9900" },
+    { title: "Vercel — Deployment failed: Build exceeded maximum duration", short: "▲", color: "#000000" },
+    { title: "Datadog — p99 latency spiked at 03:14, nobody was awake", short: "D", color: "#632ca6" },
+    { title: "Jira — DESIGN-882: Make the tabs 2px taller (blocked, 14 comments)", short: "J", color: "#0052cc" },
+    { title: "Confluence — Meeting notes: the meeting about the other meeting", short: "C", color: "#0052cc" },
+    { title: "Wikipedia — Fitts's law - Wikipedia", short: "W", color: "#636466" },
+    { title: "Wikipedia — List of common misconceptions (3 hours later)", short: "W", color: "#636466" },
+    { title: "arXiv — 2601.04412 — Attention Is Still, Apparently, All You Need", short: "χ", color: "#b31b1b" },
+    { title: "Claude — Rewrite the tab strip mockup to look like Chrome", short: "✳", color: "#d97757" },
+    { title: "ChatGPT — no you are not in trouble, this is research", short: "◎", color: "#10a37f" },
+    { title: "Discord | #general | 47 unread mentions", short: "D", color: "#5865f2" },
+    { title: "LinkedIn — 12 people viewed your profile (all recruiters)", short: "in", color: "#0a66c2" },
+    { title: "Bluesky — everyone is posting about tab bars today", short: "B", color: "#0085ff" },
+    { title: "Mastodon — a very long thread about, again, tab bars", short: "m", color: "#6364ff" },
+    { title: "Google Maps — Directions to the good coffee place (11 min walk)", short: "◈", color: "#34a853" },
+    { title: "OpenTable — Reservation for 2 at 7:30 PM, Saturday", short: "O", color: "#da3743" },
+    { title: "United — Change flight — Fee: $0. Fare difference: $612.", short: "U", color: "#002244" },
+    { title: "Airbnb — Cabin with a hot tub and, allegedly, wifi", short: "A", color: "#ff5a5f" },
+    { title: "Strava — You are 4th on this segment (you were 3rd yesterday)", short: "S", color: "#fc4c02" },
+    { title: "Duolingo — Your 219-day streak is in danger, Gregg", short: "D", color: "#58cc02" },
+    { title: "about:blank", short: "", color: "#9aa0a6" },
+  ];
+  const ACTIVE_INDEX = 0;
+
+  const ruler = document.getElementById("ruler");
+  function textWidth(str) {
+    ruler.textContent = str;
+    return Math.ceil(ruler.getBoundingClientRect().width);
+  }
+
+  // ============================================================
+  //  Dock layout engine (1-D — drives both axes)
+  //
+  //  Two rules make this behave like the real macOS Dock:
+  //
+  //  1. SIZE is a function of each item's distance from the cursor measured
+  //     in the RESTING layout. Never in the live layout — that feeds back on
+  //     itself (item grows -> its center moves -> it grows differently).
+  //
+  //  2. POSITION is anchored, not re-flowed. The item the pointer is over
+  //     stays pinned under the pointer, and every other item is chained
+  //     outward from it — items before it get pushed back, items after it get
+  //     pushed forward. A naive left-to-right reflow instead shoves the
+  //     hovered item out from under the cursor, which the Dock never does.
+  // ============================================================
+
+  // Smooth cosine bump: 1 at the cursor, 0 at `spread` away.
+  function falloff(dist, spread) {
+    if (dist >= spread) return 0;
+    return 0.5 * (1 + Math.cos((dist / spread) * Math.PI));
+  }
+
+  function dockLayout(cursor, base, fulls, spread, pad, intensity) {
+    const n = fulls.length;
+    const sizes = new Array(n);
+    const factors = new Array(n);
+
+    // --- Rule 1: sizes come from the RESTING geometry ---
+    for (let i = 0; i < n; i++) {
+      const restCenter = pad + i * base + base / 2;
+      const f = falloff(Math.abs(cursor - restCenter), spread) * intensity;
+      factors[i] = f;
+      sizes[i] = base + (fulls[i] - base) * f;
+    }
+
+    // --- Rule 2: pin the hovered item under the cursor, chain outward ---
+    const raw = (cursor - pad) / base;
+    const anchor = Math.min(n - 1, Math.max(0, Math.floor(raw)));
+    const t = raw - anchor;                        // outside 0..1 past the ends; extrapolating there is fine
+
+    const offsets = new Array(n);
+    offsets[anchor] = cursor - t * sizes[anchor];  // cursor keeps the same fraction across the pinned item
+    for (let i = anchor - 1; i >= 0; i--) offsets[i] = offsets[i + 1] - sizes[i];     // pushed back
+    for (let i = anchor + 1; i < n; i++) offsets[i] = offsets[i - 1] + sizes[i - 1];  // pushed forward
+
+    return { sizes, offsets, factors };
+  }
+
+  // ---- The ramp: magnification tracks the cursor 1:1 while it moves, but
+  //      eases in on arrival and out on departure rather than snapping.
+  //      Also owns `scroll`, which is simply an offset applied to the RESTING
+  //      layout — so magnification and anchoring follow it for free. ----
+  function makeDock(render) {
+    let cursor = -9999, intensity = 0, target = 0, raf = null;
+    let scroll = 0, scrollMax = 0;
+
+    function frame() {
+      intensity += (target - intensity) * 0.28;
+      if (Math.abs(target - intensity) < 0.002) intensity = target;
+      render(cursor, intensity, scroll);
+      raf = intensity !== target ? requestAnimationFrame(frame) : null;  // settled: stop; next event restarts
+    }
+    const kick = () => { if (raf === null) raf = requestAnimationFrame(frame); };
+
+    return {
+      move(pos) { cursor = pos; target = 1; kick(); },
+      leave()   { target = 0; kick(); },
+      reset()   { render(-9999, 0, scroll); },
+      setScrollMax(m) {
+        scrollMax = Math.max(0, m);
+        scroll = Math.min(scroll, scrollMax);
+      },
+      wheel(delta) {
+        if (scrollMax <= 0) return false;
+        const next = Math.max(0, Math.min(scrollMax, scroll + delta));
+        if (next === scroll) return false;
+        scroll = next;
+        kick();
+        return true;
+      },
+    };
+  }
+
+  // ================= Horizontal Dock: the tab strip =================
+  // Icon-only, exactly like the Dock, and Chrome-sized: a favicon is 16px, so
+  // that is the resting size. The item's SIZE is its icon's cell — titles play
+  // no part in the layout at all; they live in one floating label.
+  const TAB_ICON     = 16;                    // resting icon size — Chrome's favicon
+  const TAB_ICON_MAX = TAB_ICON * 4;          // 64px under the pointer (3x of 16px is still tiny)
+  const TAB_GAP      = 14;                    // breathing room around each icon
+  const TAB_BASE     = TAB_ICON + TAB_GAP;    // 30px per resting tab
+  const TAB_FULL     = TAB_ICON_MAX + TAB_GAP;
+  const TAB_SPREAD   = 110;
+  const TAB_TOP      = 10;                    // .tab's top in CSS — the label hangs off this
+
+  const win = document.getElementById("window");
+  const tabstrip = document.getElementById("tabstrip");
+  const tabLabel = document.getElementById("tabLabel");
+  const tabEls = [], tabIcons = [];
+  const tabFulls = SITES.map(() => TAB_FULL);   // uniform: every icon magnifies by the same amount
+
+  const TAB_LEFT  = 82;                          // the traffic lights own the left end of the strip
+  const TAB_RIGHT = 44;                          // the "+" owns the right end
+  const TAB_REST  = SITES.length * TAB_BASE;     // width of the whole row at rest
+
+  // The strip's usable track sits between the traffic lights and the "+". When
+  // the row fits that track it is centered in it, like the Dock on a screen —
+  // the free space either side is what icons get pushed out into. When it does
+  // not fit (60 tabs rarely will), the row pins to the left of the track and
+  // `scroll` slides it, so you can wheel to the icons that are off the end.
+  function tabTrack() { return tabstrip.clientWidth - TAB_LEFT - TAB_RIGHT; }
+  function tabPad(scroll) {
+    const track = tabTrack();
+    return TAB_REST <= track
+      ? TAB_LEFT + (track - TAB_REST) / 2
+      : TAB_LEFT - scroll;
+  }
+  function tabScrollMax() { return TAB_REST - tabTrack(); }
+
+  SITES.forEach((s, i) => {
+    const tab = document.createElement("div");
+    tab.className = "tab"
+      + (i === ACTIVE_INDEX ? " active" : "")
+      + (i === ACTIVE_INDEX - 1 ? " pre-active" : "")     // the seam before the active tab is redundant
+      + (i === SITES.length - 1 ? " last" : "");
+    tab.innerHTML = '<span class="favicon" style="background:' + s.color + '">' + s.short + '</span>';
+    tabstrip.appendChild(tab);
+    tabEls.push(tab);
+    tabIcons.push(tab.querySelector(".favicon"));
+  });
+
+  function renderTabs(cursorX, intensity, scroll) {
+    // Deliberately unclamped horizontally: `scroll` is already bounded in
+    // wheel(), and clamping would shove the row sideways to fit, tearing the
+    // pinned icon out from under the cursor — the exact thing the anchor exists
+    // to prevent. The window's overflow is the backstop.
+    const { sizes, offsets, factors } = dockLayout(cursorX, TAB_BASE, tabFulls, TAB_SPREAD, tabPad(scroll), intensity);
+
+    let best = -1, bestF = 0, bestIcon = 0;
+    for (let i = 0; i < tabEls.length; i++) {
+      const cell = sizes[i];
+      const icon = cell - TAB_GAP;                       // the icon IS the magnified thing
+      tabEls[i].style.left = offsets[i].toFixed(2) + "px";
+      tabEls[i].style.width = cell.toFixed(2) + "px";
+
+      const ic = tabIcons[i];
+      ic.style.width = icon.toFixed(2) + "px";
+      ic.style.height = icon.toFixed(2) + "px";
+      ic.style.fontSize = (icon * 0.42).toFixed(2) + "px";
+
+      if (factors[i] > bestF) { bestF = factors[i]; best = i; bestIcon = icon; }
+    }
+
+    // One label, riding just under whichever icon the pointer is actually on.
+    if (best >= 0 && bestF > 0.05) {
+      tabLabel.textContent = SITES[best].title;
+      tabLabel.style.left = (offsets[best] + sizes[best] / 2).toFixed(2) + "px";
+      tabLabel.style.top = (TAB_TOP + bestIcon + 8).toFixed(2) + "px";
+      tabLabel.style.opacity = Math.min(1, (bestF - 0.05) / 0.35).toFixed(3);
+    } else {
+      tabLabel.style.opacity = "0";
+    }
+  }
+
+  // ================= Vertical Dock: the side tab list =================
+  // There IS room for names here, so rows keep their titles inline and widen to
+  // fit them — while the icon still swells like the Dock's.
+  const SB_ICON     = 16;                      // the same 16px favicon as the strip
+  const SB_ICON_MAX = SB_ICON * 4;             // 64px
+  const SB_BASE_H   = 26;
+  const SB_MAX_H    = SB_ICON_MAX + 8;
+  const SB_BASE_W   = 234;
+  const SB_SPREAD   = 90;
+  const SB_CHROME   = 8 + 8 + 12;              // padL + gap + padR (icon width is added live)
+
+  const sbTabs = document.getElementById("sbTabs");
+  const sbEls = [], sbIcons = [], sbFullW = [];
+  const sbFullH = SITES.map(() => SB_MAX_H);   // the same magnified height for every row...
+
+  SITES.forEach((s, i) => {
+    const el = document.createElement("div");
+    el.className = "sb-item" + (i === ACTIVE_INDEX ? " active" : "");
+    el.innerHTML =
+      '<span class="favicon" style="background:' + s.color + '">' + s.short + '</span>' +
+      '<span class="title">' + s.title + '</span>';
+    sbTabs.appendChild(el);
+    sbEls.push(el);
+    sbIcons.push(el.querySelector(".favicon"));
+    sbFullW.push(Math.max(SB_BASE_W, SB_CHROME + SB_ICON_MAX + textWidth(s.title)));  // ...but only as wide as ITS title
+  });
+
+  const SB_REST_H = SITES.length * SB_BASE_H;  // if the rows do not fit, the list wheel-scrolls
+
+  function renderSidebar(cursorY, intensity, scroll) {
+    const { sizes, offsets, factors } = dockLayout(cursorY, SB_BASE_H, sbFullH, SB_SPREAD, -scroll, intensity);
+    const n = sbEls.length;
+    const H = sbTabs.clientHeight;
+
+    // The tab strip may grow out over the toolbar — that is the Dock growing out
+    // over your windows. The side list may NOT: it is a column with the page
+    // beside it and the sidebar's own toolbar above it, so the row run stays in
+    // its lane. Rather than clamp each row (which would let the run overlap
+    // itself), slide the WHOLE run by one shift, which preserves the spacing the
+    // dock just computed. The pointer loses its 1:1 grip on the anchored row
+    // only at the very ends of the list, which is exactly what the real Dock
+    // does against a screen edge.
+    const start = offsets[0];
+    const end = offsets[n - 1] + sizes[n - 1];
+    let shift = 0;
+    if (end - start <= H) {
+      // The magnified run fits: keep it inside the box.
+      if (start < 0) shift = -start;
+      else if (end > H) shift = H - end;
+    } else {
+      // It over-fills the box: keep it COVERING the box, so no gap opens at
+      // either end and there is always a row under the pointer.
+      if (start > 0) shift = -start;
+      else if (end < H) shift = H - end;
+    }
+
+    for (let i = 0; i < n; i++) {
+      const el = sbEls[i], f = factors[i];
+      const icon = SB_ICON + (SB_ICON_MAX - SB_ICON) * f;
+      el.style.top = (offsets[i] + shift).toFixed(2) + "px";
+      el.style.height = sizes[i].toFixed(2) + "px";
+      el.style.width = (SB_BASE_W + (sbFullW[i] - SB_BASE_W) * f).toFixed(2) + "px";
+
+      const ic = sbIcons[i];
+      ic.style.width = icon.toFixed(2) + "px";
+      ic.style.height = icon.toFixed(2) + "px";
+      ic.style.fontSize = (icon * 0.45).toFixed(2) + "px";
+
+      el.classList.toggle("popped", f > 0.02);
+    }
+  }
+
+  const tabDock = makeDock(renderTabs);
+  tabstrip.addEventListener("mousemove", (e) => tabDock.move(e.clientX - tabstrip.getBoundingClientRect().left));
+  tabstrip.addEventListener("mouseleave", () => tabDock.leave());
+  tabstrip.addEventListener("wheel", (e) => {
+    // A trackpad swipe reports deltaX; a plain wheel only ever reports deltaY.
+    // Take whichever is bigger so both drive this horizontal dock.
+    const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    if (tabDock.wheel(d)) e.preventDefault();
+  }, { passive: false });
+
+  const sbDock = makeDock(renderSidebar);
+  sbTabs.addEventListener("mousemove", (e) => sbDock.move(e.clientY - sbTabs.getBoundingClientRect().top));
+  sbTabs.addEventListener("mouseleave", () => sbDock.leave());
+  sbTabs.addEventListener("wheel", (e) => {
+    // Wheel the rows themselves — no browser scrollbar. Only swallow the event
+    // if the dock actually consumed it, so a dock already at an end does not
+    // silently eat the page's scroll.
+    if (sbDock.wheel(e.deltaY)) e.preventDefault();
+  }, { passive: false });
+
+  // ---- Vertical tabs: Chrome shows the strip OR the side list, never both ----
+  document.getElementById("verticalTabs").addEventListener("change", (e) => {
+    win.classList.toggle("vertical", e.target.checked);
+    relayout();
+  });
+
+  // Whichever dock is hidden measures as zero; this runs on every mode flip, so
+  // the one coming back always re-measures before it is seen.
+  function relayout() {
+    tabDock.setScrollMax(tabScrollMax());
+    sbDock.setScrollMax(SB_REST_H - sbTabs.clientHeight);
+    tabDock.reset();
+    sbDock.reset();
+  }
+  window.addEventListener("resize", relayout);
+  relayout();
+</script>
+</body>
+</html>
