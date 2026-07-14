@@ -1,0 +1,634 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Safari — Dock-Style Tabs</title>
+<style>
+  :root {
+    --chrome-bg: #e8e8ea;
+    --chrome-bg-2: #d9d9dc;
+    --sidebar-bg: #f0f0f2;
+    --border: rgba(0, 0, 0, 0.12);
+    --text: #1d1d1f;
+    --text-dim: #6e6e73;
+    --accent: #0a84ff;
+    --tab-active: #ffffff;
+    --label-bg: rgba(250, 250, 252, 0.92);
+    --pop-shadow: 0 8px 28px rgba(0,0,0,0.22), 0 1px 3px rgba(0,0,0,0.14);
+    --shadow: 0 22px 70px rgba(0, 0, 0, 0.35), 0 4px 14px rgba(0,0,0,0.18);
+  }
+
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --chrome-bg: #2c2c2e;
+      --chrome-bg-2: #232325;
+      --sidebar-bg: #262628;
+      --border: rgba(255, 255, 255, 0.12);
+      --text: #f5f5f7;
+      --text-dim: #9a9a9e;
+      --tab-active: #3a3a3c;
+      --label-bg: rgba(60, 60, 62, 0.94);
+      --pop-shadow: 0 8px 28px rgba(0,0,0,0.5), 0 1px 3px rgba(0,0,0,0.4);
+    }
+  }
+
+  * { box-sizing: border-box; }
+
+  html, body {
+    margin: 0;
+    height: 100%;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+    background:
+      radial-gradient(1200px 800px at 20% 10%, #6a5acd55, transparent),
+      radial-gradient(1000px 700px at 90% 90%, #ff7eb355, transparent),
+      linear-gradient(135deg, #3a3a5c, #1a1a2e);
+    color: var(--text);
+  }
+
+  /* ---------- Window ---------- */
+  .window {
+    width: min(1440px, 100%);
+    height: min(960px, 96vh);
+    background: var(--chrome-bg);
+    border-radius: 12px;
+    box-shadow: var(--shadow);
+    display: flex;
+    flex-direction: column;
+    border: 0.5px solid var(--border);
+    overflow: hidden;    /* backstop: magnified icons and rows can never escape the window */
+  }
+
+  /* ---------- Toolbar ---------- */
+  .toolbar {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+    padding: 0 16px;
+    height: 52px;
+    background: linear-gradient(var(--chrome-bg), var(--chrome-bg-2));
+    border-bottom: 0.5px solid var(--border);
+    border-radius: 12px 12px 0 0;
+    flex-shrink: 0;
+  }
+
+  .traffic { display: flex; gap: 8px; align-items: center; }
+  .light { width: 12px; height: 12px; border-radius: 50%; }
+  .light.red    { background: #ff5f57; }
+  .light.yellow { background: #febc2e; }
+  .light.green  { background: #28c840; }
+
+  .nav-btns { display: flex; gap: 4px; color: var(--text-dim); margin-left: 4px; }
+  .ico { width: 30px; height: 26px; display: grid; place-items: center; border-radius: 6px; }
+
+  .sidebar-toggle {
+    width: 30px; height: 26px; display: grid; place-items: center;
+    border-radius: 6px; color: var(--text-dim); cursor: pointer;
+  }
+  .sidebar-toggle:hover { background: rgba(127,127,127,0.18); }
+
+  .addr {
+    flex: 1;
+    height: 30px;
+    background: rgba(127,127,127,0.16);
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 7px;
+    color: var(--text-dim);
+    font-size: 13px;
+    max-width: 520px;
+    margin: 0 auto;
+  }
+
+  .toolbar-right { display: flex; gap: 4px; color: var(--text-dim); margin-left: auto; }
+
+  svg { display: block; }
+
+  /* ================= Tab bar: a horizontal Dock =================
+     Exactly like the Dock: ONLY the icons grow. No tab ever shows its own
+     title — the name of the single icon under the pointer appears in one
+     floating label. */
+  .tabbar {
+    position: relative;          /* icons are absolutely placed by JS */
+    height: 56px;                /* hugs the RESTING icons — no dead space above them */
+    background: var(--chrome-bg-2);
+    border-bottom: 0.5px solid var(--border);
+    flex-shrink: 0;
+    overflow: visible;           /* magnified icons grow DOWN out of the bar, over the page —
+                                    exactly how the Dock grows out over your windows */
+    z-index: 20;
+  }
+
+  .tab {
+    position: absolute;
+    left: 0;                     /* left + width driven by JS */
+    top: 8px;                    /* icons hang from a common baseline and grow downward */
+    display: flex;
+    align-items: flex-start;
+    justify-content: center;
+    cursor: default;
+    will-change: left, width;
+  }
+
+  .tab .favicon {
+    border-radius: 22%;
+    display: grid;
+    place-items: center;
+    color: #fff;
+    font-weight: 700;
+    box-shadow: 0 3px 10px rgba(0,0,0,0.30);
+    will-change: width, height, font-size;
+  }
+  .tab.active .favicon { outline: 2px solid var(--accent); outline-offset: 2px; }
+
+  /* The one floating name label, parked under whichever icon the pointer is on */
+  .tab-label {
+    position: absolute;
+    top: 0;                      /* top + left driven by JS: it rides under the hovered icon */
+    left: 0;
+    transform: translateX(-50%);
+    padding: 3px 10px;
+    border-radius: 6px;
+    background: var(--label-bg);
+    border: 0.5px solid var(--border);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.14);
+    font-size: 12px;
+    color: var(--text);
+    white-space: nowrap;
+    pointer-events: none;
+    opacity: 0;
+    will-change: left, opacity;
+  }
+
+  /* ---------- Body ---------- */
+  .body { flex: 1; display: flex; min-height: 0; background: var(--tab-active); border-radius: 0 0 12px 12px; }
+
+  .sidebar {
+    width: 250px;
+    flex-shrink: 0;
+    background: var(--sidebar-bg);
+    border-right: 0.5px solid var(--border);
+    padding: 8px;
+    overflow: visible;              /* let magnified rows pop out over the page */
+    position: relative;
+    z-index: 5;
+    border-radius: 0 0 0 12px;
+    display: flex;
+    flex-direction: column;         /* so the Tabs list can take the leftover height */
+  }
+  .sidebar.hidden { display: none; }
+
+  .sb-section {
+    font-size: 11px; font-weight: 600; color: var(--text-dim);
+    padding: 8px 10px 3px;
+    flex-shrink: 0;
+  }
+
+  /* Sidebar lists are vertical Docks. Here there IS room for the names, so
+     each row keeps its title inline and simply widens to fit it. */
+  .sb-list { position: relative; flex-shrink: 0; }
+
+  /* The Tabs list takes whatever height is left. If its 20 rows don't fit in
+     that, it becomes wheel-scrollable rather than growing the sidebar. */
+  #sbTabs { flex: 1 1 0; min-height: 0; }
+
+  .sb-item {
+    position: absolute;
+    left: 0; top: 0;
+    display: flex;
+    align-items: center;
+    height: 22px;
+    width: 234px;
+    padding: 0 8px;
+    border-radius: 7px;
+    color: var(--text);
+    cursor: default;
+    overflow: hidden;
+    white-space: nowrap;
+    background: var(--sidebar-bg);
+    will-change: top, height, width;
+  }
+
+  .sb-item.popped {
+    background: var(--tab-active);
+    box-shadow: var(--pop-shadow);
+    z-index: 10;
+  }
+  .sb-item.active, .sb-item.active.popped { background: var(--accent); color: #fff; }
+
+  .sb-item .favicon {
+    border-radius: 22%;
+    display: grid; place-items: center;
+    color: #fff; font-weight: 700;
+    flex-shrink: 0;
+    will-change: width, height, font-size;
+  }
+  .sb-item .title {
+    font-size: 13px;
+    margin-left: 8px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    flex: 1;
+  }
+
+  /* ---------- Content ---------- */
+  .content { flex: 1; overflow: auto; background: var(--tab-active); }
+  .hero { padding: 56px 60px; display: flex; flex-direction: column; gap: 18px; align-items: flex-start; }
+  .hero h1 { margin: 0; font-size: 30px; }
+  .hero p { margin: 0; color: var(--text-dim); font-size: 15px; max-width: 620px; line-height: 1.55; }
+  .cards { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; width: 100%; margin-top: 12px; }
+  .card { height: 120px; border-radius: 12px;
+    background: linear-gradient(135deg, rgba(127,127,127,0.10), rgba(127,127,127,0.04));
+    border: 0.5px solid var(--border); }
+  .hint {
+    font-size: 13px; color: var(--text-dim);
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 8px 14px; border-radius: 20px; background: rgba(127,127,127,0.12);
+  }
+
+  /* offscreen ruler for measuring natural title widths */
+  #ruler {
+    position: absolute; visibility: hidden; white-space: nowrap;
+    font-size: 13px; left: -9999px; top: -9999px;
+    font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  }
+</style>
+</head>
+<body>
+  <span id="ruler"></span>
+
+  <div class="window">
+    <div class="toolbar">
+      <div class="traffic">
+        <span class="light red"></span><span class="light yellow"></span><span class="light green"></span>
+      </div>
+      <div class="sidebar-toggle" id="sidebarToggle" title="Toggle Sidebar">
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.2">
+          <rect x="1.5" y="2.5" width="13" height="11" rx="2"/><line x1="6" y1="2.5" x2="6" y2="13.5"/>
+        </svg>
+      </div>
+      <div class="nav-btns">
+        <span class="ico"><svg width="9" height="14" viewBox="0 0 9 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="7,1 1.5,7 7,13"/></svg></span>
+        <span class="ico"><svg width="9" height="14" viewBox="0 0 9 14" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><polyline points="2,1 7.5,7 2,13"/></svg></span>
+      </div>
+      <div class="addr">
+        <svg width="11" height="11" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="3" y="7" width="10" height="7" rx="1.5"/><path d="M5 7V5a3 3 0 0 1 6 0v2"/></svg>
+        developer.apple.com
+      </div>
+      <div class="toolbar-right">
+        <span class="ico"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M8 2v9M4.5 7.5 8 11l3.5-3.5M3 13.5h10"/></svg></span>
+        <span class="ico"><svg width="16" height="4" viewBox="0 0 16 4" fill="currentColor"><circle cx="2" cy="2" r="1.5"/><circle cx="8" cy="2" r="1.5"/><circle cx="14" cy="2" r="1.5"/></svg></span>
+        <span class="ico"><svg width="15" height="15" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 4v8M4 8h8"/></svg></span>
+      </div>
+    </div>
+
+    <div class="tabbar" id="tabbar">
+      <div class="tab-label" id="tabLabel"></div>
+    </div>
+
+    <div class="body">
+      <div class="sidebar" id="sidebar">
+        <div class="sb-section">Favorites</div>
+        <div class="sb-list" id="sbFavorites"></div>
+        <div class="sb-section">Tabs · 20</div>
+        <div class="sb-list" id="sbTabs"></div>
+      </div>
+
+      <div class="content">
+        <div class="hero">
+          <h1>Human Interface Guidelines</h1>
+          <p>A mockup of Safari with twenty open tabs and the sidebar showing. Sweep the mouse across the tab bar: only the icons grow, up to 3× — biggest under the pointer, tapering off to each side — and the name of the one icon you're actually on appears below it. The sidebar has room for names, so its rows show titles inline and widen to fit.</p>
+          <div class="hint">
+            <svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M8 1v3M8 12v3M1 8h3M12 8h3"/><circle cx="8" cy="8" r="3"/></svg>
+            Hover the tabs to magnify them
+          </div>
+          <div class="cards"><div class="card"></div><div class="card"></div><div class="card"></div></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+<script>
+  // ---- 20 tabs, with real-world-length page titles ----
+  const SITES = [
+    { title: "Human Interface Guidelines | Apple Developer Documentation", short: "", color: "#333333" },
+    { title: "css - How do I vertically center text with CSS? - Stack Overflow", short: "S", color: "#f48024" },
+    { title: "GitHub - facebook/react: The library for web and native user interfaces", short: "GH", color: "#24292f" },
+    { title: "Element.getBoundingClientRect() - Web APIs | MDN", short: "M", color: "#000000" },
+    { title: "Dock (macOS) - Wikipedia, the free encyclopedia", short: "W", color: "#636466" },
+    { title: "Show HN: I rebuilt the macOS Dock in 200 lines of CSS | Hacker News", short: "Y", color: "#ff6600" },
+    { title: "The 10 best espresso machines of 2026, tested and reviewed - The Verge", short: "V", color: "#5200ff" },
+    { title: "Everything Apple announced at WWDC in 12 minutes - YouTube", short: "", color: "#ff0000" },
+    { title: "r/webdev - What's the most over-engineered thing you've ever shipped?", short: "r", color: "#ff4500" },
+    { title: "Inbox (1,284) - claude@greggman.com - Gmail", short: "M", color: "#ea4335" },
+    { title: "requestAnimationFrame is not a timing function — and other lies", short: "B", color: "#0f9d58" },
+    { title: "Amazon.com: USB-C to USB-C Cable 100W 6ft (2-Pack) : Electronics", short: "a", color: "#ff9900" },
+    { title: "Figma — Safari Redesign / Tab Bar Explorations (v4, final, FINAL)", short: "F", color: "#a259ff" },
+    { title: "Flight AA184 SFO → LHR — Check in for your trip | American Airlines", short: "AA", color: "#0078d2" },
+    { title: "Docs: dock-tabs-safari — Notion", short: "N", color: "#111111" },
+    { title: "The Cheesecake Factory menu, prices and locations - DoorDash", short: "D", color: "#eb1700" },
+    { title: "Zoom Meeting — Weekly Design Sync (recurring) — Join from browser", short: "Z", color: "#2d8cff" },
+    { title: "Cubic-bezier.com — a better tool for cubic-bezier easing curves", short: "C", color: "#f24e1e" },
+    { title: "Linear — ENG-4471: Tab magnification jitters at high refresh rates", short: "L", color: "#5e6ad2" },
+    { title: "Slack | #design-systems | Anthropic", short: "#", color: "#4a154b" },
+  ];
+  const ACTIVE_INDEX = 0;
+
+  const FAVORITES = [
+    { title: "Apple Developer — Documentation Archive", short: "", color: "#333333" },
+    { title: "Reading List (47 unread articles)", short: "☰", color: "#0a84ff" },
+    { title: "Bookmarks — Design References & Inspiration", short: "★", color: "#ffb300" },
+    { title: "iCloud Shared Tabs from Gregg's iPhone", short: "☁", color: "#3ac1f0" },
+  ];
+
+  const ruler = document.getElementById("ruler");
+  function textWidth(str) {
+    ruler.textContent = str;
+    return Math.ceil(ruler.getBoundingClientRect().width);
+  }
+
+  // ============================================================
+  //  Dock layout engine (1-D — drives both axes)
+  //
+  //  Two rules make this behave like the real macOS Dock:
+  //
+  //  1. SIZE is a function of each item's distance from the cursor measured
+  //     in the RESTING layout. Never in the live layout — that feeds back on
+  //     itself (item grows -> its center moves -> it grows differently).
+  //
+  //  2. POSITION is anchored, not re-flowed. The item the pointer is over
+  //     stays pinned under the pointer, and every other item is chained
+  //     outward from it — items before it get pushed back, items after it get
+  //     pushed forward. A naive left-to-right reflow instead shoves the
+  //     hovered item out from under the cursor, which the Dock never does.
+  // ============================================================
+
+  // Smooth cosine bump: 1 at the cursor, 0 at `spread` away.
+  function falloff(dist, spread) {
+    if (dist >= spread) return 0;
+    return 0.5 * (1 + Math.cos((dist / spread) * Math.PI));
+  }
+
+  function dockLayout(cursor, base, fulls, spread, pad, intensity) {
+    const n = fulls.length;
+    const sizes = new Array(n);
+    const factors = new Array(n);
+
+    // --- Rule 1: sizes come from the RESTING geometry ---
+    for (let i = 0; i < n; i++) {
+      const restCenter = pad + i * base + base / 2;
+      const f = falloff(Math.abs(cursor - restCenter), spread) * intensity;
+      factors[i] = f;
+      sizes[i] = base + (fulls[i] - base) * f;
+    }
+
+    // --- Rule 2: pin the hovered item under the cursor, chain outward ---
+    const raw = (cursor - pad) / base;
+    const anchor = Math.min(n - 1, Math.max(0, Math.floor(raw)));
+    const t = raw - anchor;                        // outside 0..1 past the ends; extrapolating there is fine
+
+    const offsets = new Array(n);
+    offsets[anchor] = cursor - t * sizes[anchor];  // cursor keeps the same fraction across the pinned item
+    for (let i = anchor - 1; i >= 0; i--) offsets[i] = offsets[i + 1] - sizes[i];     // pushed back
+    for (let i = anchor + 1; i < n; i++) offsets[i] = offsets[i - 1] + sizes[i - 1];  // pushed forward
+
+    return { sizes, offsets, factors };
+  }
+
+  // Nothing clamps a laid-out row back into its box, and nothing needs to:
+  // anchoring only ever pushes items OUTWARD from the cursor, so a row that
+  // covers its box at rest still covers it magnified — a gap can't open at
+  // either end. `scroll` is already bounded, which is what keeps the resting
+  // row covering the box in the first place. Sliding the row to "fit" would
+  // drag the anchored item out from under the pointer, which is precisely the
+  // thing the anchor exists to prevent; overflow past the ends is the Dock
+  // growing out over its surroundings, and .window's overflow is the backstop.
+
+  // ---- The ramp: magnification tracks the cursor 1:1 while it moves, but
+  //      eases in on arrival and out on departure rather than snapping.
+  //      Also owns `scroll`, which is simply an offset applied to the RESTING
+  //      layout — so magnification and anchoring follow it for free. ----
+  function makeDock(render) {
+    let cursor = -9999, intensity = 0, target = 0, raf = null;
+    let scroll = 0, scrollMax = 0;
+
+    function frame() {
+      intensity += (target - intensity) * 0.28;
+      if (Math.abs(target - intensity) < 0.002) intensity = target;
+      render(cursor, intensity, scroll);
+      raf = intensity !== target ? requestAnimationFrame(frame) : null;  // settled: stop; next event restarts
+    }
+    const kick = () => { if (raf === null) raf = requestAnimationFrame(frame); };
+
+    return {
+      move(pos) { cursor = pos; target = 1; kick(); },
+      leave()   { target = 0; kick(); },
+      reset()   { render(-9999, 0, scroll); },
+      scrollable() { return scrollMax > 0; },
+      setScrollMax(m) {
+        scrollMax = Math.max(0, m);
+        scroll = Math.min(scroll, scrollMax);
+      },
+      wheel(delta) {
+        if (scrollMax <= 0) return false;
+        const next = Math.max(0, Math.min(scrollMax, scroll + delta));
+        if (next === scroll) return false;
+        scroll = next;
+        kick();
+        return true;
+      },
+    };
+  }
+
+  // ================= Horizontal Dock: the tab bar =================
+  // Icon-only, exactly like the Dock. The item's SIZE is its icon's cell —
+  // titles play no part in the layout at all; they live in one floating label.
+  const TAB_ICON     = 40;                    // resting icon size
+  const TAB_ICON_MAX = TAB_ICON * 3;          // 120px — 3x under the pointer
+  const TAB_GAP      = 16;                    // breathing room around each icon
+  const TAB_BASE     = TAB_ICON + TAB_GAP;
+  const TAB_FULL     = TAB_ICON_MAX + TAB_GAP;
+  const TAB_SPREAD   = 165;
+
+  const tabbar = document.getElementById("tabbar");
+  const tabLabel = document.getElementById("tabLabel");
+  const tabEls = [], tabIcons = [];
+  const tabFulls = SITES.map(() => TAB_FULL);   // uniform: every icon magnifies to the same 3x
+
+  const TAB_EDGE = 8;                            // minimum breathing room at each end
+  const TAB_REST = SITES.length * TAB_BASE;      // width of the whole row at rest
+
+  // When the row fits, it's centered in the bar like the Dock on a screen — that
+  // free space either side is what icons get pushed out into. When it doesn't
+  // fit, it pins to the left edge and `scroll` slides it, so you can wheel to
+  // the icons that are off the end.
+  function tabPad(scroll) {
+    return TAB_REST + TAB_EDGE * 2 <= tabbar.clientWidth
+      ? (tabbar.clientWidth - TAB_REST) / 2
+      : TAB_EDGE - scroll;
+  }
+  function tabScrollMax() {
+    return TAB_REST + TAB_EDGE * 2 - tabbar.clientWidth;
+  }
+
+  SITES.forEach((s, i) => {
+    const tab = document.createElement("div");
+    tab.className = "tab" + (i === ACTIVE_INDEX ? " active" : "");
+    tab.innerHTML =
+      '<span class="favicon" style="background:' + s.color + '">' + s.short + '</span>' +
+      '<span class="dot"></span>';
+    tabbar.appendChild(tab);
+    tabEls.push(tab);
+    tabIcons.push(tab.querySelector(".favicon"));
+  });
+
+  function renderTabs(cursorX, intensity, scroll) {
+    // Unclamped: `scroll` is already bounded in wheel(), and clamping would
+    // shove the row sideways to fit, tearing the pinned icon out from under
+    // the cursor — the exact thing the anchor exists to prevent.
+    const { sizes, offsets, factors } = dockLayout(cursorX, TAB_BASE, tabFulls, TAB_SPREAD, tabPad(scroll), intensity);
+
+    let best = -1, bestF = 0, bestIcon = 0;
+    for (let i = 0; i < tabEls.length; i++) {
+      const cell = sizes[i];
+      const icon = cell - TAB_GAP;                       // the icon IS the magnified thing
+      tabEls[i].style.left = offsets[i].toFixed(2) + "px";
+      tabEls[i].style.width = cell.toFixed(2) + "px";
+
+      const ic = tabIcons[i];
+      ic.style.width = icon.toFixed(2) + "px";
+      ic.style.height = icon.toFixed(2) + "px";
+      ic.style.fontSize = (icon * 0.42).toFixed(2) + "px";
+
+      if (factors[i] > bestF) { bestF = factors[i]; best = i; bestIcon = icon; }
+    }
+
+    // One label, riding just under whichever icon the pointer is actually on.
+    if (best >= 0 && bestF > 0.05) {
+      tabLabel.textContent = SITES[best].title;
+      tabLabel.style.left = (offsets[best] + sizes[best] / 2).toFixed(2) + "px";
+      tabLabel.style.top = (8 + bestIcon + 10).toFixed(2) + "px";
+      tabLabel.style.opacity = Math.min(1, (bestF - 0.05) / 0.35).toFixed(3);
+    } else {
+      tabLabel.style.opacity = "0";
+    }
+  }
+
+  // ================= Vertical Docks: both sidebar lists =================
+  // There IS room for names here, so rows keep their titles inline and widen
+  // to fit them — while the icon still swells to 3x like the Dock's.
+  const SB_ICON     = 20;
+  const SB_ICON_MAX = SB_ICON * 3;             // 60px — 3x here too
+  const SB_BASE_H   = 26;
+  const SB_MAX_H    = SB_ICON_MAX + 8;
+  const SB_BASE_W   = 234;
+  const SB_SPREAD   = 78;
+  const SB_CHROME   = 8 + 8 + 12;              // padL + gap + padR (icon width is added live)
+
+  function makeSidebarList(container, items, activeIndex, fillsRemainingSpace) {
+    const els = [], icons = [], fullH = [], fullW = [];
+
+    items.forEach((s, i) => {
+      const el = document.createElement("div");
+      el.className = "sb-item" + (i === activeIndex ? " active" : "");
+      el.innerHTML =
+        '<span class="favicon" style="background:' + s.color + '">' + s.short + '</span>' +
+        '<span class="title">' + s.title + '</span>';
+      container.appendChild(el);
+      els.push(el);
+      icons.push(el.querySelector(".favicon"));
+      fullH.push(SB_MAX_H);                                                        // same height for every row...
+      fullW.push(Math.max(SB_BASE_W, SB_CHROME + SB_ICON_MAX + textWidth(s.title))); // ...but only as wide as ITS title
+    });
+
+    // A list occupies exactly its RESTING height — no padding reserved for
+    // magnification, which would just sit there as dead space between sections.
+    // The exception is the Tabs list, which is a flex child that takes whatever
+    // height is left; if its rows don't fit that, it scrolls.
+    const restH = items.length * SB_BASE_H;
+    if (!fillsRemainingSpace) container.style.height = restH + "px";
+
+    function render(cursorY, intensity, scroll) {
+      const { sizes, offsets, factors } = dockLayout(cursorY, SB_BASE_H, fullH, SB_SPREAD, -scroll, intensity);
+
+      // Deliberately unclamped, exactly like the tab bar. Rows displaced past
+      // an end simply float over the neighbouring section; pulling them back
+      // in would slide the hovered row out from under the pointer.
+      for (let i = 0; i < els.length; i++) {
+        const el = els[i], f = factors[i];
+        const icon = SB_ICON + (SB_ICON_MAX - SB_ICON) * f;
+        el.style.top = offsets[i].toFixed(2) + "px";
+        el.style.height = sizes[i].toFixed(2) + "px";
+        el.style.width = (SB_BASE_W + (fullW[i] - SB_BASE_W) * f).toFixed(2) + "px";
+
+        const ic = icons[i];
+        ic.style.width = icon.toFixed(2) + "px";
+        ic.style.height = icon.toFixed(2) + "px";
+        ic.style.fontSize = (icon * 0.45).toFixed(2) + "px";
+
+        el.classList.toggle("popped", f > 0.02);
+      }
+    }
+
+    const dock = makeDock(render);
+    dock.measure = () => dock.setScrollMax(restH - container.clientHeight);
+
+    container.addEventListener("mousemove", (e) => dock.move(e.clientY - container.getBoundingClientRect().top));
+    container.addEventListener("mouseleave", () => dock.leave());
+    container.addEventListener("wheel", (e) => {
+      // Wheel the rows themselves — no browser scrollbar. Only swallow the
+      // event if this dock actually consumed it, so a dock that's already at
+      // an end doesn't silently eat the page's scroll.
+      if (dock.wheel(e.deltaY)) e.preventDefault();
+    }, { passive: false });
+
+    dock.measure();
+    dock.reset();
+    return dock;
+  }
+
+  // Declared before makeSidebarList runs — its first render clamps against it.
+  const sidebar = document.getElementById("sidebar");
+
+  const tabDock = makeDock(renderTabs);
+  tabbar.addEventListener("mousemove", (e) => tabDock.move(e.clientX - tabbar.getBoundingClientRect().left));
+  tabbar.addEventListener("mouseleave", () => tabDock.leave());
+  tabbar.addEventListener("wheel", (e) => {
+    // A trackpad swipe reports deltaX; a plain wheel only ever reports deltaY.
+    // Take whichever is bigger so both drive this horizontal dock.
+    const d = Math.abs(e.deltaX) > Math.abs(e.deltaY) ? e.deltaX : e.deltaY;
+    if (tabDock.wheel(d)) e.preventDefault();
+  }, { passive: false });
+
+  const favDock = makeSidebarList(document.getElementById("sbFavorites"), FAVORITES, -1, false);
+  const sbDock  = makeSidebarList(document.getElementById("sbTabs"), SITES, ACTIVE_INDEX, true);
+
+  // ---- Sidebar toggle ----
+  document.getElementById("sidebarToggle").addEventListener("click", () => {
+    sidebar.classList.toggle("hidden");
+    relayout();
+  });
+
+  function relayout() {
+    tabDock.setScrollMax(tabScrollMax());
+    favDock.measure();
+    sbDock.measure();
+    tabDock.reset(); favDock.reset(); sbDock.reset();
+  }
+  window.addEventListener("resize", relayout);
+  relayout();
+</script>
+</body>
+</html>
