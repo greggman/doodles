@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>My jsGist</title>
+    <style>
+:root { color-scheme: light dark; }
+html, body { margin: 0; height: 100%; }
+pre {
+  margin: 5px;
+  padding: 1em;
+  background-color: rgba(0, 0, 0, 0.7);
+}
+canvas {
+  z-index: -1;
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+    </style>
+  </head>
+  <body>
+<pre></pre>
+<canvas></canvas>
+
+  </body>
+  <script type="module">
+const pre = document.querySelector('pre');
+const canvas = document.querySelector('canvas');
+const ctx = canvas.getContext('2d');
+
+const old = {};
+
+function draw() {
+  canvas.width = canvas.clientWidth;
+  canvas.height = canvas.clientHeight;
+  ctx.save();
+  ctx.translate(screen.availWidth / 2 - screenLeft, screen.availHeight / 2 - screenTop);
+  const maxDimension = Math.max(canvas.width, canvas.height);
+  const maxRadius = Math.sqrt(maxDimension * maxDimension * 2);
+  const thickness = 50;
+  ctx.strokeStyle = 'red';
+  ctx.lineWidth = 50;
+  for (let r = thickness; r < maxRadius; r += thickness * 2) {
+    ctx.beginPath();
+    ctx.arc(0, 0, r, 0, Math.PI * 2);
+    ctx.stroke();
+  }
+  ctx.restore();
+}
+
+function update() {
+  if (old.screenX !== screenX ||
+      old.screenY !== screenY ||
+      old.screenLeft !== screenLeft ||
+      old.screenTop !== screenTop) {
+    old.screenX = screenX;
+    old.screenY = screenY;
+    old.screenLeft = screenLeft;
+    old.screenTop = screenTop;
+    pre.textContent = `\
+screenX: ${screenX}
+screenY: ${screenY}
+screenLeft: ${screenLeft}
+screenTop: ${screenTop}
+`;
+    requestAnimationFrame(draw);
+  }
+
+  requestAnimationFrame(update);
+}
+
+const observer = new ResizeObserver(draw);
+observer.observe(canvas);
+
+update();
+  </script>
+</html>
