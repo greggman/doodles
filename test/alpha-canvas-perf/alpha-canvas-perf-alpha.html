@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <style>
+:root {
+  color-scheme: light dark;
+  background-color: darkred;
+}
+pre {
+  z-index: 2000;
+}
+canvas {
+  display: block;
+  position: absolute;
+}
+    </style>
+  </head>
+  <body>
+    <pre></pre>
+  </body>
+  <script>
+const vs = `#version 300 es
+precision highp float;
+
+const vec2 POSITIONS[3] = vec2[3](
+  vec2(-1.0, -1.0),
+  vec2( 3.0, -1.0),
+  vec2(-1.0,  3.0)
+);
+
+void main() {
+  vec2 pos = POSITIONS[gl_VertexID];
+  gl_Position = vec4(pos, 0.0, 1.0);
+}
+`;
+
+const fs = `#version 300 es
+precision highp float;
+uniform float time;
+out vec4 fragColor;
+void main() {
+  ivec2 xy = ivec2(gl_FragCoord.xy) / 128;
+  int check = (xy.x + xy.y) % 2;
+  fragColor = check > 0 ? vec4(0, 0, abs(sin(time)) * 0.5 + 0.5, 1) : vec4(0, 0.5, 0.5, 0.5);
+}
+`;
+
+const kSize = 2048;
+
+function test(contextAttributes) {
+  console.log(contextAttributes);
+  const kNumCanvases = 15;
+  const renderFns = new Array(kNumCanvases).fill(0).map((_, i) => {
+    const canvas = document.createElement('canvas');
+    canvas.width = kSize;
+    canvas.height = kSize;
+    canvas.style.left = `${i * 5}px`;
+    canvas.style.top = `${i * 5}px`;
+    canvas.style.transform = `translateZ(${i}px)`;
+    document.body.appendChild(canvas);
+    const gl = canvas.getContext('webgl2', contextAttributes);
+    const prg = createProgram(gl, vs, fs);
+    const uTime = gl.getUniformLocation(prg, 'time');
+    return (time) => {
+      gl.useProgram(prg);
+      gl.viewport(0, 0, canvas.width, canvas.height);
+      gl.uniform1f(uTime, time * 0.001);
+      gl.drawArrays(gl.TRIANGLES, 0, 3);
+    };
+  });
+
+  function render(time) {
+    renderFns.forEach(fn => fn(time));
+    requestAnimationFrame(render);
+  }
+  requestAnimationFrame(render);
+}
+
+function createShader(gl, type, src) {
+  const shader = gl.createShader(type);
+  gl.shaderSource(shader, src);
+  gl.compileShader(shader);
+  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
+    throw new Error(gl.getShaderInfoLog(shader));
+  }
+  return shader;
+}
+
+function createProgram(gl, vs, fs, tf) {
+  const program = gl.createProgram();
+  gl.attachShader(program, createShader(gl, gl.VERTEX_SHADER, vs));
+  gl.attachShader(program, createShader(gl, gl.FRAGMENT_SHADER, fs));
+  if (tf) {
+     gl.transformFeedbackVaryings(program, tf, gl.INTERLEAVED_ATTRIBS); // gl.SEPARATE_ATTRIBS);
+  }
+  gl.linkProgram(program);
+  if (!gl.getProgramParameter(program, gl.LINK_STATUS)) {
+    throw new Error(gl.getProgramInfoLog(program));
+  }
+  return program;
+}
+
+function toBool(s) {
+  return s.toLowerCase() === 'true'
+    ? true
+    : s.toLowerCase() === 'false'
+    ? false
+    : parseInt(s) !== 0;
+}
+
+const params = new URLSearchParams(window.location.search);
+test({alpha: toBool(params.get('alpha') || '0')});
+  </script>
+</html>
