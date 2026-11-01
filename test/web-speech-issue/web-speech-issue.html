@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<body>click me</body>
+<script type="module">
+document.querySelector('body').addEventListener('click', talk, {once: true});
+
+async function talk() {
+    log('get voices:');
+    const voices = await new Promise(resolve => {
+      const now = speechSynthesis.getVoices();
+      if (now.length) {
+        resolve(now);
+      } else {
+        speechSynthesis.onvoiceschanged = () => resolve(speechSynthesis.getVoices());
+      }
+    });
+    const voicesForLang = voices.filter(v => v.lang.startsWith('ja'));
+    log(voicesForLang.map(v => `${v.name} (${v.lang}) local=${v.localService}`).join('\n'));
+    for (const v of voicesForLang) {
+        log(v.name);
+        const u = new SpeechSynthesisUtterance('りんご');
+        u.voice = v; u.lang = v.lang; u.rate = 0.9;
+        u.onstart = () => log('start');
+        u.onerror = e => log('error', e.error);
+        const p = new Promise(resolve => {
+          u.onend = resolve;
+        });
+        speechSynthesis.speak(u);
+        await p;
+        log('----end----');
+    }
+}
+
+function log(...args) {
+  const e = document.createElement('pre');
+  e.textContent = args.join(' ');
+  document.body.append(e);
+}
+</script>
